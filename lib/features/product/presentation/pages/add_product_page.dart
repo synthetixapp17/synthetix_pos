@@ -1,0 +1,440 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/app_currency.dart';
+import '../../../../core/utils/app_validators.dart';
+import '../../domain/entities/product.dart';
+import '../bloc/product_bloc.dart';
+
+class AddProductPage extends StatefulWidget {
+  const AddProductPage({super.key});
+
+  @override
+  State<AddProductPage> createState() => _AddProductPageState();
+}
+
+class _AddProductPageState extends State<AddProductPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _barcodeController = TextEditingController();
+  final _priceController = TextEditingController();
+  final _stockController = TextEditingController(text: '0');
+  final _categoryController = TextEditingController();
+  String _currencyCode = AppCurrency.currentCode;
+  String? _imageData;
+  bool _isPickingImage = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _barcodeController.dispose();
+    _priceController.dispose();
+    _stockController.dispose();
+    _categoryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    setState(() => _isPickingImage = true);
+    try {
+      final image = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 82,
+        maxWidth: 1400,
+      );
+      if (image == null || !mounted) return;
+      final bytes = await image.readAsBytes();
+      setState(() => _imageData = base64Encode(bytes));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo cargar la imagen: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isPickingImage = false);
+    }
+  }
+
+  Future<void> _scanBarcode() async {
+    final result = await context.push<String>('/scan-code');
+    if (result != null && result.isNotEmpty && mounted) {
+      setState(() => _barcodeController.text = result);
+    }
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    if (_imageData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Agrega una imagen para poder guardar el producto.'),
+        ),
+      );
+      return;
+    }
+    final barcode = _barcodeController.text.trim();
+    final duplicate = context.read<ProductBloc>().state.products.any(
+      (product) => product.barcode == barcode,
+    );
+    if (duplicate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ya existe un producto con ese código QR o de barras.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    context.read<ProductBloc>().add(
+      AddProduct(
+        Product(
+          id: const Uuid().v4(),
+          name: _nameController.text.trim(),
+          description: _descriptionController.text.trim(),
+          barcode: barcode,
+          price: double.parse(
+            _priceController.text.trim().replaceAll(',', '.'),
+          ),
+          stock: int.parse(_stockController.text.trim()),
+          imageData: _imageData,
+          currencyCode: _currencyCode,
+          category: _categoryController.text.trim(),
+        ),
+      ),
+    );
+    context.pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currencies = AppCurrency.options;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Agregar producto')),
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            children: [
+              _buildSectionIntro(
+                context,
+                icon: Icons.inventory_2_outlined,
+                title: 'Información del producto',
+                subtitle: 'Completa los datos para agregarlo al inventario.',
+              ),
+              const SizedBox(height: 18),
+              _ImagePickerCard(
+                imageData: _imageData,
+                onPressed: _pickImage,
+                loading: _isPickingImage,
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _nameController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre del producto',
+                  hintText: 'Ej.: Café molido',
+                  prefixIcon: Icon(Icons.label_outline),
+                ),
+                validator: AppValidators.required('El nombre es obligatorio.'),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _descriptionController,
+                minLines: 2,
+                maxLines: 4,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción',
+                  hintText: 'Presentación, características o detalles',
+                  alignLabelWithHint: true,
+                  prefixIcon: Icon(Icons.notes_outlined),
+                ),
+                validator: AppValidators.required(
+                  'La descripción es obligatoria.',
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _categoryController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Categoría',
+                  hintText: 'Ej.: Bebidas, alimentos o accesorios',
+                  helperText:
+                      'Agrupa productos para consultar sus ventas y métricas.',
+                  prefixIcon: Icon(Icons.category_outlined),
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildCodeField(),
+              if (_barcodeController.text.trim().isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _QrPreview(value: _barcodeController.text.trim()),
+              ],
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _priceController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Precio',
+                        hintText: '0,00',
+                        prefixIcon: Icon(Icons.payments_outlined),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Indica el precio.';
+                        }
+                        final normalized = value.trim().replaceAll(',', '.');
+                        final amount = double.tryParse(normalized);
+                        if (amount == null || amount < 0) {
+                          return 'Indica un precio válido.';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _currencyCode,
+                      decoration: const InputDecoration(
+                        labelText: 'Moneda',
+                        prefixIcon: Icon(Icons.currency_exchange),
+                      ),
+                      items: currencies
+                          .map(
+                            (currency) => DropdownMenuItem(
+                              value: currency.code,
+                              child: Text(
+                                '${currency.symbol} ${currency.code}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _currencyCode = value);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _stockController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Existencias iniciales',
+                  prefixIcon: Icon(Icons.warehouse_outlined),
+                ),
+                validator: (value) {
+                  final stock = int.tryParse(value ?? '');
+                  return stock == null || stock < 0
+                      ? 'Indica una cantidad válida.'
+                      : null;
+                },
+              ),
+              const SizedBox(height: 28),
+              FilledButton.icon(
+                onPressed: _submit,
+                icon: const Icon(Icons.add_circle_outline),
+                label: const Text('Guardar producto'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor:
+                      AppTheme.primaryColor.computeLuminance() > .45
+                      ? Colors.black
+                      : Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCodeField() => TextFormField(
+    controller: _barcodeController,
+    onChanged: (_) => setState(() {}),
+    decoration: InputDecoration(
+      labelText: 'Código QR o de barras',
+      hintText: 'Escribe o escanea el código',
+      prefixIcon: const Icon(Icons.qr_code_2),
+      suffixIcon: IconButton(
+        tooltip: 'Escanear código',
+        onPressed: _scanBarcode,
+        icon: const Icon(Icons.qr_code_scanner),
+      ),
+    ),
+    validator: AppValidators.required('El código es obligatorio.'),
+  );
+
+  Widget _buildSectionIntro(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) => Row(
+    children: [
+      CircleAvatar(
+        radius: 25,
+        backgroundColor: Theme.of(
+          context,
+        ).colorScheme.primary.withValues(alpha: .1),
+        child: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      ),
+      const SizedBox(width: 14),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 3),
+            Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class _ImagePickerCard extends StatelessWidget {
+  final String? imageData;
+  final VoidCallback onPressed;
+  final bool loading;
+
+  const _ImagePickerCard({
+    required this.imageData,
+    required this.onPressed,
+    required this.loading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final image = imageData;
+    return InkWell(
+      onTap: loading ? null : onPressed,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        height: 190,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Theme.of(context).dividerColor),
+          image: image == null
+              ? null
+              : DecorationImage(
+                  image: MemoryImage(base64Decode(image)),
+                  fit: BoxFit.cover,
+                ),
+        ),
+        child: image == null
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (loading)
+                      const CircularProgressIndicator()
+                    else
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 42,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    const SizedBox(height: 10),
+                    Text(
+                      loading
+                          ? 'Cargando imagen…'
+                          : 'Agregar imagen del producto',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Selecciona una imagen de tu galería',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              )
+            : Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: FilledButton.tonalIcon(
+                    onPressed: onPressed,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Cambiar imagen'),
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _QrPreview extends StatelessWidget {
+  final String value;
+  const _QrPreview({required this.value});
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 76,
+            height: 76,
+            child: PrettyQrView.data(data: value),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Código listo',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(value, maxLines: 2, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 3),
+                Text(
+                  'El código se usará para identificar el producto.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
