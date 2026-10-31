@@ -11,6 +11,7 @@ import '../../features/shop/presentation/pages/shop_details_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/settings/presentation/pages/receipt_settings_page.dart';
 import '../../features/settings/presentation/pages/product_barcodes_page.dart';
+import '../../features/settings/presentation/pages/quotation_settings_page.dart';
 import '../../features/billing/presentation/pages/checkout_page.dart';
 import '../../features/product/domain/entities/product.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
@@ -86,6 +87,10 @@ final router = GoRouter(
         GoRoute(
           path: '/settings/barcodes',
           builder: (context, state) => const ProductBarcodesPage(),
+        ),
+        GoRoute(
+          path: '/settings/quotation',
+          builder: (context, state) => const QuotationSettingsPage(),
         ),
         GoRoute(
           path: '/products',

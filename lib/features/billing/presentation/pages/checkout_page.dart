@@ -6,13 +6,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
+import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/utils/app_currency.dart';
 import '../../../../core/utils/receipt_preferences.dart';
 import '../../../reports/domain/entities/sale_record.dart';
+import '../../../settings/data/quotation_pdf.dart';
+import '../../../settings/data/quotation_preferences.dart';
+import '../../../settings/domain/entities/quotation.dart';
 import '../../../shop/domain/entities/shop.dart';
 import '../../../shop/presentation/bloc/shop_bloc.dart';
 import '../../../customer/domain/entities/customer.dart';
@@ -29,6 +34,7 @@ class CheckoutPage extends StatefulWidget {
 
 class _CheckoutPageState extends State<CheckoutPage> {
   String? _receiptDialogSaleId;
+  bool _isCreatingQuotation = false;
 
   @override
   Widget build(BuildContext context) {
@@ -259,6 +265,37 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       )
                                     : const SizedBox.shrink(),
                                 const SizedBox(height: 15),
+                                if (QuotationPreferences.enabled &&
+                                    !billingState.saleRecorded)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: SizedBox(
+                                      width: double.infinity,
+                                      child: OutlinedButton.icon(
+                                        onPressed: _isCreatingQuotation
+                                            ? null
+                                            : () => _createQuotation(
+                                                billingState,
+                                                shopName,
+                                              ),
+                                        icon: _isCreatingQuotation
+                                            ? const SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                              )
+                                            : const Icon(
+                                                Icons.picture_as_pdf_outlined,
+                                              ),
+                                        label: const Text(
+                                          'Crear cotización PDF',
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
@@ -319,6 +356,73 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _createQuotation(
+    BillingState billingState,
+    String shopName,
+  ) async {
+    if (_isCreatingQuotation || billingState.cartItems.isEmpty) return;
+    setState(() => _isCreatingQuotation = true);
+    var quotationSaved = false;
+    try {
+      final quotation = QuotationRecord(
+        id: const Uuid().v4().substring(0, 8).toUpperCase(),
+        createdAt: DateTime.now(),
+        customerName: billingState.customer?.name ?? '',
+        shopName: shopName,
+        currencyCode: billingState.cartItems.first.product.currencyCode,
+        lines: billingState.cartItems
+            .map(
+              (item) => QuotationLine(
+                productName: item.product.name,
+                barcode: item.product.barcode,
+                quantity: item.quantity,
+                unitPrice: item.product.price,
+              ),
+            )
+            .toList(),
+      );
+      final bytes = await QuotationPdf.build(
+        quotation: quotation,
+        template: QuotationPreferences.template,
+        primaryColor: QuotationPreferences.primaryColor,
+        accentColor: QuotationPreferences.accentColor,
+      );
+      await QuotationPreferences.addToHistory(quotation);
+      quotationSaved = true;
+      if (!mounted) return;
+      final shared = await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'cotizacion-${quotation.id}.pdf',
+      );
+      if (mounted && shared) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cotización guardada en el historial.')),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Cotización guardada, pero no se pudo abrir la descarga del PDF.',
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            quotationSaved
+                ? 'Cotización guardada, pero no se pudo abrir el PDF: $error'
+                : 'No se pudo crear la cotización: $error',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isCreatingQuotation = false);
+    }
   }
 
   Future<void> _showReceiptOptions(

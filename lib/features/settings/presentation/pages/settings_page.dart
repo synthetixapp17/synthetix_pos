@@ -200,6 +200,13 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const _SettingsDivider(),
               _SettingsTile(
+                icon: Icons.request_quote_outlined,
+                title: 'Cotización',
+                subtitle: 'Activa, diseña y consulta cotizaciones PDF',
+                onTap: () => context.push('/settings/quotation'),
+              ),
+              const _SettingsDivider(),
+              _SettingsTile(
                 icon: Icons.qr_code_scanner,
                 title: 'Códigos de barras',
                 subtitle: 'Consulta e imprime etiquetas de productos',
