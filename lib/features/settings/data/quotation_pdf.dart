@@ -29,10 +29,14 @@ class QuotationPdf {
           pw.Container(
             padding: const pw.EdgeInsets.all(22),
             decoration: pw.BoxDecoration(
-              color: isMinimal ? PdfColors.white : primary,
-              borderRadius: pw.BorderRadius.circular(12),
+              color: isMinimal || isProfessional ? PdfColors.white : primary,
+              borderRadius: isProfessional
+                  ? null
+                  : pw.BorderRadius.circular(12),
               border: isMinimal
                   ? pw.Border.all(color: PdfColors.grey300)
+                  : isProfessional
+                  ? pw.Border(left: pw.BorderSide(color: accent, width: 5))
                   : null,
             ),
             child: pw.Row(
@@ -48,7 +52,9 @@ class QuotationPdf {
                             ? 'MI TIENDA'
                             : quotation.shopName.toUpperCase(),
                         style: pw.TextStyle(
-                          color: isMinimal ? primary : PdfColors.white,
+                          color: isMinimal || isProfessional
+                              ? primary
+                              : PdfColors.white,
                           fontSize: 20,
                           fontWeight: pw.FontWeight.bold,
                         ),
@@ -57,7 +63,9 @@ class QuotationPdf {
                       pw.Text(
                         'COTIZACIÓN',
                         style: pw.TextStyle(
-                          color: isMinimal ? accent : PdfColors.white,
+                          color: isMinimal || isProfessional
+                              ? accent
+                              : PdfColors.white,
                           fontSize: isProfessional ? 15 : 12,
                           fontWeight: pw.FontWeight.bold,
                           letterSpacing: 1.4,
@@ -72,7 +80,9 @@ class QuotationPdf {
                     pw.Text(
                       quotation.id,
                       style: pw.TextStyle(
-                        color: isMinimal ? PdfColors.grey700 : PdfColors.white,
+                        color: isMinimal || isProfessional
+                            ? PdfColors.grey700
+                            : PdfColors.white,
                         fontSize: 9,
                       ),
                     ),
@@ -80,7 +90,9 @@ class QuotationPdf {
                     pw.Text(
                       _formatDate(quotation.createdAt),
                       style: pw.TextStyle(
-                        color: isMinimal ? PdfColors.grey700 : PdfColors.white,
+                        color: isMinimal || isProfessional
+                            ? PdfColors.grey700
+                            : PdfColors.white,
                         fontSize: 9,
                       ),
                     ),
@@ -113,9 +125,11 @@ class QuotationPdf {
                   _money(line.total, quotation.currencyCode),
                 ],
             ],
-            headerDecoration: pw.BoxDecoration(color: accent),
+            headerDecoration: pw.BoxDecoration(
+              color: isMinimal ? _lighten(accent, 0.84) : accent,
+            ),
             headerStyle: pw.TextStyle(
-              color: PdfColors.white,
+              color: isMinimal ? primary : PdfColors.white,
               fontSize: 9,
               fontWeight: pw.FontWeight.bold,
             ),
@@ -141,7 +155,11 @@ class QuotationPdf {
               width: 220,
               padding: const pw.EdgeInsets.all(14),
               decoration: pw.BoxDecoration(
-                color: _lighten(accent, 0.88),
+                color: isMinimal
+                    ? _lighten(accent, 0.9)
+                    : isProfessional
+                    ? primary
+                    : _lighten(accent, 0.88),
                 borderRadius: pw.BorderRadius.circular(8),
               ),
               child: pw.Row(
@@ -150,7 +168,7 @@ class QuotationPdf {
                   pw.Text(
                     'TOTAL',
                     style: pw.TextStyle(
-                      color: primary,
+                      color: isProfessional ? PdfColors.white : primary,
                       fontSize: 11,
                       fontWeight: pw.FontWeight.bold,
                     ),
@@ -158,7 +176,7 @@ class QuotationPdf {
                   pw.Text(
                     _money(quotation.total, quotation.currencyCode),
                     style: pw.TextStyle(
-                      color: primary,
+                      color: isProfessional ? PdfColors.white : primary,
                       fontSize: 13,
                       fontWeight: pw.FontWeight.bold,
                     ),

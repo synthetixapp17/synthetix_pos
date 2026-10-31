@@ -29,6 +29,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     AppCurrencyScope.of(context);
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: const Text('Resumen'),
         actions: [
@@ -102,10 +103,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         )
                         .map((day) => day.amount)
                         .toList();
-                    final lowStockTrend = summary.lowStock
-                        .map((product) => product.stock.toDouble())
-                        .toList();
-                    final metricCards = [
+                    final metricCards = <Widget>[
                       MetricChartCard(
                         title: 'Ventas del día',
                         value: summary.dailyTotals.isEmpty
@@ -118,23 +116,27 @@ class _DashboardPageState extends State<DashboardPage> {
                                     ),
                                   )
                                   .join('\n'),
-                        subtitle: '${summary.transactionCount} transacciones',
                         trend: dailyTrend,
+                        subtitle: '${summary.transactionCount} transacciones',
                         color: const Color(0xFF00E676),
+                        legacyDashboardStyle: true,
                         onTap: () => context.push('/reports?period=today'),
                       ),
                       MetricChartCard(
                         title: 'Stock bajo',
                         value: '${summary.lowStock.length}',
+                        trend: summary.lowStock
+                            .map((product) => product.stock.toDouble())
+                            .toList(),
                         subtitle:
                             '${summary.lowStock.where((product) => product.stock == 0).length} agotados · umbral ${state.threshold}',
-                        trend: lowStockTrend,
                         color: const Color(0xFFFF5252),
                         backgroundColors: const [
                           Color(0xFF4A1D20),
                           Color(0xFF170E10),
                         ],
                         borderColor: const Color(0xFF6B2B30),
+                        legacyDashboardStyle: true,
                         onTap: () => context.push(
                           '/products?lowStock=1&threshold=${state.threshold}',
                         ),

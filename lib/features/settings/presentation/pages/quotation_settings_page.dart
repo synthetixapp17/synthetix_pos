@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../core/utils/app_currency.dart';
+import '../../../shop/presentation/bloc/shop_bloc.dart';
 import '../../data/quotation_pdf.dart';
 import '../../data/quotation_preferences.dart';
 import '../../domain/entities/quotation.dart';
@@ -41,6 +43,7 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
     _primaryColor = QuotationPreferences.primaryColor;
     _accentColor = QuotationPreferences.accentColor;
     _loadHistory();
+    context.read<ShopBloc>().add(LoadShopEvent());
   }
 
   void _loadHistory() {
@@ -93,6 +96,91 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
     });
   }
 
+  Future<void> _previewTemplate(String template) async {
+    final selected = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: const Color(0xFFF5F7FA),
+        insetPadding: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480, maxHeight: 680),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Vista previa · $template',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Cerrar vista previa',
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: 0.707,
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 22,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: BlocBuilder<ShopBloc, ShopState>(
+                          builder: (context, state) => _InvoicePreview(
+                            name: template,
+                            shopName: state is ShopLoaded
+                                ? state.shop.name
+                                : '',
+                            primaryColor: _primaryColor,
+                            accentColor: _accentColor,
+                            expanded: true,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    icon: const Icon(Icons.check_rounded),
+                    label: const Text('Usar esta plantilla'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (selected == true && mounted) {
+      setState(() => _template = template);
+    }
+  }
+
   void _selectCombination(int primary, int accent) {
     setState(() {
       _primaryColor = primary;
@@ -130,14 +218,41 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
   String _hex(int color) =>
       '#${(color & 0x00FFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
 
+  String _colorLabel(int primary, int accent) {
+    final index = _colorPairs.indexWhere(
+      (pair) => pair.$1 == primary && pair.$2 == accent,
+    );
+    return ['Verde', 'Azul', 'Violeta', 'Ámbar', 'Neutro'][index < 0
+        ? 0
+        : index];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme.copyWith(
+      brightness: Brightness.light,
+      primary: Color(_primaryColor),
+      onPrimary: Colors.white,
+      surface: Colors.white,
+      onSurface: const Color(0xFF202938),
+      onSurfaceVariant: const Color(0xFF687386),
+      outlineVariant: const Color(0xFFE5EAF0),
+    );
     final accentIsLight = Color(_accentColor).computeLuminance() > 0.58;
-    return Scaffold(
+    return Theme(
+      data: theme.copyWith(
+        colorScheme: colors,
+        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: const Text('Cotización'),
         centerTitle: true,
+          foregroundColor: const Color(0xFF202938),
+          backgroundColor: const Color(0xFFF5F7FA),
+          surfaceTintColor: Colors.transparent,
         leading: IconButton(
           tooltip: 'Volver',
           onPressed: () => context.pop(),
@@ -157,7 +272,8 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
                       child: SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         value: _enabled,
-                        onChanged: (value) => setState(() => _enabled = value),
+                          onChanged: (value) =>
+                              setState(() => _enabled = value),
                         secondary: Container(
                           width: 46,
                           height: 46,
@@ -214,6 +330,7 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
                                   accentColor: _accentColor,
                                   onTap: () =>
                                       setState(() => _template = template),
+                                    onPreview: () => _previewTemplate(template),
                                 );
                               },
                             ),
@@ -224,7 +341,8 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
                             children: [
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                   children: [
                                     const Text(
                                       'Colores',
@@ -309,6 +427,7 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
                                 _ColorCombination(
                                   primary: primary,
                                   accent: accent,
+                                    label: _colorLabel(primary, accent),
                                   selected:
                                       primary == _primaryColor &&
                                       accent == _accentColor,
@@ -419,6 +538,7 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
           ),
         ),
       ),
+      ),
     );
   }
 }
@@ -432,13 +552,9 @@ class _SurfaceCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(
-        color: Theme.of(
-          context,
-        ).colorScheme.outlineVariant.withValues(alpha: 0.7),
-      ),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: const Color(0xFFE9EDF2)),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.035),
@@ -457,6 +573,7 @@ class _TemplateOption extends StatelessWidget {
   final int primaryColor;
   final int accentColor;
   final VoidCallback onTap;
+  final VoidCallback onPreview;
 
   const _TemplateOption({
     required this.name,
@@ -464,57 +581,52 @@ class _TemplateOption extends StatelessWidget {
     required this.primaryColor,
     required this.accentColor,
     required this.onTap,
+    required this.onPreview,
   });
 
   @override
   Widget build(BuildContext context) {
     final primary = Color(primaryColor);
-    final accent = Color(accentColor);
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: SizedBox(
-        width: 104,
+        width: 124,
         child: Column(
           children: [
-            Expanded(
+            SizedBox(
+              height: 116,
               child: Stack(
                 children: [
-                  Container(
-                    width: 104,
-                    padding: const EdgeInsets.all(10),
+                  Positioned.fill(
+                    child: Container(
+                      padding: const EdgeInsets.all(9),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(10),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: selected ? primary : Colors.black12,
-                        width: selected ? 3 : 1,
+                          color: selected ? primary : const Color(0xFFDCE2EA),
+                          width: selected ? 2.5 : 1,
                       ),
-                      boxShadow: const [
+                        boxShadow: [
                         BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 7,
-                          offset: Offset(0, 3),
+                            color: const Color(
+                              0xFF172B4D,
+                            ).withValues(alpha: 0.06),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(height: 14, color: primary),
-                        const SizedBox(height: 7),
-                        Container(width: 48, height: 4, color: accent),
-                        const SizedBox(height: 7),
-                        for (var index = 0; index < 3; index++) ...[
-                          Container(height: 3, color: Colors.grey.shade300),
-                          const SizedBox(height: 5),
-                        ],
-                        const Spacer(),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Container(width: 34, height: 7, color: accent),
-                        ),
-                      ],
+                    child: BlocBuilder<ShopBloc, ShopState>(
+                      builder: (context, state) => _InvoicePreview(
+                        name: name,
+                        shopName: state is ShopLoaded ? state.shop.name : '',
+                        primaryColor: primaryColor,
+                        accentColor: accentColor,
+                      ),
                     ),
+                  ),
                   ),
                   if (selected)
                     Positioned(
@@ -530,6 +642,30 @@ class _TemplateOption extends StatelessWidget {
                         ),
                       ),
                     ),
+                  Positioned(
+                    right: 3,
+                    bottom: 3,
+                    child: Material(
+                      color: Colors.white,
+                      shape: const CircleBorder(),
+                      elevation: 3,
+                      child: IconButton(
+                        tooltip: 'Ampliar plantilla $name',
+                        onPressed: onPreview,
+                        icon: Icon(
+                          Icons.open_in_full_rounded,
+                          color: primary,
+                          size: 15,
+                        ),
+                        constraints: const BoxConstraints.tightFor(
+                          width: 30,
+                          height: 30,
+                        ),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -543,6 +679,321 @@ class _TemplateOption extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _InvoicePreview extends StatelessWidget {
+  final String name;
+  final String shopName;
+  final int primaryColor;
+  final int accentColor;
+  final bool expanded;
+
+  const _InvoicePreview({
+    required this.name,
+    required this.shopName,
+    required this.primaryColor,
+    required this.accentColor,
+    this.expanded = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Color(primaryColor);
+    final accent = Color(accentColor);
+    final displayShopName = shopName.trim().isEmpty
+        ? 'MI TIENDA'
+        : shopName.trim().toUpperCase();
+    final minimal = name == 'Minimal';
+    final professional = name == 'Profesional';
+    final scale = expanded ? 1.0 : 0.56;
+    final textColor = const Color(0xFF263247);
+    final muted = const Color(0xFF7C8797);
+    final line = const Color(0xFFE5E9EF);
+    final baseFont = expanded ? 1.0 : 0.72;
+
+    TextStyle style({
+      required double size,
+      Color? color,
+      FontWeight weight = FontWeight.w500,
+    }) => TextStyle(
+      color: color ?? textColor,
+      fontSize: size * baseFont,
+      fontWeight: weight,
+    );
+
+    Widget detailRow(String product, String quantity, String amount) => Padding(
+      padding: EdgeInsets.symmetric(vertical: 7 * scale),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 5,
+            child: Text(
+              product,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style(size: 10),
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Text(
+              quantity,
+              textAlign: TextAlign.center,
+              style: style(size: 9, color: muted),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              amount,
+              textAlign: TextAlign.right,
+              style: style(size: 9, weight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return ClipRect(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (professional)
+            Container(
+              padding: EdgeInsets.all(10 * scale),
+              decoration: BoxDecoration(
+                color: primary,
+                borderRadius: BorderRadius.circular(6 * scale),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayShopName,
+                          style: style(
+                            size: 12,
+                            color: Colors.white,
+                            weight: FontWeight.w900,
+                          ),
+                        ),
+                        SizedBox(height: 3 * scale),
+                        Text(
+                          'PROPUESTA COMERCIAL',
+                          style: style(
+                            size: 7,
+                            color: Colors.white.withValues(alpha: 0.78),
+                            weight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.all(6 * scale),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(5 * scale),
+                    ),
+                    child: Text(
+                      'COTIZACIÓN\nN.º 001',
+                      textAlign: TextAlign.right,
+                      style: style(
+                        size: 7,
+                        color: Colors.white,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            if (!minimal)
+              Container(
+                height: 5 * scale,
+                decoration: BoxDecoration(
+                  color: primary,
+                  borderRadius: BorderRadius.circular(4 * scale),
+                ),
+              )
+            else
+              Container(height: 2 * scale, color: accent),
+            SizedBox(height: 8 * scale),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayShopName,
+                        style: style(
+                          size: 12,
+                          color: primary,
+                          weight: FontWeight.w900,
+                        ),
+                      ),
+                      SizedBox(height: 3 * scale),
+                      Text(
+                        'COTIZACIÓN',
+                        style: style(
+                          size: 8,
+                          color: accent,
+                          weight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  'N.º 001 · 31/10/2026',
+                  textAlign: TextAlign.right,
+                  style: style(size: 7, color: muted),
+                ),
+              ],
+            ),
+          ],
+          SizedBox(height: 14 * scale),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(9 * scale),
+            decoration: BoxDecoration(
+              color: minimal ? Colors.transparent : const Color(0xFFF5F7FA),
+              borderRadius: BorderRadius.circular(5 * scale),
+              border: minimal ? Border.all(color: line) : null,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.person_outline_rounded,
+                  size: 13 * scale,
+                  color: primary,
+                ),
+                SizedBox(width: 6 * scale),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('PREPARADO PARA', style: style(size: 6, color: muted)),
+                      SizedBox(height: 2 * scale),
+                      Text(
+                        'José Núñez',
+                        style: style(size: 9, weight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 12 * scale),
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: 5 * scale,
+              vertical: 6 * scale,
+            ),
+            decoration: BoxDecoration(
+              color: minimal ? Colors.transparent : accent,
+              borderRadius: BorderRadius.circular(3 * scale),
+              border: minimal ? Border(bottom: BorderSide(color: line)) : null,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: Text(
+                    'PRODUCTO',
+                    style: style(
+                      size: 7,
+                      color: minimal ? primary : Colors.white,
+                      weight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'CANT.',
+                    textAlign: TextAlign.center,
+                    style: style(
+                      size: 6,
+                      color: minimal ? muted : Colors.white,
+                      weight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'IMPORTE',
+                    textAlign: TextAlign.right,
+                    style: style(
+                      size: 6,
+                      color: minimal ? muted : Colors.white,
+                      weight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          detailRow('Café molido', '2', '\$25.00'),
+          Divider(height: 1, color: line),
+          detailRow('Té verde', '1', '\$35.00'),
+          Divider(height: 1, color: line),
+          SizedBox(height: 10 * scale),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: 12 * scale,
+                vertical: 8 * scale,
+              ),
+              decoration: BoxDecoration(
+                color: minimal ? Colors.transparent : primary,
+                borderRadius: BorderRadius.circular(5 * scale),
+                border: minimal ? Border(top: BorderSide(color: accent)) : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'TOTAL',
+                    style: style(
+                      size: 8,
+                      color: minimal ? muted : Colors.white,
+                      weight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(width: 18 * scale),
+                  Text(
+                    '\$60.00',
+                    style: style(
+                      size: 12,
+                      color: minimal ? primary : Colors.white,
+                      weight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Spacer(),
+          Divider(color: line),
+          Text(
+            'Documento de cotización · No representa una factura',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style(size: 6, color: muted),
+          ),
+        ],
       ),
     );
   }
@@ -564,40 +1015,67 @@ class _PdfColorCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => InkWell(
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    child: InkWell(
     onTap: onTap,
-    borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
     child: Container(
       width: width,
-      padding: const EdgeInsets.all(13),
+        clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE7EBF0)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF172B4D).withValues(alpha: 0.045),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              height: 62,
+              width: double.infinity,
         color: Color(color),
-        borderRadius: BorderRadius.circular(14),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              alignment: Alignment.centerLeft,
+              child: Text(
+                hex,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
       ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+                    child: Text(
                   title,
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
+                        color: Color(0xFF202938),
+                        fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  hex,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  const Icon(
+                    Icons.edit_outlined,
+                    color: Color(0xFF697587),
+                    size: 18,
                 ),
               ],
             ),
           ),
-          const Icon(Icons.edit_outlined, color: Colors.white, size: 19),
         ],
       ),
+    ),
     ),
   );
 }
@@ -643,12 +1121,14 @@ class _ColorCombination extends StatelessWidget {
   final int primary;
   final int accent;
   final bool selected;
+  final String label;
   final VoidCallback onTap;
 
   const _ColorCombination({
     required this.primary,
     required this.accent,
     required this.selected,
+    required this.label,
     required this.onTap,
   });
 
@@ -670,9 +1150,26 @@ class _ColorCombination extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircleAvatar(radius: 8, backgroundColor: Color(primary)),
-          const SizedBox(width: 4),
-          CircleAvatar(radius: 8, backgroundColor: Color(accent)),
+          Container(
+            width: 32,
+            height: 18,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+            ),
+            child: Row(
+              children: [
+                Expanded(child: ColoredBox(color: Color(primary))),
+                Expanded(child: ColoredBox(color: Color(accent))),
+              ],
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     ),

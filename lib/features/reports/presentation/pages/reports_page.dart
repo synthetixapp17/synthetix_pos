@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/utils/app_currency.dart';
+import '../../../../core/widgets/metric_chart_card.dart';
 import '../../domain/entities/sale_record.dart';
 import '../bloc/reports_bloc.dart';
 
@@ -44,6 +45,7 @@ class _ReportsPageState extends State<ReportsPage> {
   Widget build(BuildContext context) {
     AppCurrencyScope.of(context);
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(title: const Text('Reportes de ventas')),
       body: BlocConsumer<ReportsBloc, ReportsState>(
         listener: (context, state) {
@@ -57,9 +59,10 @@ class _ReportsPageState extends State<ReportsPage> {
           final groupedSales = _groupSales(state.sales);
           final products = _topProducts(state.sales);
           final categoryStats = _categoryStats(state.sales);
-          final maxCategoryUnits = categoryStats.isEmpty
-              ? 1
-              : categoryStats.first.units;
+          final totalCategoryUnits = categoryStats.fold<int>(
+            0,
+            (total, category) => total + category.units,
+          );
           final currencyCodes =
               state.sales.map((sale) => sale.currencyCode).toSet().toList()
                 ..sort();
@@ -101,6 +104,23 @@ class _ReportsPageState extends State<ReportsPage> {
                   (saleUnits, line) => saleUnits + line.quantity,
                 ),
           );
+          final transactionTrend = _groupTransactionCounts(
+            state.sales,
+          ).map((count) => count.toDouble()).toList();
+          final currencyTransactionTrend = _groupCurrencyTransactionCounts(
+            state.sales,
+            AppCurrency.currentCode,
+          );
+          final unitsTrend = _groupUnitCounts(
+            state.sales,
+          ).map((count) => count.toDouble()).toList();
+          final revenueTrend = groupedSales
+              .map((bucket) => bucket.amounts[AppCurrency.currentCode] ?? 0.0)
+              .toList();
+          final averageTrend = List.generate(groupedSales.length, (index) {
+            final count = currencyTransactionTrend[index].toDouble();
+            return count == 0 ? 0.0 : revenueTrend[index] / count;
+          });
           return RefreshIndicator(
             onRefresh: () async => _load(),
             child: ListView(
@@ -125,8 +145,9 @@ class _ReportsPageState extends State<ReportsPage> {
                     const SizedBox(height: 16),
                     LayoutBuilder(
                       builder: (context, constraints) {
-                        final tileWidth = constraints.maxWidth >= 900
-                            ? (constraints.maxWidth - 36) / 4
+                    final columns = constraints.maxWidth < 300 ? 1 : 2;
+                    final tileWidth = columns == 1
+                        ? constraints.maxWidth
                             : (constraints.maxWidth - 12) / 2;
                         return Wrap(
                           spacing: 12,
@@ -137,8 +158,9 @@ class _ReportsPageState extends State<ReportsPage> {
                               child: _SummaryTile(
                                 title: 'Ingresos del periodo',
                                 value: totalLabel,
-                                icon: Icons.account_balance_wallet_outlined,
                                 accent: const Color(0xFF1E9B72),
+                            badgeLabel: 'En el periodo',
+                            trend: revenueTrend,
                               ),
                             ),
                             SizedBox(
@@ -146,8 +168,9 @@ class _ReportsPageState extends State<ReportsPage> {
                               child: _SummaryTile(
                                 title: 'Transacciones',
                                 value: '${state.sales.length}',
-                                icon: Icons.receipt_long_outlined,
                                 accent: const Color(0xFF3977D5),
+                            badgeLabel: 'En el periodo',
+                            trend: transactionTrend,
                               ),
                             ),
                             SizedBox(
@@ -155,8 +178,9 @@ class _ReportsPageState extends State<ReportsPage> {
                               child: _SummaryTile(
                                 title: 'Unidades vendidas',
                                 value: '$unitsSold',
-                                icon: Icons.inventory_2_outlined,
                                 accent: const Color(0xFF8A61C9),
+                            badgeLabel: 'En el periodo',
+                            trend: unitsTrend,
                               ),
                             ),
                             SizedBox(
@@ -164,8 +188,9 @@ class _ReportsPageState extends State<ReportsPage> {
                               child: _SummaryTile(
                                 title: 'Ticket promedio',
                                 value: averageLabel,
-                                icon: Icons.trending_up_rounded,
                                 accent: const Color(0xFFE59B36),
+                            badgeLabel: 'Por venta',
+                            trend: averageTrend,
                               ),
                             ),
                           ],
@@ -219,10 +244,8 @@ class _ReportsPageState extends State<ReportsPage> {
                                               getTooltipItems: (spots) => spots.map((
                                                 spot,
                                               ) {
-                                                final bucketIndex = spot.x
-                                                    .toInt();
-                                                final currencyIndex =
-                                                    spot.barIndex;
+                                            final bucketIndex = spot.x.toInt();
+                                            final currencyIndex = spot.barIndex;
                                                 if (bucketIndex < 0 ||
                                                     bucketIndex >=
                                                         groupedSales.length ||
@@ -252,8 +275,7 @@ class _ReportsPageState extends State<ReportsPage> {
                                             show: true,
                                             drawVerticalLine: false,
                                             horizontalInterval: interval,
-                                            getDrawingHorizontalLine: (_) =>
-                                                FlLine(
+                                        getDrawingHorizontalLine: (_) => FlLine(
                                                   color: Theme.of(context)
                                                       .colorScheme
                                                       .outlineVariant
@@ -314,13 +336,11 @@ class _ReportsPageState extends State<ReportsPage> {
                                                       : 1;
                                                   if (index % step != 0 &&
                                                       index !=
-                                                          groupedSales.length -
-                                                              1) {
+                                                      groupedSales.length - 1) {
                                                     return const SizedBox.shrink();
                                                   }
                                                   return Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
+                                                padding: const EdgeInsets.only(
                                                           top: 10,
                                                         ),
                                                     child: Text(
@@ -371,8 +391,7 @@ class _ReportsPageState extends State<ReportsPage> {
                                                 barWidth: 3,
                                                 isStrokeCapRound: true,
                                                 dotData: FlDotData(
-                                                  show:
-                                                      groupedSales.length == 1,
+                                              show: groupedSales.length == 1,
                                                   getDotPainter:
                                                       (
                                                         spot,
@@ -381,9 +400,7 @@ class _ReportsPageState extends State<ReportsPage> {
                                                         index,
                                                       ) => FlDotCirclePainter(
                                                         radius: 4,
-                                                        color: _chartColor(
-                                                          series,
-                                                        ),
+                                                    color: _chartColor(series),
                                                         strokeWidth: 2,
                                                         strokeColor: Theme.of(
                                                           context,
@@ -483,86 +500,19 @@ class _ReportsPageState extends State<ReportsPage> {
                       child: categoryStats.isEmpty
                           ? const _NoData()
                           : Column(
-                              children: [
-                                for (final category in categoryStats)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 9,
+                                children: [
+                                  for (var index = 0;
+                                      index < categoryStats.length;
+                                      index++)
+                                    _CategoryMetricTile(
+                                      category: categoryStats[index],
+                                      share: totalCategoryUnits == 0
+                                          ? 0
+                                          : categoryStats[index].units /
+                                                totalCategoryUnits,
+                                      color: _chartColor(index),
                                     ),
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          backgroundColor: Theme.of(
-                                            context,
-                                          ).colorScheme.primaryContainer,
-                                          child: Icon(
-                                            Icons.category_outlined,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimaryContainer,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                category.name,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 3),
-                                              Text(
-                                                '${category.units} unidades · ${category.transactions.length} ventas',
-                                                style: Theme.of(
-                                                  context,
-                                                ).textTheme.bodySmall,
-                                              ),
-                                              const SizedBox(height: 10),
-                                              ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                child: LinearProgressIndicator(
-                                                  value:
-                                                      category.units /
-                                                      maxCategoryUnits,
-                                                  minHeight: 7,
-                                                  backgroundColor:
-                                                      Theme.of(context)
-                                                          .colorScheme
-                                                          .surfaceContainerHighest,
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.primary,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Flexible(
-                                          child: Text(
-                                            category.amounts.entries
-                                                .map(
-                                                  (entry) => AppCurrency.format(
-                                                    entry.value,
-                                                    code: entry.key,
-                                                  ),
-                                                )
-                                                .join('\n'),
-                                            textAlign: TextAlign.end,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
+                                ],
                             ),
                     ),
               ],
@@ -631,6 +581,56 @@ class _ReportsPageState extends State<ReportsPage> {
           ),
         )
         .toList();
+  }
+
+  List<int> _groupTransactionCounts(List<SaleRecord> sales) {
+    final counts = <DateTime, int>{};
+    for (final sale in sales) {
+      final date = _bucketDate(sale.soldAt);
+      counts.update(date, (count) => count + 1, ifAbsent: () => 1);
+    }
+    final dates = counts.keys.toList()..sort();
+    return [for (final date in dates) counts[date]!];
+  }
+
+  List<int> _groupCurrencyTransactionCounts(
+    List<SaleRecord> sales,
+    String currencyCode,
+  ) {
+    final counts = <DateTime, int>{};
+    for (final sale in sales) {
+      final date = _bucketDate(sale.soldAt);
+      counts.putIfAbsent(date, () => 0);
+      if (sale.currencyCode == currencyCode) {
+        counts[date] = counts[date]! + 1;
+      }
+    }
+    final dates = counts.keys.toList()..sort();
+    return [for (final date in dates) counts[date]!];
+  }
+
+  List<int> _groupUnitCounts(List<SaleRecord> sales) {
+    final counts = <DateTime, int>{};
+    for (final sale in sales) {
+      final date = _bucketDate(sale.soldAt);
+      final units = sale.lines.fold<int>(
+        0,
+        (total, line) => total + line.quantity,
+      );
+      counts.update(date, (count) => count + units, ifAbsent: () => units);
+    }
+    final dates = counts.keys.toList()..sort();
+    return [for (final date in dates) counts[date]!];
+  }
+
+  DateTime _bucketDate(DateTime source) {
+    var date = DateTime(source.year, source.month, source.day);
+    if (_grouping == _Grouping.week) {
+      date = date.subtract(Duration(days: date.weekday - 1));
+    } else if (_grouping == _Grouping.month) {
+      date = DateTime(date.year, date.month);
+    }
+    return date;
   }
 
   List<_ProductTotal> _topProducts(List<SaleRecord> sales) {
@@ -813,62 +813,25 @@ class _FilterCard extends StatelessWidget {
 class _SummaryTile extends StatelessWidget {
   final String title;
   final String value;
-  final IconData icon;
   final Color accent;
+  final String badgeLabel;
+  final List<double> trend;
 
   const _SummaryTile({
     required this.title,
     required this.value,
-    required this.icon,
     required this.accent,
+    required this.badgeLabel,
+    required this.trend,
   });
 
   @override
-  Widget build(BuildContext context) => Card(
-    elevation: 0,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(18),
-      side: BorderSide(
-        color: Theme.of(context).dividerColor.withValues(alpha: 0.6),
-      ),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: accent, size: 20),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ],
-      ),
-    ),
+  Widget build(BuildContext context) => MetricChartCard(
+    title: title,
+    value: value,
+    color: accent,
+    trend: trend,
+    badgeLabel: badgeLabel,
   );
 }
 
@@ -972,12 +935,12 @@ class _ReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-    elevation: 0,
+    elevation: 1,
+    shadowColor: const Color(0xFF172B4D).withValues(alpha: 0.06),
+    color: Colors.white,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
-      side: BorderSide(
-        color: Theme.of(context).dividerColor.withValues(alpha: 0.6),
-      ),
+      borderRadius: BorderRadius.circular(22),
+      side: const BorderSide(color: Color(0xFFE9EDF2)),
     ),
     child: Padding(
       padding: const EdgeInsets.all(18),
@@ -1030,22 +993,26 @@ class _RankedProductBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return Row(
       children: [
         Container(
-          width: 30,
-          height: 30,
+          width: 36,
+          height: 36,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [color.withValues(alpha: 0.18), color.withValues(alpha: 0.07)],
+            ),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             '$rank',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            style: TextStyle(
               color: color,
-              fontWeight: FontWeight.w800,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ),
@@ -1061,29 +1028,49 @@ class _RankedProductBar extends StatelessWidget {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                      style: const TextStyle(
+                        color: Color(0xFF202938),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Text(
                     '$quantity uds.',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: colors.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: quantity / maximum,
-                  minHeight: 7,
-                  backgroundColor: colors.surfaceContainerHighest,
-                  color: color,
+              const SizedBox(height: 9),
+              LayoutBuilder(
+                builder: (context, constraints) => Stack(
+                  children: [
+                    Container(
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F2F5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    Container(
+                      width: constraints.maxWidth * (quantity / maximum),
+                      height: 7,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            color.withValues(alpha: 0.62),
+                            color,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1092,6 +1079,110 @@ class _RankedProductBar extends StatelessWidget {
       ],
     );
   }
+}
+
+class _CategoryMetricTile extends StatelessWidget {
+  final _CategoryTotal category;
+  final double share;
+  final Color color;
+
+  const _CategoryMetricTile({
+    required this.category,
+    required this.share,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE9EDF2)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(Icons.category_rounded, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${category.units} unidades · ${category.transactions.length} ventas',
+                      style: const TextStyle(
+                        color: Color(0xFF778397),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (final amount in category.amounts.entries)
+                    Text(
+                      AppCurrency.format(amount.value, code: amount.key),
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: share,
+                    minHeight: 7,
+                    backgroundColor: const Color(0xFFF0F2F5),
+                    color: color,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '${(share * 100).round()}%',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _NoData extends StatelessWidget {

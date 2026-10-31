@@ -166,8 +166,8 @@ class _SettingsPageState extends State<SettingsPage> {
           _BusinessProfileCard(onTap: () => context.push('/shop')),
           const SizedBox(height: 22),
           const _SectionTitle(
-            title: 'Administración',
-            subtitle: 'Gestiona el catálogo y la información del negocio.',
+            title: 'Catálogo y clientes',
+            subtitle: 'Administra productos, existencias y contactos.',
           ),
           _SettingsGroup(
             children: [
@@ -184,7 +184,15 @@ class _SettingsPageState extends State<SettingsPage> {
                 subtitle: 'Directorio y datos de contacto',
                 onTap: () => context.push('/customers'),
               ),
-              const _SettingsDivider(),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const _SectionTitle(
+            title: 'Documentos y etiquetas',
+            subtitle: 'Personaliza lo que compartes e imprimes.',
+          ),
+          _SettingsGroup(
+            children: [
               _SettingsTile(
                 icon: Icons.storefront_outlined,
                 title: 'Datos de la tienda',
@@ -212,7 +220,15 @@ class _SettingsPageState extends State<SettingsPage> {
                 subtitle: 'Consulta e imprime etiquetas de productos',
                 onTap: () => context.push('/settings/barcodes'),
               ),
-              const _SettingsDivider(),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const _SectionTitle(
+            title: 'Análisis del negocio',
+            subtitle: 'Revisa ventas y rendimiento de tu operación.',
+          ),
+          _SettingsGroup(
+            children: [
               _SettingsTile(
                 icon: Icons.bar_chart_outlined,
                 title: 'Reportes y métricas',

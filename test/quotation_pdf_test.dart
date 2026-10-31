@@ -30,8 +30,23 @@ void main() {
       primaryColor: 0xFF2E7D6F,
       accentColor: 0xFF00BFA5,
     );
+    final minimalBytes = await QuotationPdf.build(
+      quotation: quotation,
+      template: 'Minimal',
+      primaryColor: 0xFF2E7D6F,
+      accentColor: 0xFF00BFA5,
+    );
+    final professionalBytes = await QuotationPdf.build(
+      quotation: quotation,
+      template: 'Profesional',
+      primaryColor: 0xFF2E7D6F,
+      accentColor: 0xFF00BFA5,
+    );
 
     expect(latin1.decode(bytes.take(5).toList()), '%PDF-');
+    expect(bytes, isNot(equals(minimalBytes)));
+    expect(bytes, isNot(equals(professionalBytes)));
+    expect(minimalBytes, isNot(equals(professionalBytes)));
     expect(quotation.total, 25);
   });
 }
