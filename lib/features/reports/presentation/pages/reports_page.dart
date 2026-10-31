@@ -57,6 +57,9 @@ class _ReportsPageState extends State<ReportsPage> {
           final groupedSales = _groupSales(state.sales);
           final products = _topProducts(state.sales);
           final categoryStats = _categoryStats(state.sales);
+          final maxCategoryUnits = categoryStats.isEmpty
+              ? 1
+              : categoryStats.first.units;
           final currencyCodes =
               state.sales.map((sale) => sale.currencyCode).toSet().toList()
                 ..sort();
@@ -103,382 +106,465 @@ class _ReportsPageState extends State<ReportsPage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
               children: [
-                _ReportsHeader(
-                  dateLabel:
-                      '${_dateFormat.format(_from)} – ${_dateFormat.format(_to)}',
-                  transactionCount: state.sales.length,
-                ),
-                const SizedBox(height: 16),
-                _FilterCard(
-                  from: _from,
-                  to: _to,
-                  grouping: _grouping,
-                  dateLabel:
-                      '${_dateFormat.format(_from)} – ${_dateFormat.format(_to)}',
-                  onChooseDates: _chooseDates,
-                  onGroupingChanged: (grouping) =>
-                      setState(() => _grouping = grouping),
-                ),
-                const SizedBox(height: 16),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final tileWidth = constraints.maxWidth >= 900
-                        ? (constraints.maxWidth - 36) / 4
-                        : (constraints.maxWidth - 12) / 2;
-                    return Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        SizedBox(
-                          width: tileWidth,
-                          child: _SummaryTile(
-                            title: 'Ingresos del periodo',
-                            value: totalLabel,
-                            icon: Icons.account_balance_wallet_outlined,
-                            accent: const Color(0xFF1E9B72),
-                          ),
-                        ),
-                        SizedBox(
-                          width: tileWidth,
-                          child: _SummaryTile(
-                            title: 'Transacciones',
-                            value: '${state.sales.length}',
-                            icon: Icons.receipt_long_outlined,
-                            accent: const Color(0xFF3977D5),
-                          ),
-                        ),
-                        SizedBox(
-                          width: tileWidth,
-                          child: _SummaryTile(
-                            title: 'Unidades vendidas',
-                            value: '$unitsSold',
-                            icon: Icons.inventory_2_outlined,
-                            accent: const Color(0xFF8A61C9),
-                          ),
-                        ),
-                        SizedBox(
-                          width: tileWidth,
-                          child: _SummaryTile(
-                            title: 'Ticket promedio',
-                            value: averageLabel,
-                            icon: Icons.trending_up_rounded,
-                            accent: const Color(0xFFE59B36),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 18),
-                _ReportCard(
-                  title: 'Ventas por ${_groupLabel(_grouping)}',
-                  child: Column(
-                    children: [
-                      if (state.status == ReportsStatus.loading &&
-                          state.sales.isEmpty)
-                        const SizedBox(
-                          height: 220,
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else if (groupedSales.isEmpty)
-                        const _NoData()
-                      else
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final chartWidth = groupedSales.length > 8
-                                ? (groupedSales.length * 38.0)
-                                      .clamp(constraints.maxWidth, 1200.0)
-                                      .toDouble()
-                                : constraints.maxWidth;
-                            return SizedBox(
-                              height: 250,
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: SizedBox(
-                                  width: chartWidth,
-                                  child: BarChart(
-                                    BarChartData(
-                                      minY: 0,
-                                      maxY: _maxAmount(groupedSales),
-                                      gridData: FlGridData(
-                                        show: true,
-                                        drawVerticalLine: false,
-                                        getDrawingHorizontalLine: (_) => FlLine(
-                                          color: Theme.of(context).dividerColor
-                                              .withValues(alpha: 0.35),
-                                        ),
-                                      ),
-                                      borderData: FlBorderData(show: false),
-                                      titlesData: FlTitlesData(
-                                        topTitles: const AxisTitles(
-                                          sideTitles: SideTitles(
-                                            showTitles: false,
-                                          ),
-                                        ),
-                                        rightTitles: const AxisTitles(
-                                          sideTitles: SideTitles(
-                                            showTitles: false,
-                                          ),
-                                        ),
-                                        leftTitles: AxisTitles(
-                                          sideTitles: SideTitles(
-                                            showTitles: true,
-                                            reservedSize: 44,
-                                            getTitlesWidget: (value, _) => Text(
-                                              '${currencyCodes.length == 1 ? AppCurrency.optionFor(currencyCodes.first).symbol : ''} ${_shortAmount(value)}',
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.labelSmall,
-                                            ),
-                                          ),
-                                        ),
-                                        bottomTitles: AxisTitles(
-                                          sideTitles: SideTitles(
-                                            showTitles: true,
-                                            reservedSize: 42,
-                                            getTitlesWidget: (value, _) {
-                                              final index = value.toInt();
-                                              if (index < 0 ||
-                                                  index >=
-                                                      groupedSales.length) {
-                                                return const SizedBox.shrink();
-                                              }
-                                              final step =
-                                                  groupedSales.length > 10
-                                                  ? 3
-                                                  : 1;
-                                              if (index % step != 0 &&
-                                                  index !=
-                                                      groupedSales.length - 1) {
-                                                return const SizedBox.shrink();
-                                              }
-                                              return Padding(
-                                                padding: const EdgeInsets.only(
-                                                  top: 8,
-                                                ),
-                                                child: Text(
-                                                  groupedSales[index].label,
-                                                  style: Theme.of(
-                                                    context,
-                                                  ).textTheme.labelSmall,
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                                      barGroups: [
-                                        for (
-                                          var index = 0;
-                                          index < groupedSales.length;
-                                          index++
-                                        )
-                                          BarChartGroupData(
-                                            x: index,
-                                            barRods: [
-                                              for (
-                                                var series = 0;
-                                                series < currencyCodes.length;
-                                                series++
-                                              )
-                                                BarChartRodData(
-                                                  toY:
-                                                      groupedSales[index]
-                                                          .amounts[currencyCodes[series]] ??
-                                                      0,
-                                                  width:
-                                                      groupedSales.length > 14
-                                                      ? 7
-                                                      : 13,
-                                                  color: _chartColor(series),
-                                                  borderRadius:
-                                                      BorderRadius.circular(5),
-                                                ),
-                                            ],
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      if (groupedSales.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 14,
-                          runSpacing: 8,
-                          children: currencyCodes
-                              .asMap()
-                              .entries
-                              .map(
-                                (entry) => Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 9,
-                                      height: 9,
-                                      decoration: BoxDecoration(
-                                        color: _chartColor(entry.key),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      entry.value,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.labelSmall,
-                                    ),
-                                  ],
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                _ReportCard(
-                  title: 'Productos más vendidos',
-                  child: products.isEmpty
-                      ? const _NoData()
-                      : Column(
+                    _ReportsHeader(
+                      dateLabel:
+                          '${_dateFormat.format(_from)} – ${_dateFormat.format(_to)}',
+                      transactionCount: state.sales.length,
+                    ),
+                    const SizedBox(height: 16),
+                    _FilterCard(
+                      from: _from,
+                      to: _to,
+                      grouping: _grouping,
+                      dateLabel:
+                          '${_dateFormat.format(_from)} – ${_dateFormat.format(_to)}',
+                      onChooseDates: _chooseDates,
+                      onGroupingChanged: (grouping) =>
+                          setState(() => _grouping = grouping),
+                    ),
+                    const SizedBox(height: 16),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final tileWidth = constraints.maxWidth >= 900
+                            ? (constraints.maxWidth - 36) / 4
+                            : (constraints.maxWidth - 12) / 2;
+                        return Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
                           children: [
                             SizedBox(
-                              height: 220,
-                              child: BarChart(
-                                BarChartData(
-                                  rotationQuarterTurns: 1,
-                                  maxY: (products.first.quantity * 1.2)
-                                      .clamp(1, double.infinity)
-                                      .toDouble(),
-                                  minY: 0,
-                                  titlesData: const FlTitlesData(show: false),
-                                  gridData: const FlGridData(show: false),
-                                  borderData: FlBorderData(show: false),
-                                  barGroups: [
-                                    for (
-                                      var index = 0;
-                                      index < products.length;
-                                      index++
-                                    )
-                                      BarChartGroupData(
-                                        x: index,
-                                        barRods: [
-                                          BarChartRodData(
-                                            toY: products[index].quantity
-                                                .toDouble(),
-                                            width: 18,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                            borderRadius: BorderRadius.circular(
-                                              5,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                  ],
-                                ),
+                              width: tileWidth,
+                              child: _SummaryTile(
+                                title: 'Ingresos del periodo',
+                                value: totalLabel,
+                                icon: Icons.account_balance_wallet_outlined,
+                                accent: const Color(0xFF1E9B72),
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            for (
-                              var index = 0;
-                              index < products.length;
-                              index++
-                            )
-                              ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                leading: CircleAvatar(
-                                  radius: 15,
-                                  child: Text('${index + 1}'),
-                                ),
-                                title: Text(products[index].name),
-                                trailing: Text(
-                                  '${products[index].quantity} unidades',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
+                            SizedBox(
+                              width: tileWidth,
+                              child: _SummaryTile(
+                                title: 'Transacciones',
+                                value: '${state.sales.length}',
+                                icon: Icons.receipt_long_outlined,
+                                accent: const Color(0xFF3977D5),
                               ),
+                            ),
+                            SizedBox(
+                              width: tileWidth,
+                              child: _SummaryTile(
+                                title: 'Unidades vendidas',
+                                value: '$unitsSold',
+                                icon: Icons.inventory_2_outlined,
+                                accent: const Color(0xFF8A61C9),
+                              ),
+                            ),
+                            SizedBox(
+                              width: tileWidth,
+                              child: _SummaryTile(
+                                title: 'Ticket promedio',
+                                value: averageLabel,
+                                icon: Icons.trending_up_rounded,
+                                accent: const Color(0xFFE59B36),
+                              ),
+                            ),
                           ],
-                        ),
-                ),
-                const SizedBox(height: 18),
-                _ReportCard(
-                  title: 'Rendimiento por categoría',
-                  child: categoryStats.isEmpty
-                      ? const _NoData()
-                      : Column(
-                          children: [
-                            for (final category in categoryStats)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 9,
-                                ),
-                                child: Row(
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundColor: Theme.of(
-                                        context,
-                                      ).colorScheme.primaryContainer,
-                                      child: Icon(
-                                        Icons.category_outlined,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onPrimaryContainer,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    _ReportCard(
+                      title: 'Ventas por ${_groupLabel(_grouping)}',
+                      child: Column(
+                        children: [
+                          if (state.status == ReportsStatus.loading &&
+                              state.sales.isEmpty)
+                            const SizedBox(
+                              height: 220,
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else if (groupedSales.isEmpty)
+                            const _NoData()
+                          else
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final chartWidth = groupedSales.length > 12
+                                    ? (groupedSales.length * 42.0)
+                                          .clamp(constraints.maxWidth, 1400.0)
+                                          .toDouble()
+                                    : constraints.maxWidth;
+                                final hasMultipleCurrencies =
+                                    currencyCodes.length > 1;
+                                final maxY = hasMultipleCurrencies
+                                    ? 110.0
+                                    : _maxAmount(groupedSales);
+                                final interval = maxY / 4;
+                                return SizedBox(
+                                  height: 286,
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: SizedBox(
+                                      width: chartWidth,
+                                      child: LineChart(
+                                        LineChartData(
+                                          minX: 0,
+                                          maxX: (groupedSales.length - 1)
+                                              .clamp(1, double.infinity)
+                                              .toDouble(),
+                                          minY: 0,
+                                          maxY: maxY,
+                                          lineTouchData: LineTouchData(
+                                            handleBuiltInTouches: true,
+                                            touchTooltipData: LineTouchTooltipData(
+                                              getTooltipItems: (spots) => spots.map((
+                                                spot,
+                                              ) {
+                                                final bucketIndex = spot.x
+                                                    .toInt();
+                                                final currencyIndex =
+                                                    spot.barIndex;
+                                                if (bucketIndex < 0 ||
+                                                    bucketIndex >=
+                                                        groupedSales.length ||
+                                                    currencyIndex >=
+                                                        currencyCodes.length) {
+                                                  return null;
+                                                }
+                                                final currencyCode =
+                                                    currencyCodes[currencyIndex];
+                                                final amount =
+                                                    groupedSales[bucketIndex]
+                                                        .amounts[currencyCode] ??
+                                                    0;
+                                                return LineTooltipItem(
+                                                  '${groupedSales[bucketIndex].label}\n${AppCurrency.format(amount, code: currencyCode)}',
+                                                  TextStyle(
+                                                    color: _chartColor(
+                                                      currencyIndex,
+                                                    ),
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                );
+                                              }).toList(),
+                                            ),
+                                          ),
+                                          gridData: FlGridData(
+                                            show: true,
+                                            drawVerticalLine: false,
+                                            horizontalInterval: interval,
+                                            getDrawingHorizontalLine: (_) =>
+                                                FlLine(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .outlineVariant
+                                                      .withValues(alpha: 0.65),
+                                                  strokeWidth: 1,
+                                                  dashArray: [4, 4],
+                                                ),
+                                          ),
+                                          borderData: FlBorderData(show: false),
+                                          titlesData: FlTitlesData(
+                                            topTitles: const AxisTitles(
+                                              sideTitles: SideTitles(
+                                                showTitles: false,
+                                              ),
+                                            ),
+                                            rightTitles: const AxisTitles(
+                                              sideTitles: SideTitles(
+                                                showTitles: false,
+                                              ),
+                                            ),
+                                            leftTitles: AxisTitles(
+                                              sideTitles: SideTitles(
+                                                showTitles: true,
+                                                reservedSize: 52,
+                                                interval: interval,
+                                                getTitlesWidget: (value, _) => Text(
+                                                  hasMultipleCurrencies
+                                                      ? '${value.toInt()}%'
+                                                      : '${AppCurrency.optionFor(currencyCodes.first).symbol}${_shortAmount(value)}',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .labelSmall
+                                                      ?.copyWith(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                ),
+                                              ),
+                                            ),
+                                            bottomTitles: AxisTitles(
+                                              sideTitles: SideTitles(
+                                                showTitles: true,
+                                                reservedSize: 34,
+                                                interval: 1,
+                                                getTitlesWidget: (value, _) {
+                                                  final index = value.toInt();
+                                                  if (index < 0 ||
+                                                      index >=
+                                                          groupedSales.length) {
+                                                    return const SizedBox.shrink();
+                                                  }
+                                                  final step =
+                                                      groupedSales.length > 14
+                                                      ? 4
+                                                      : groupedSales.length > 8
+                                                      ? 2
+                                                      : 1;
+                                                  if (index % step != 0 &&
+                                                      index !=
+                                                          groupedSales.length -
+                                                              1) {
+                                                    return const SizedBox.shrink();
+                                                  }
+                                                  return Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          top: 10,
+                                                        ),
+                                                    child: Text(
+                                                      groupedSales[index].label,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .labelSmall
+                                                          ?.copyWith(
+                                                            color: Theme.of(context)
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
+                                                          ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                          lineBarsData: [
+                                            for (
+                                              var series = 0;
+                                              series < currencyCodes.length;
+                                              series++
+                                            )
+                                              LineChartBarData(
+                                                spots: [
+                                                  for (
+                                                    var index = 0;
+                                                    index < groupedSales.length;
+                                                    index++
+                                                  )
+                                                    FlSpot(
+                                                      index.toDouble(),
+                                                      _chartValue(
+                                                        groupedSales[index]
+                                                                .amounts[currencyCodes[series]] ??
+                                                            0,
+                                                        groupedSales,
+                                                        currencyCodes[series],
+                                                        normalized:
+                                                            hasMultipleCurrencies,
+                                                      ),
+                                                    ),
+                                                ],
+                                                isCurved: true,
+                                                curveSmoothness: 0.22,
+                                                color: _chartColor(series),
+                                                barWidth: 3,
+                                                isStrokeCapRound: true,
+                                                dotData: FlDotData(
+                                                  show:
+                                                      groupedSales.length == 1,
+                                                  getDotPainter:
+                                                      (
+                                                        spot,
+                                                        percent,
+                                                        barData,
+                                                        index,
+                                                      ) => FlDotCirclePainter(
+                                                        radius: 4,
+                                                        color: _chartColor(
+                                                          series,
+                                                        ),
+                                                        strokeWidth: 2,
+                                                        strokeColor: Theme.of(
+                                                          context,
+                                                        ).colorScheme.surface,
+                                                      ),
+                                                ),
+                                                belowBarData: BarAreaData(
+                                                  show: true,
+                                                  gradient: LinearGradient(
+                                                    begin: Alignment.topCenter,
+                                                    end: Alignment.bottomCenter,
+                                                    colors: [
+                                                      _chartColor(
+                                                        series,
+                                                      ).withValues(alpha: 0.18),
+                                                      _chartColor(
+                                                        series,
+                                                      ).withValues(alpha: 0.01),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            category.name,
+                                  ),
+                                );
+                              },
+                            ),
+                          if (groupedSales.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 14,
+                              runSpacing: 8,
+                              children: currencyCodes
+                                  .asMap()
+                                  .entries
+                                  .map(
+                                    (entry) => Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 9,
+                                          height: 9,
+                                          decoration: BoxDecoration(
+                                            color: _chartColor(entry.key),
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          entry.value,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.labelSmall,
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    _ReportCard(
+                      title: 'Productos más vendidos',
+                      child: products.isEmpty
+                          ? const _NoData()
+                          : Column(
+                              children: [
+                                for (
+                                  var index = 0;
+                                  index < products.length;
+                                  index++
+                                )
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                    ),
+                                    child: _RankedProductBar(
+                                      rank: index + 1,
+                                      name: products[index].name,
+                                      quantity: products[index].quantity,
+                                      maximum: products.first.quantity,
+                                      color: _chartColor(index),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                    ),
+                    const SizedBox(height: 18),
+                    _ReportCard(
+                      title: 'Rendimiento por categoría',
+                      child: categoryStats.isEmpty
+                          ? const _NoData()
+                          : Column(
+                              children: [
+                                for (final category in categoryStats)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 9,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: Theme.of(
+                                            context,
+                                          ).colorScheme.primaryContainer,
+                                          child: Icon(
+                                            Icons.category_outlined,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimaryContainer,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                category.name,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Text(
+                                                '${category.units} unidades · ${category.transactions.length} ventas',
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.bodySmall,
+                                              ),
+                                              const SizedBox(height: 10),
+                                              ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                child: LinearProgressIndicator(
+                                                  value:
+                                                      category.units /
+                                                      maxCategoryUnits,
+                                                  minHeight: 7,
+                                                  backgroundColor:
+                                                      Theme.of(context)
+                                                          .colorScheme
+                                                          .surfaceContainerHighest,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            category.amounts.entries
+                                                .map(
+                                                  (entry) => AppCurrency.format(
+                                                    entry.value,
+                                                    code: entry.key,
+                                                  ),
+                                                )
+                                                .join('\n'),
+                                            textAlign: TextAlign.end,
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
-                                          const SizedBox(height: 3),
-                                          Text(
-                                            '${category.units} unidades · ${category.transactions.length} ventas',
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.bodySmall,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Flexible(
-                                      child: Text(
-                                        category.amounts.entries
-                                            .map(
-                                              (entry) => AppCurrency.format(
-                                                entry.value,
-                                                code: entry.key,
-                                              ),
-                                            )
-                                            .join('\n'),
-                                        textAlign: TextAlign.end,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
                                         ),
-                                      ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                ),
+                                  ),
+                              ],
+                            ),
+                    ),
               ],
             ),
           );
@@ -608,9 +694,22 @@ class _ReportsPageState extends State<ReportsPage> {
     return max == 0 ? 1 : max * 1.2;
   }
 
-  String _shortAmount(double amount) => amount >= 1000
-      ? '${(amount / 1000).toStringAsFixed(0)} mil'
-      : '${amount.toInt()}';
+  double _chartValue(
+    double amount,
+    List<_SalesBucket> buckets,
+    String currencyCode, {
+    required bool normalized,
+  }) {
+    if (!normalized) return amount;
+    final seriesMaximum = buckets.fold<double>(0, (maximum, bucket) {
+      final bucketAmount = bucket.amounts[currencyCode] ?? 0;
+      return bucketAmount > maximum ? bucketAmount : maximum;
+    });
+    return seriesMaximum == 0 ? 0 : amount / seriesMaximum * 100;
+  }
+
+  String _shortAmount(double amount) =>
+      NumberFormat.compact(locale: 'es').format(amount);
 
   Color _chartColor(int index) {
     final colors = [
@@ -912,6 +1011,87 @@ class _ReportCard extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _RankedProductBar extends StatelessWidget {
+  final int rank;
+  final String name;
+  final int quantity;
+  final int maximum;
+  final Color color;
+
+  const _RankedProductBar({
+    required this.rank,
+    required this.name,
+    required this.quantity,
+    required this.maximum,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            '$rank',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '$quantity uds.',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: quantity / maximum,
+                  minHeight: 7,
+                  backgroundColor: colors.surfaceContainerHighest,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _NoData extends StatelessWidget {
