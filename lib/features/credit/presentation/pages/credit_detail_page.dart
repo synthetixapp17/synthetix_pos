@@ -242,6 +242,8 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                 record.customerName,
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
+              if (record.customerIdentity.isNotEmpty)
+                Text('Cédula / RIF: ${record.customerIdentity}'),
               if (record.customerPhone.isNotEmpty)
                 Text('Teléfono: ${record.customerPhone}'),
               if (record.customerEmail.isNotEmpty)
@@ -256,10 +258,17 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
             icon: Icons.receipt_long_outlined,
             children: [
               _MoneyRow(
-                label: 'Total de la compra',
+                label: 'Total del crédito',
                 amount: record.total,
                 code: record.currencyCode,
               ),
+              if (record.interestPercentage > 0)
+                _MoneyRow(
+                  label:
+                      'Interés (${record.interestPercentage.toStringAsFixed(2)}%)',
+                  amount: record.interestAmount,
+                  code: record.currencyCode,
+                ),
               _MoneyRow(
                 label: 'Total abonado',
                 amount: record.paidAmount,

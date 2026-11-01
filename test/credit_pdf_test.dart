@@ -59,4 +59,31 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test(
+    'builds a contract with interest and a multi-payment schedule',
+    () async {
+      final bytes = await buildCreditContractPdf({
+        'empresa': {'nombre': 'Tienda Demo'},
+        'cliente': {'nombre': 'Cliente Demo', 'cedulaRif': 'V-12345678'},
+        'productos': [
+          {'cantidad': 1, 'descripcion': 'Producto', 'precioUnitario': 120},
+        ],
+        'totalVenta': 120,
+        'abonoInicial': 20,
+        'numeroCuotas': 4,
+        'diasPlazo': 30,
+        'porcentajeCredito': 10,
+        'moneda': 'USD',
+        'fechaEmision': DateTime(2026, 10, 31),
+        'condiciones': 'El cliente acepta el cronograma de pagos.',
+        'colorPrincipal': 0xFF183153,
+        'colorAcento': 0xFF43A5D5,
+        'plantilla': 'Profesional',
+      });
+
+      expect(latin1.decode(bytes.take(5).toList()), '%PDF-');
+      expect(bytes.length, greaterThan(1500));
+    },
+  );
 }

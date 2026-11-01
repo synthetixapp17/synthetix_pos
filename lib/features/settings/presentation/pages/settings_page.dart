@@ -229,6 +229,13 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const _SettingsDivider(),
               _SettingsTile(
+                icon: Icons.description_outlined,
+                title: 'Contrato de crédito',
+                subtitle: 'Diseño, colores y cláusulas del PDF de créditos',
+                onTap: () => context.push('/settings/credit-document'),
+              ),
+              const _SettingsDivider(),
+              _SettingsTile(
                 icon: Icons.qr_code_scanner,
                 title: 'Códigos de barras',
                 subtitle: 'Consulta e imprime etiquetas de productos',

@@ -16,6 +16,8 @@ class CustomerModel extends HiveObject {
   final String email;
   @HiveField(4)
   final String address;
+  @HiveField(5)
+  final String identityNumber;
 
   CustomerModel({
     required this.id,
@@ -23,6 +25,7 @@ class CustomerModel extends HiveObject {
     required this.phone,
     required this.email,
     required this.address,
+    this.identityNumber = '',
   });
 
   factory CustomerModel.fromEntity(Customer customer) => CustomerModel(
@@ -31,6 +34,7 @@ class CustomerModel extends HiveObject {
         phone: customer.phone,
         email: customer.email,
         address: customer.address,
+        identityNumber: customer.identityNumber,
       );
 
   Customer toEntity() => Customer(
@@ -39,5 +43,6 @@ class CustomerModel extends HiveObject {
         phone: phone,
         email: email,
         address: address,
+        identityNumber: identityNumber,
       );
 }

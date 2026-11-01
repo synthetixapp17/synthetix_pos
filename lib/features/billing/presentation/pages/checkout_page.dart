@@ -15,6 +15,8 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/utils/app_currency.dart';
 import '../../../../core/utils/receipt_preferences.dart';
 import '../../../credit/data/credit_pdf.dart';
+import '../../../credit/data/credit_preferences.dart';
+import '../../../credit/domain/entities/credit_schedule.dart';
 import '../../../credit/data/credit_repository.dart';
 import '../../../credit/domain/entities/credit_record.dart';
 import '../../../reports/domain/entities/sale_record.dart';
@@ -39,11 +41,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
   final _initialPaymentController = TextEditingController();
   final _installmentsController = TextEditingController(text: '1');
   final _daysBetweenPaymentsController = TextEditingController(text: '30');
+  final _creditRateController = TextEditingController(text: '0');
   String? _receiptDialogSaleId;
   String? _creditSavedSaleId;
   double _creditInitialPayment = 0;
   int _creditInstallments = 1;
   int _creditDaysBetweenPayments = 30;
+  double _creditInterestRate = 0;
   bool _isCreditSale = false;
   bool _isRecordingCredit = false;
   bool _isCreatingQuotation = false;
@@ -53,6 +57,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _initialPaymentController.dispose();
     _installmentsController.dispose();
     _daysBetweenPaymentsController.dispose();
+    _creditRateController.dispose();
     super.dispose();
   }
 
@@ -330,6 +335,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                         _installmentsController,
                                     daysBetweenPaymentsController:
                                         _daysBetweenPaymentsController,
+                                    interestRateController:
+                                        _creditRateController,
+                                    total: billingState.totalAmount,
+                                    currencyCode: currencyCode,
+                                    interestRate: _creditInterestRate,
                                     installmentCount: _creditInstallments,
                                     daysBetweenPayments:
                                         _creditDaysBetweenPayments,
@@ -346,6 +356,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                         ),
                                     onInitialPaymentChanged: (_) =>
                                         setState(() {}),
+                                    onInterestRateChanged: (value) => setState(
+                                      () => _creditInterestRate =
+                                          _parseCreditRate(value),
+                                    ),
                                   ),
                                   const SizedBox(height: 12),
                                 ],
@@ -448,6 +462,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             _initialPaymentController.text.trim().replaceAll(',', '.'),
           );
     if (initialPayment == null ||
+        !initialPayment.isFinite ||
         initialPayment < 0 ||
         initialPayment > billingState.totalAmount) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -460,17 +475,28 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return false;
     }
     final installments = int.tryParse(_installmentsController.text.trim());
+    final interestRate = double.tryParse(
+      _creditRateController.text.trim().replaceAll(',', '.'),
+    );
     final daysBetweenPayments = int.tryParse(
       _daysBetweenPaymentsController.text.trim(),
     );
     if (installments == null ||
         installments < 1 ||
+        installments > 600 ||
+        interestRate == null ||
+        !interestRate.isFinite ||
+        interestRate < 0 ||
         daysBetweenPayments == null ||
-        daysBetweenPayments < 1) {
+        daysBetweenPayments < 1 ||
+        daysBetweenPayments > 3650 ||
+        !(billingState.totalAmount - initialPayment).isFinite ||
+        !((billingState.totalAmount - initialPayment) * interestRate / 100)
+            .isFinite) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Indica un número de cuotas y un plazo en días válidos.',
+            'Usa de 1 a 600 cuotas, una tasa válida y un plazo de 1 a 3650 días.',
           ),
         ),
       );
@@ -478,6 +504,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
     _creditInitialPayment = initialPayment;
     _creditInstallments = installments;
+    _creditInterestRate = interestRate;
     _creditDaysBetweenPayments = daysBetweenPayments;
     return true;
   }
@@ -495,6 +522,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
       final shopState = context.read<ShopBloc>().state;
       final shop = shopState is ShopLoaded ? shopState.shop : const Shop();
       final paid = _creditInitialPayment.clamp(0, sale.total).toDouble();
+      final financedPrincipal = sale.total - paid;
+      final interestAmount = CreditSchedule.simpleInterest(
+        principal: financedPrincipal,
+        percentage: _creditInterestRate,
+      );
       final finalDueDate = sale.soldAt.add(
         Duration(days: _creditDaysBetweenPayments * _creditInstallments),
       );
@@ -505,9 +537,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
         customerPhone: customer.phone,
         customerEmail: customer.email,
         customerAddress: customer.address,
+        customerIdentity: customer.identityNumber,
         initialPayment: paid,
         numberOfInstallments: _creditInstallments,
         daysBetweenPayments: _creditDaysBetweenPayments,
+        interestPercentage: _creditInterestRate,
+        terms: CreditPreferences.terms,
+        template: CreditPreferences.template,
+        primaryColor: CreditPreferences.primaryColor,
+        accentColor: CreditPreferences.accentColor,
         shopAddress: [
           shop.addressLine1,
           shop.addressLine2,
@@ -522,9 +560,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
         customerId: customer.id,
         customerName: customer.name,
         customerPhone: customer.phone,
+        customerIdentity: customer.identityNumber,
         customerEmail: customer.email,
         customerAddress: customer.address,
-        total: sale.total,
+        total: sale.total + interestAmount,
+        interestPercentage: _creditInterestRate,
+        interestAmount: interestAmount,
         currencyCode: sale.currencyCode,
         pdfBase64: base64Encode(pdfBytes),
         payments: paid > 0
@@ -972,6 +1013,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 }
 
+double _parseCreditRate(String value) {
+  final rate = double.tryParse(value.trim().replaceAll(',', '.'));
+  return rate != null && rate.isFinite && rate >= 0 ? rate : 0;
+}
+
 enum _ReceiptAction { print, whatsapp, noReceipt }
 
 enum _CreditSavedAction { close, view, share, print }
@@ -982,12 +1028,17 @@ class _CreditSaleOptions extends StatelessWidget {
   final TextEditingController initialPaymentController;
   final TextEditingController installmentsController;
   final TextEditingController daysBetweenPaymentsController;
+  final TextEditingController interestRateController;
+  final double total;
+  final String currencyCode;
   final int installmentCount;
   final int daysBetweenPayments;
+  final double interestRate;
   final ValueChanged<bool> onChanged;
   final ValueChanged<String> onInstallmentsChanged;
   final ValueChanged<String> onDaysBetweenPaymentsChanged;
   final ValueChanged<String> onInitialPaymentChanged;
+  final ValueChanged<String> onInterestRateChanged;
 
   const _CreditSaleOptions({
     required this.enabled,
@@ -995,21 +1046,44 @@ class _CreditSaleOptions extends StatelessWidget {
     required this.initialPaymentController,
     required this.installmentsController,
     required this.daysBetweenPaymentsController,
+    required this.interestRateController,
+    required this.total,
+    required this.currencyCode,
     required this.installmentCount,
     required this.daysBetweenPayments,
+    required this.interestRate,
     required this.onChanged,
     required this.onInstallmentsChanged,
     required this.onDaysBetweenPaymentsChanged,
     required this.onInitialPaymentChanged,
+    required this.onInterestRateChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final parsedInitialPayment = double.tryParse(
+      initialPaymentController.text.trim().replaceAll(',', '.'),
+    );
+    final initialPayment =
+        parsedInitialPayment != null && parsedInitialPayment.isFinite
+        ? parsedInitialPayment
+        : 0;
+    final downPayment = initialPayment.clamp(0, total).toDouble();
+    final principal = total - downPayment;
+    final rawInterest = principal * interestRate / 100;
+    final interest = rawInterest.isFinite
+        ? CreditSchedule.roundMoney(rawInterest)
+        : 0;
+    final totalDue = principal + interest;
+    final count = installmentCount.clamp(1, 600);
+    final installments = CreditSchedule.splitEvenly(totalDue, count);
+    final scheduleDays = daysBetweenPayments.clamp(1, 3650);
+
     return Container(
       decoration: BoxDecoration(
         color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
@@ -1023,35 +1097,70 @@ class _CreditSaleOptions extends StatelessWidget {
               color: colors.primary,
             ),
             title: const Text(
-              'Registrar como compra a crédito',
-              style: TextStyle(fontWeight: FontWeight.w700),
+              'Plan de venta a crédito',
+              style: TextStyle(fontWeight: FontWeight.w800),
             ),
             subtitle: Text(
               enabled
-                  ? 'El saldo y el comprobante se guardarán en Créditos.'
-                  : 'Selecciona un cliente para habilitar esta opción.',
+                  ? 'Define el abono, la tasa y el calendario antes de registrar.'
+                  : 'Selecciona un cliente para habilitar el financiamiento.',
             ),
           ),
           if (isCreditSale)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 18),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextField(
-                    controller: initialPaymentController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    onChanged: onInitialPaymentChanged,
-                    decoration: const InputDecoration(
-                      labelText: 'Abono inicial (opcional)',
-                      hintText: '0,00',
-                      prefixIcon: Icon(Icons.payments_outlined),
-                      helperText: 'Déjalo vacío si no hay abono inicial.',
+                  const Divider(height: 1),
+                  const SizedBox(height: 16),
+                  Text(
+                    'CONDICIONES DE FINANCIAMIENTO',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: .6,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: initialPaymentController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          onChanged: onInitialPaymentChanged,
+                          decoration: const InputDecoration(
+                            labelText: 'Abono inicial',
+                            hintText: '0,00',
+                            prefixIcon: Icon(Icons.payments_outlined),
+                            helperText: 'Se descuenta de la venta.',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: interestRateController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          onChanged: onInterestRateChanged,
+                          decoration: const InputDecoration(
+                            labelText: 'Interés del crédito',
+                            suffixText: '%',
+                            prefixIcon: Icon(Icons.percent_rounded),
+                            helperText: 'Sobre el saldo financiado.',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: TextField(
@@ -1059,7 +1168,7 @@ class _CreditSaleOptions extends StatelessWidget {
                           keyboardType: TextInputType.number,
                           onChanged: onInstallmentsChanged,
                           decoration: const InputDecoration(
-                            labelText: 'Número de cuotas',
+                            labelText: 'Cantidad de cuotas',
                             prefixIcon: Icon(Icons.format_list_numbered),
                           ),
                         ),
@@ -1071,25 +1180,158 @@ class _CreditSaleOptions extends StatelessWidget {
                           keyboardType: TextInputType.number,
                           onChanged: onDaysBetweenPaymentsChanged,
                           decoration: const InputDecoration(
-                            labelText: 'Días entre pagos',
+                            labelText: 'Frecuencia (días)',
                             prefixIcon: Icon(Icons.calendar_month_outlined),
+                            helperText: '30 días = mensual.',
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'La primera cuota vence en $daysBetweenPayments días; '
-                    'el crédito vencerá en '
-                    '${daysBetweenPayments * installmentCount} días.',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer.withValues(alpha: .42),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: colors.primary.withValues(alpha: .16),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        _CreditSummaryLine(
+                          label: 'Abono inicial',
+                          value: AppCurrency.format(
+                            downPayment,
+                            code: currencyCode,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _CreditSummaryLine(
+                          label: 'Capital financiado',
+                          value: AppCurrency.format(
+                            principal,
+                            code: currencyCode,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _CreditSummaryLine(
+                          label:
+                              'Interés (${interestRate.toStringAsFixed(2)}%)',
+                          value: AppCurrency.format(
+                            interest,
+                            code: currencyCode,
+                          ),
+                        ),
+                        const Divider(height: 18),
+                        _CreditSummaryLine(
+                          label: 'Total de la operación',
+                          value: AppCurrency.format(
+                            downPayment + totalDue,
+                            code: currencyCode,
+                          ),
+                          emphasize: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      const Icon(Icons.event_note_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Calendario de pagos',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Cada $scheduleDays días',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
+                  if (installmentCount > 0 && daysBetweenPayments > 0)
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 176),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: colors.outlineVariant),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        itemCount: count,
+                        separatorBuilder: (_, _) =>
+                            Divider(height: 1, color: colors.outlineVariant),
+                        itemBuilder: (context, index) {
+                          final date = DateTime.now().add(
+                            Duration(days: scheduleDays * (index + 1)),
+                          );
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: colors.primaryContainer,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: TextStyle(
+                                      color: colors.primary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Cuota ${index + 1} · '
+                                    '${DateFormat('dd/MM/yyyy').format(date)}',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ),
+                                Text(
+                                  AppCurrency.format(
+                                    installments[index],
+                                    code: currencyCode,
+                                  ),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  else
+                    Text(
+                      'Indica una cantidad de cuotas y una frecuencia válidas.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  const SizedBox(height: 10),
                   Text(
-                    'El contrato se calcula a partir de estos plazos.',
+                    'El porcentaje se aplica una sola vez al capital financiado. '
+                    'El contrato incluirá el total, el interés y cada fecha de pago.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: colors.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1099,6 +1341,41 @@ class _CreditSaleOptions extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CreditSummaryLine extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool emphasize;
+
+  const _CreditSummaryLine({
+    required this.label,
+    required this.value,
+    this.emphasize = false,
+  });
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: emphasize ? 14 : 12,
+            fontWeight: emphasize ? FontWeight.w800 : FontWeight.w500,
+          ),
+        ),
+      ),
+      Text(
+        value,
+        style: TextStyle(
+          fontSize: emphasize ? 15 : 12,
+          fontWeight: FontWeight.w800,
+          color: emphasize ? Theme.of(context).colorScheme.primary : null,
+        ),
+      ),
+    ],
+  );
 }
 
 class _WhatsappRecipient {

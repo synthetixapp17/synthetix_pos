@@ -53,6 +53,7 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerState> {
           phone: event.phone.trim(),
           email: event.email.trim(),
           address: event.address.trim(),
+          identityNumber: event.identityNumber.trim(),
         );
     final result = await saveCustomerUseCase(customer);
     await result.match(

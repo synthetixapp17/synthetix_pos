@@ -6,6 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../domain/entities/credit_schedule.dart';
 import '../../reports/domain/entities/sale_record.dart';
 
 Future<void> generarContratoCredito(Map<String, dynamic> datos) async {
@@ -29,15 +30,19 @@ class CreditPdf {
     required String customerEmail,
     required String customerAddress,
     required double initialPayment,
+    String customerIdentity = '',
     int numberOfInstallments = 1,
     int daysBetweenPayments = 30,
-    String customerIdentity = '',
+    double interestPercentage = 0,
+    String terms = '',
+    String template = 'Profesional',
+    int primaryColor = 0xFF174B3B,
+    int accentColor = 0xFF2E7D6F,
     String shopAddress = '',
     String shopPhone = '',
     String shopTaxId = '',
     String representativeName = '',
     String representativeTitle = 'Representante legal',
-    String terms = '',
     String? logoData,
   }) => buildCreditContractPdf({
     'empresa': {
@@ -66,11 +71,15 @@ class CreditPdf {
     'abonoInicial': initialPayment,
     'numeroCuotas': numberOfInstallments,
     'diasPlazo': daysBetweenPayments,
+    'porcentajeCredito': interestPercentage,
     'fechaEmision': sale.soldAt,
     'moneda': sale.currencyCode,
     'representanteNombre': representativeName,
     'representanteCargo': representativeTitle,
     'condiciones': terms,
+    'plantilla': template,
+    'colorPrincipal': primaryColor,
+    'colorAcento': accentColor,
   });
 }
 
@@ -90,8 +99,9 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
   final initialPayment = _number(datos['abonoInicial'], fallback: 0);
   final installments = _integer(datos['numeroCuotas']);
   final daysBetweenPayments = _integer(datos['diasPlazo']);
+  final interestPercentage = _number(datos['porcentajeCredito'], fallback: 0);
 
-  if (total <= 0) {
+  if (!total.isFinite || total <= 0) {
     throw ArgumentError.value(total, 'totalVenta', 'Debe ser mayor que cero.');
   }
   if (initialPayment < 0 || initialPayment > total) {
@@ -101,23 +111,51 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
       'Debe estar entre cero y el total de la venta.',
     );
   }
-  if (installments < 1) {
+  if (installments < 1 || installments > 600) {
     throw ArgumentError.value(
       installments,
       'numeroCuotas',
-      'Debe ser al menos una cuota.',
+      'Debe ser de 1 a 600 cuotas.',
     );
   }
-  if (daysBetweenPayments < 0) {
+  if (daysBetweenPayments < 1 || daysBetweenPayments > 3650) {
     throw ArgumentError.value(
       daysBetweenPayments,
       'diasPlazo',
-      'No puede ser negativo.',
+      'Debe estar entre 1 y 3650 días.',
+    );
+  }
+  if (!interestPercentage.isFinite || interestPercentage < 0) {
+    throw ArgumentError.value(
+      interestPercentage,
+      'porcentajeCredito',
+      'No puede ser negativo ni inválido.',
     );
   }
 
   final financedAmount = total - initialPayment;
-  final installmentAmount = financedAmount / installments;
+  final interestAmount = datos['interesCredito'] == null
+      ? CreditSchedule.simpleInterest(
+          principal: financedAmount,
+          percentage: interestPercentage,
+        )
+      : CreditSchedule.roundMoney(_number(datos['interesCredito']));
+  if (!interestAmount.isFinite || interestAmount < 0) {
+    throw ArgumentError.value(
+      interestAmount,
+      'interesCredito',
+      'Debe ser un monto válido y no negativo.',
+    );
+  }
+  final balanceToPay = CreditSchedule.roundMoney(
+    financedAmount + interestAmount,
+  );
+  final installmentAmounts = CreditSchedule.splitEvenly(
+    balanceToPay,
+    installments,
+  );
+  final installmentAmount = installmentAmounts.first;
+  final creditTotal = initialPayment + balanceToPay;
   final firstPaymentDate = issuedAt.add(Duration(days: daysBetweenPayments));
   final finalDueDate = issuedAt.add(
     Duration(days: daysBetweenPayments * installments),
@@ -148,6 +186,13 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
   final pageFormat = _text(datos['tamanoPapel']).toLowerCase() == 'carta'
       ? PdfPageFormat.letter
       : PdfPageFormat.a4;
+  final primaryArgb = _colorValue(datos['colorPrincipal'], 0xFF174B3B);
+  final accentArgb = _colorValue(datos['colorAcento'], 0xFF2E7D6F);
+  final primaryColor = _pdfColor(primaryArgb);
+  final accentColor = _pdfColor(accentArgb);
+  final template = _text(datos['plantilla'], fallback: 'Profesional');
+  final isMinimal = template == 'Minimal';
+  final isProfessional = template == 'Profesional';
 
   document.addPage(
     pw.MultiPage(
@@ -197,7 +242,7 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
                         companyName,
                         maxLines: 2,
                         style: pw.TextStyle(
-                          color: PdfColor.fromHex('#174B3B'),
+                          color: primaryColor,
                           fontSize: 13,
                           fontWeight: pw.FontWeight.bold,
                         ),
@@ -214,7 +259,7 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
                 'CONTRATO DE VENTA A CRÉDITO',
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
-                  color: PdfColor.fromHex('#12382D'),
+                  color: primaryColor,
                   fontSize: 15,
                   fontWeight: pw.FontWeight.bold,
                 ),
@@ -225,9 +270,9 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
               child: pw.Container(
                 padding: const pw.EdgeInsets.all(8),
                 decoration: pw.BoxDecoration(
-                  color: PdfColor.fromHex('#F2F5F3'),
-                  border: pw.Border.all(color: PdfColors.grey400),
-                  borderRadius: pw.BorderRadius.circular(5),
+                  color: _tint(primaryArgb, .94),
+                  border: pw.Border.all(color: accentColor),
+                  borderRadius: pw.BorderRadius.circular(isMinimal ? 10 : 4),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -262,13 +307,13 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
           ],
         ),
         pw.SizedBox(height: 16),
-        _sectionTitle('DATOS DEL CLIENTE'),
+        _sectionTitle('DATOS DEL CLIENTE', primaryColor),
         pw.SizedBox(height: 6),
         pw.Container(
           width: double.infinity,
           padding: const pw.EdgeInsets.all(12),
           decoration: pw.BoxDecoration(
-            color: PdfColor.fromHex('#F3F4F6'),
+            color: _tint(primaryArgb, .96),
             borderRadius: pw.BorderRadius.circular(7),
             border: pw.Border.all(color: PdfColors.grey300),
           ),
@@ -295,7 +340,7 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
           ),
         ),
         pw.SizedBox(height: 16),
-        _sectionTitle('DETALLE DE PRODUCTOS'),
+        _sectionTitle('DETALLE DE PRODUCTOS', primaryColor),
         pw.SizedBox(height: 6),
         pw.TableHelper.fromTextArray(
           headers: const [
@@ -314,10 +359,14 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
               ],
           ],
           headerDecoration: pw.BoxDecoration(
-            color: PdfColor.fromHex('#174B3B'),
+            color: isMinimal
+                ? _tint(accentArgb, .82)
+                : isProfessional
+                ? accentColor
+                : primaryColor,
           ),
           headerStyle: pw.TextStyle(
-            color: PdfColors.white,
+            color: isMinimal ? primaryColor : PdfColors.white,
             fontSize: 8,
             fontWeight: pw.FontWeight.bold,
           ),
@@ -346,7 +395,7 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
         pw.Container(
           padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           decoration: pw.BoxDecoration(
-            color: PdfColor.fromHex('#F2F5F3'),
+            color: _tint(primaryArgb, .94),
             border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey400)),
           ),
           child: pw.Row(
@@ -371,17 +420,14 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
           ),
         ),
         pw.SizedBox(height: 16),
-        _sectionTitle('RESUMEN DEL CRÉDITO'),
+        _sectionTitle('RESUMEN DEL CRÉDITO', primaryColor),
         pw.SizedBox(height: 6),
         pw.Container(
           padding: const pw.EdgeInsets.all(13),
           decoration: pw.BoxDecoration(
-            color: PdfColor.fromHex('#F4F8F5'),
-            borderRadius: pw.BorderRadius.circular(8),
-            border: pw.Border.all(
-              color: PdfColor.fromHex('#39765B'),
-              width: 1.2,
-            ),
+            color: _tint(primaryArgb, .95),
+            borderRadius: pw.BorderRadius.circular(isMinimal ? 16 : 8),
+            border: pw.Border.all(color: accentColor, width: 1.2),
           ),
           child: pw.Column(
             children: [
@@ -390,10 +436,20 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
                 formatMoney(initialPayment),
                 bold: true,
               ),
-              _summaryRow('Monto financiado', formatMoney(financedAmount)),
+              _summaryRow('Precio de venta', formatMoney(total)),
+              _summaryRow('Capital financiado', formatMoney(financedAmount)),
+              _summaryRow(
+                'Interés pactado (${money.format(interestPercentage)}%)',
+                formatMoney(interestAmount),
+              ),
+              _summaryRow(
+                'Total del crédito',
+                formatMoney(creditTotal),
+                bold: true,
+              ),
               _summaryRow('Número de cuotas', '$installments'),
               _summaryRow(
-                'Valor de cada cuota',
+                'Valor de cada cuota (aprox.)',
                 formatMoney(installmentAmount),
               ),
               _summaryRow(
@@ -409,13 +465,57 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
           ),
         ),
         pw.SizedBox(height: 16),
-        _sectionTitle('CLÁUSULAS Y CONDICIONES'),
+        _sectionTitle('CRONOGRAMA DE PAGOS', primaryColor),
+        pw.SizedBox(height: 6),
+        pw.TableHelper.fromTextArray(
+          headers: const ['Cuota', 'Fecha de pago', 'Importe'],
+          data: [
+            for (var index = 0; index < installments; index++)
+              [
+                '${index + 1} de $installments',
+                date.format(
+                  issuedAt.add(
+                    Duration(days: daysBetweenPayments * (index + 1)),
+                  ),
+                ),
+                formatMoney(installmentAmounts[index]),
+              ],
+          ],
+          headerDecoration: pw.BoxDecoration(
+            color: isMinimal
+                ? _tint(accentArgb, .82)
+                : isProfessional
+                ? accentColor
+                : primaryColor,
+          ),
+          headerStyle: pw.TextStyle(
+            color: isMinimal ? primaryColor : PdfColors.white,
+            fontSize: 8,
+            fontWeight: pw.FontWeight.bold,
+          ),
+          cellStyle: const pw.TextStyle(fontSize: 8),
+          cellPadding: const pw.EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 6,
+          ),
+          border: pw.TableBorder(
+            horizontalInside: pw.BorderSide(color: PdfColors.grey300),
+            bottom: pw.BorderSide(color: PdfColors.grey400),
+          ),
+          columnWidths: {
+            0: const pw.FlexColumnWidth(1),
+            1: const pw.FlexColumnWidth(2),
+            2: const pw.FlexColumnWidth(1.4),
+          },
+        ),
+        pw.SizedBox(height: 16),
+        _sectionTitle('CLÁUSULAS Y CONDICIONES', primaryColor),
         pw.SizedBox(height: 6),
         pw.Container(
           width: double.infinity,
           padding: const pw.EdgeInsets.all(12),
           decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.grey400),
+            border: pw.Border.all(color: _tint(primaryArgb, .5)),
             borderRadius: pw.BorderRadius.circular(6),
           ),
           child: pw.Column(
@@ -466,15 +566,35 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
   return document.save();
 }
 
-pw.Widget _sectionTitle(String title) => pw.Text(
+pw.Widget _sectionTitle(String title, PdfColor color) => pw.Text(
   title,
   style: pw.TextStyle(
-    color: PdfColor.fromHex('#174B3B'),
+    color: color,
     fontSize: 9,
     fontWeight: pw.FontWeight.bold,
     letterSpacing: 0.6,
   ),
 );
+
+int _colorValue(Object? source, int fallback) {
+  if (source is int) return source & 0x00FFFFFF;
+  if (source is num) return source.toInt() & 0x00FFFFFF;
+  return fallback & 0x00FFFFFF;
+}
+
+PdfColor _pdfColor(int color) => PdfColor(
+  ((color >> 16) & 0xFF) / 255,
+  ((color >> 8) & 0xFF) / 255,
+  (color & 0xFF) / 255,
+);
+
+PdfColor _tint(int color, double amount) {
+  final red = (color >> 16) & 0xFF;
+  final green = (color >> 8) & 0xFF;
+  final blue = color & 0xFF;
+  int blend(int channel) => (channel + (255 - channel) * amount).round();
+  return _pdfColor((blend(red) << 16) | (blend(green) << 8) | blend(blue));
+}
 
 pw.Widget _infoCell(String label, String value) => pw.Expanded(
   child: pw.RichText(

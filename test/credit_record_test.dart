@@ -12,7 +12,10 @@ void main() {
         customerId: 'customer-1',
         customerName: 'Cliente',
         customerPhone: '55512345',
+        customerIdentity: 'V-12345678',
         total: 120,
+        interestPercentage: 10,
+        interestAmount: 10,
         currencyCode: 'USD',
         pdfBase64: 'cGRm',
         payments: [
@@ -34,6 +37,9 @@ void main() {
       expect(restored.balance, 70);
       expect(restored.isPaid, isFalse);
       expect(restored.pdfBase64, 'cGRm');
+      expect(restored.customerIdentity, 'V-12345678');
+      expect(restored.interestPercentage, 10);
+      expect(restored.interestAmount, 10);
       expect(restored.payments, hasLength(2));
     },
   );

@@ -29,9 +29,12 @@ class CreditRecord {
   final String customerId;
   final String customerName;
   final String customerPhone;
+  final String customerIdentity;
   final String customerEmail;
   final String customerAddress;
   final double total;
+  final double interestPercentage;
+  final double interestAmount;
   final String currencyCode;
   final String pdfBase64;
   final List<CreditPayment> payments;
@@ -46,8 +49,11 @@ class CreditRecord {
     required this.pdfBase64,
     this.dueDate,
     this.customerPhone = '',
+    this.customerIdentity = '',
     this.customerEmail = '',
     this.customerAddress = '',
+    this.interestPercentage = 0,
+    this.interestAmount = 0,
     this.payments = const [],
   });
 
@@ -66,9 +72,12 @@ class CreditRecord {
         customerId: customerId,
         customerName: customerName,
         customerPhone: customerPhone,
+        customerIdentity: customerIdentity,
         customerEmail: customerEmail,
         customerAddress: customerAddress,
         total: total,
+        interestPercentage: interestPercentage,
+        interestAmount: interestAmount,
         currencyCode: currencyCode,
         pdfBase64: pdfBase64 ?? this.pdfBase64,
         payments: payments ?? this.payments,
@@ -81,9 +90,12 @@ class CreditRecord {
     'customerId': customerId,
     'customerName': customerName,
     'customerPhone': customerPhone,
+    'customerIdentity': customerIdentity,
     'customerEmail': customerEmail,
     'customerAddress': customerAddress,
     'total': total,
+    'interestPercentage': interestPercentage,
+    'interestAmount': interestAmount,
     'currencyCode': currencyCode,
     'pdfBase64': pdfBase64,
     'payments': payments.map((payment) => payment.toJson()).toList(),
@@ -98,9 +110,12 @@ class CreditRecord {
     customerId: json['customerId'] as String,
     customerName: json['customerName'] as String,
     customerPhone: json['customerPhone'] as String? ?? '',
+    customerIdentity: json['customerIdentity'] as String? ?? '',
     customerEmail: json['customerEmail'] as String? ?? '',
     customerAddress: json['customerAddress'] as String? ?? '',
     total: (json['total'] as num).toDouble(),
+    interestPercentage: (json['interestPercentage'] as num?)?.toDouble() ?? 0,
+    interestAmount: (json['interestAmount'] as num?)?.toDouble() ?? 0,
     currencyCode: json['currencyCode'] as String? ?? 'USD',
     pdfBase64: json['pdfBase64'] as String? ?? '',
     payments: (json['payments'] as List<dynamic>? ?? const [])

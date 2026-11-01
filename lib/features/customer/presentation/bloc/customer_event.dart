@@ -17,6 +17,7 @@ class SaveCustomerEvent extends CustomerEvent {
   final String phone;
   final String email;
   final String address;
+  final String identityNumber;
 
   const SaveCustomerEvent({
     this.customer,
@@ -24,10 +25,12 @@ class SaveCustomerEvent extends CustomerEvent {
     this.phone = '',
     this.email = '',
     this.address = '',
+    this.identityNumber = '',
   });
 
   @override
-  List<Object?> get props => [customer, name, phone, email, address];
+  List<Object?> get props =>
+      [customer, name, phone, email, address, identityNumber];
 }
 
 class DeleteCustomerEvent extends CustomerEvent {
