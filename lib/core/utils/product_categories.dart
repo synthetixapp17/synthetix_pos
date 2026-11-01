@@ -34,6 +34,8 @@ class ProductCategories {
     Icons.medical_services_outlined,
     Icons.build_outlined,
     Icons.directions_car_outlined,
+    Icons.music_note_outlined,
+    Icons.sports_basketball_outlined,
   ];
 
   static IconData iconFor(int codePoint) => availableIcons.firstWhere(

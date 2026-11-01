@@ -494,7 +494,7 @@ class _ProductListPageState extends State<ProductListPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/products/add'),
         backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
+        foregroundColor: AppTheme.onColor(AppTheme.primaryColor),
         shape: const CircleBorder(),
         child: const Icon(Icons.add, size: 32),
       ),

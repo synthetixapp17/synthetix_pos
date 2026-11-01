@@ -26,15 +26,16 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final style = ElevatedButton.styleFrom(
-      backgroundColor: Theme.of(context).primaryColor,
-      foregroundColor: Colors.white,
+      backgroundColor: colors.primary,
+      foregroundColor: colors.onPrimary,
       padding: padding,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(borderRadius),
       ),
       elevation: elevation,
-      shadowColor: Theme.of(context).primaryColor.withValues(alpha: 0.4),
+      shadowColor: colors.primary.withValues(alpha: 0.3),
       minimumSize: isFullWidth ? const Size.fromHeight(50) : null,
     );
 
@@ -44,11 +45,11 @@ class PrimaryButton extends StatelessWidget {
         child: ElevatedButton.icon(
           onPressed: isLoading ? null : onPressed,
           icon: isLoading
-              ? const SizedBox(
+              ? SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                    color: Colors.white,
+                    color: colors.onPrimary,
                     strokeWidth: 2,
                   ),
                 )
@@ -68,11 +69,11 @@ class PrimaryButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: style,
         child: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                  color: Colors.white,
+                  color: colors.onPrimary,
                   strokeWidth: 2,
                 ),
               )

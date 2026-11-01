@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/data/hive_database.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/utils/app_currency.dart';
 import '../../../billing/presentation/bloc/billing_bloc.dart';
@@ -353,7 +354,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  'Personaliza la identidad visual con una paleta de 25 tonos.',
+                                  'Se aplica al menú, botones y elementos principales de toda la plataforma.',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ],
@@ -474,11 +475,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                           child: selected
                                               ? Icon(
                                                   Icons.check,
-                                                  color:
-                                                      color.computeLuminance() >
-                                                          .45
-                                                      ? Colors.black
-                                                      : Colors.white,
+                                                  color: AppTheme.onColor(color),
                                                   size: 18,
                                                 )
                                               : null,

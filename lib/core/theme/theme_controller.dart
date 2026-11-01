@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 import '../data/hive_database.dart';
 
 class AppThemeController {
-  static final ValueNotifier<ThemeMode> mode = ValueNotifier(ThemeMode.light);
+  static const _primaryColorVersionKey = 'primary_color_theme_version';
+  static const _primaryColorVersion = 1;
+  static const _defaultPrimaryColor = Color(0xFF111111);
+
+  static final ValueNotifier<ThemeMode> mode = ValueNotifier(ThemeMode.dark);
   static final ValueNotifier<Color> primaryColor = ValueNotifier(
-    const Color(0xFF111111),
+    _defaultPrimaryColor,
   );
 
   static const List<Color> availableColors = [
@@ -36,11 +40,30 @@ class AppThemeController {
     Color(0xFF00897B),
   ];
 
-  static void loadSavedMode() {
+  static Future<void> loadSavedMode() async {
     final saved =
-        HiveDatabase.settingsBox.get('theme_mode', defaultValue: 'light')
+        HiveDatabase.settingsBox.get('theme_mode', defaultValue: 'dark')
             as String;
     mode.value = saved == 'dark' ? ThemeMode.dark : ThemeMode.light;
+    final colorVersion =
+        HiveDatabase.settingsBox.get(
+              _primaryColorVersionKey,
+              defaultValue: 0,
+            )
+            as int;
+    if (colorVersion < _primaryColorVersion) {
+      primaryColor.value = _defaultPrimaryColor;
+      await HiveDatabase.settingsBox.put(
+        'primary_color',
+        _defaultPrimaryColor.toARGB32(),
+      );
+      await HiveDatabase.settingsBox.put(
+        _primaryColorVersionKey,
+        _primaryColorVersion,
+      );
+      return;
+    }
+
     final savedColor = HiveDatabase.settingsBox.get('primary_color') as int?;
     if (savedColor != null) primaryColor.value = Color(savedColor);
   }
@@ -66,6 +89,9 @@ class AppThemeController {
 
   static Future<void> setPrimaryColor(Color color) async {
     primaryColor.value = color;
-    await HiveDatabase.settingsBox.put('primary_color', color.toARGB32());
+    await HiveDatabase.settingsBox.putAll({
+      'primary_color': color.toARGB32(),
+      _primaryColorVersionKey: _primaryColorVersion,
+    });
   }
 }

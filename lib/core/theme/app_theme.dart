@@ -5,6 +5,9 @@ import 'theme_controller.dart';
 
 class AppTheme {
   static Color get primaryColor => AppThemeController.primaryColor.value;
+  static Color onColor(Color color) =>
+      color.computeLuminance() > 0.179 ? Colors.black : Colors.white;
+
   static const Color secondaryColor = Color(0xFF737373);
   static const Color backgroundColor = Color(0xFFF2F2F7);
   static const Color surfaceColor = Colors.white;
@@ -30,6 +33,7 @@ class AppTheme {
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
         primary: primaryColor,
+        onPrimary: onColor(primaryColor),
         secondary: secondaryColor,
         surface: surfaceColor,
         error: errorColor,
@@ -43,8 +47,9 @@ class AppTheme {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        foregroundColor: const Color(0xFF17191D),
         titleTextStyle: textTheme.titleLarge?.copyWith(
-          color: Colors.black,
+          color: const Color(0xFF17191D),
           fontWeight: FontWeight.bold,
           fontSize: 18,
         ),
@@ -89,9 +94,7 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
-          foregroundColor: primaryColor.computeLuminance() > 0.45
-              ? Colors.black
-              : Colors.white,
+          foregroundColor: onColor(primaryColor),
           elevation: 4,
           shadowColor: primaryColor.withValues(alpha: 0.4),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
@@ -103,14 +106,65 @@ class AppTheme {
           ),
         ),
       ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: onColor(primaryColor),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: primaryColor,
+        foregroundColor: onColor(primaryColor),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return onColor(primaryColor);
+          }
+          return null;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primaryColor;
+          }
+          return null;
+        }),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return primaryColor;
+          return null;
+        }),
+        checkColor: WidgetStatePropertyAll(onColor(primaryColor)),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return primaryColor;
+          return null;
+        }),
+      ),
+      chipTheme: ChipThemeData(
+        selectedColor: primaryColor.withValues(alpha: .12),
+        checkmarkColor: primaryColor,
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: primaryColor,
+      ),
     );
   }
 
   static ThemeData get darkTheme {
+    final foregroundColor = onColor(primaryColor);
     final scheme = ColorScheme.fromSeed(
       seedColor: Colors.white,
       brightness: Brightness.dark,
       primary: primaryColor,
+      onPrimary: foregroundColor,
       secondary: const Color(0xFFBDBDBD),
       surface: const Color(0xFF171717),
       error: const Color(0xFFCF6679),
@@ -142,20 +196,62 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white, width: 1.5),
+          borderSide: BorderSide(color: primaryColor, width: 1.5),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: primaryColor,
-          foregroundColor: primaryColor.computeLuminance() > 0.45
-              ? Colors.black
-              : Colors.white,
+          foregroundColor: foregroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
         ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: foregroundColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: primaryColor,
+        foregroundColor: foregroundColor,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return foregroundColor;
+          return null;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return primaryColor;
+          return null;
+        }),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return primaryColor;
+          return null;
+        }),
+        checkColor: WidgetStatePropertyAll(foregroundColor),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return primaryColor;
+          return null;
+        }),
+      ),
+      chipTheme: ChipThemeData(
+        selectedColor: primaryColor.withValues(alpha: .2),
+        checkmarkColor: foregroundColor,
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: primaryColor,
       ),
     );
   }

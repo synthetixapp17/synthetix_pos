@@ -23,7 +23,7 @@ void main() async {
   await initializeDateFormatting('es');
   await HiveDatabase.init();
   AppCurrency.loadSavedCurrency();
-  AppThemeController.loadSavedMode();
+  await AppThemeController.loadSavedMode();
   await di.init();
   runApp(const MyApp());
 }

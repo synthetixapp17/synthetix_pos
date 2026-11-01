@@ -2,6 +2,7 @@ import '../../../core/data/hive_database.dart';
 
 class CreditPreferences {
   static const templateKey = 'credit_pdf_template';
+  static const enabledKey = 'credit_enabled';
   static const primaryColorKey = 'credit_pdf_primary_color';
   static const accentColorKey = 'credit_pdf_accent_color';
   static const termsKey = 'credit_contract_terms';
@@ -9,6 +10,9 @@ class CreditPreferences {
   static String get template =>
       HiveDatabase.settingsBox.get(templateKey, defaultValue: 'Profesional')
           as String;
+
+  static bool get enabled =>
+      HiveDatabase.settingsBox.get(enabledKey, defaultValue: true) as bool;
 
   static int get primaryColor =>
       HiveDatabase.settingsBox.get(primaryColorKey, defaultValue: 0xFF174B3B)
@@ -31,12 +35,14 @@ class CreditPreferences {
           as String;
 
   static Future<void> save({
+    required bool enabled,
     required String template,
     required int primaryColor,
     required int accentColor,
     required String terms,
   }) async {
     await HiveDatabase.settingsBox.putAll({
+      enabledKey: enabled,
       templateKey: template,
       primaryColorKey: primaryColor,
       accentColorKey: accentColor,

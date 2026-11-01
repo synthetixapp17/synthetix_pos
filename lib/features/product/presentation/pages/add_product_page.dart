@@ -302,10 +302,7 @@ class _AddProductPageState extends State<AddProductPage> {
                 label: const Text('Guardar producto'),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
-                  foregroundColor:
-                      AppTheme.primaryColor.computeLuminance() > .45
-                      ? Colors.black
-                      : Colors.white,
+                  foregroundColor: AppTheme.onColor(AppTheme.primaryColor),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),

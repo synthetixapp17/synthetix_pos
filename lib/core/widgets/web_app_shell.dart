@@ -47,14 +47,19 @@ class WebAppShell extends StatelessWidget {
 
     final expanded = width >= 1120;
     final colors = Theme.of(context).colorScheme;
+    final sidebarForeground = colors.onPrimary;
     return Scaffold(
       body: Row(
         children: [
           Container(
             width: expanded ? 252 : 76,
             decoration: BoxDecoration(
-              color: colors.surface,
-              border: Border(right: BorderSide(color: colors.outlineVariant)),
+              color: colors.primary,
+              border: Border(
+                right: BorderSide(
+                  color: sidebarForeground.withValues(alpha: .12),
+                ),
+              ),
             ),
             child: SafeArea(
               child: Column(
@@ -69,20 +74,25 @@ class WebAppShell extends StatelessWidget {
                     child: expanded
                         ? Row(
                             children: [
-                              _BrandIcon(color: colors.primary),
+                              _BrandIcon(color: sidebarForeground),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   'Synthetix POS',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        color: sidebarForeground,
+                                        fontWeight: FontWeight.w800,
+                                      ),
                                 ),
                               ),
                             ],
                           )
-                        : _BrandIcon(color: colors.primary),
+                        : _BrandIcon(color: sidebarForeground),
                   ),
                   Expanded(
                     child: ListView(
@@ -95,6 +105,7 @@ class WebAppShell extends StatelessWidget {
                             item: item,
                             expanded: expanded,
                             selected: _isSelected(location, item.path),
+                            foreground: sidebarForeground,
                           ),
                       ],
                     ),
@@ -117,6 +128,7 @@ class WebAppShell extends StatelessWidget {
                       selected:
                           location.startsWith('/settings') ||
                           location == '/shop',
+                      foreground: sidebarForeground,
                     ),
                   ),
                 ],
@@ -170,18 +182,21 @@ class _NavigationButton extends StatelessWidget {
   final _NavigationItem item;
   final bool expanded;
   final bool selected;
+  final Color foreground;
 
   const _NavigationButton({
     required this.item,
     required this.expanded,
     required this.selected,
+    required this.foreground,
   });
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final button = Material(
-      color: selected ? colors.primaryContainer : Colors.transparent,
+      color: selected
+          ? foreground.withValues(alpha: .16)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(13),
       child: InkWell(
         borderRadius: BorderRadius.circular(13),
@@ -199,8 +214,8 @@ class _NavigationButton extends StatelessWidget {
                   selected ? item.selectedIcon : item.icon,
                   size: 21,
                   color: selected
-                      ? colors.onPrimaryContainer
-                      : colors.onSurfaceVariant,
+                      ? foreground
+                      : foreground.withValues(alpha: .72),
                 ),
               ),
               if (expanded)
@@ -211,8 +226,8 @@ class _NavigationButton extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       color: selected
-                          ? colors.onPrimaryContainer
-                          : colors.onSurfaceVariant,
+                          ? foreground
+                          : foreground.withValues(alpha: .72),
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),

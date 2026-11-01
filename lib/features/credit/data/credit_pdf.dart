@@ -188,8 +188,11 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
       : PdfPageFormat.a4;
   final primaryArgb = _colorValue(datos['colorPrincipal'], 0xFF174B3B);
   final accentArgb = _colorValue(datos['colorAcento'], 0xFF2E7D6F);
+  final professionalAccentArgb = _darkenForText(accentArgb);
   final primaryColor = _pdfColor(primaryArgb);
   final accentColor = _pdfColor(accentArgb);
+  final professionalAccentColor = _pdfColor(professionalAccentArgb);
+  final accentTextColor = _pdfColor(_darkenForText(accentArgb));
   final template = _text(datos['plantilla'], fallback: 'Profesional');
   final isMinimal = template == 'Minimal';
   final isProfessional = template == 'Profesional';
@@ -233,26 +236,55 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
             pw.SizedBox(
-              width: 116,
-              child: logo == null
-                  ? pw.Container(
-                      height: 54,
-                      alignment: pw.Alignment.centerLeft,
-                      child: pw.Text(
-                        companyName,
-                        maxLines: 2,
-                        style: pw.TextStyle(
-                          color: primaryColor,
-                          fontSize: 13,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
+              width: 142,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  if (logo == null)
+                    pw.Text(
+                      companyName,
+                      maxLines: 2,
+                      style: pw.TextStyle(
+                        color: primaryColor,
+                        fontSize: 12,
+                        fontWeight: pw.FontWeight.bold,
                       ),
                     )
-                  : pw.Container(
-                      height: 58,
+                  else
+                    pw.Container(
+                      height: 42,
                       alignment: pw.Alignment.centerLeft,
                       child: pw.Image(logo, fit: pw.BoxFit.contain),
                     ),
+                  if (footerAddress.isNotEmpty) ...[
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      footerAddress,
+                      maxLines: 2,
+                      style: const pw.TextStyle(
+                        color: PdfColors.grey700,
+                        fontSize: 7,
+                      ),
+                    ),
+                  ],
+                  if (footerPhone.isNotEmpty)
+                    pw.Text(
+                      footerPhone,
+                      style: const pw.TextStyle(
+                        color: PdfColors.grey700,
+                        fontSize: 7,
+                      ),
+                    ),
+                  if (_text(company['rif']).isNotEmpty)
+                    pw.Text(
+                      'RIF: ${_text(company['rif'])}',
+                      style: const pw.TextStyle(
+                        color: PdfColors.grey700,
+                        fontSize: 7,
+                      ),
+                    ),
+                ],
+              ),
             ),
             pw.Expanded(
               child: pw.Text(
@@ -362,7 +394,7 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
             color: isMinimal
                 ? _tint(accentArgb, .82)
                 : isProfessional
-                ? accentColor
+                ? professionalAccentColor
                 : primaryColor,
           ),
           headerStyle: pw.TextStyle(
@@ -435,22 +467,34 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
                 'Abono inicial',
                 formatMoney(initialPayment),
                 bold: true,
+                valueColor: accentTextColor,
               ),
-              _summaryRow('Precio de venta', formatMoney(total)),
-              _summaryRow('Capital financiado', formatMoney(financedAmount)),
+              _summaryRow(
+                'Precio de venta',
+                formatMoney(total),
+                valueColor: accentTextColor,
+              ),
+              _summaryRow(
+                'Capital financiado',
+                formatMoney(financedAmount),
+                valueColor: accentTextColor,
+              ),
               _summaryRow(
                 'Interés pactado (${money.format(interestPercentage)}%)',
                 formatMoney(interestAmount),
+                valueColor: accentTextColor,
               ),
               _summaryRow(
                 'Total del crédito',
                 formatMoney(creditTotal),
                 bold: true,
+                valueColor: accentTextColor,
               ),
               _summaryRow('Número de cuotas', '$installments'),
               _summaryRow(
                 'Valor de cada cuota (aprox.)',
                 formatMoney(installmentAmount),
+                valueColor: accentTextColor,
               ),
               _summaryRow(
                 'Fecha de primer pago',
@@ -485,7 +529,7 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
             color: isMinimal
                 ? _tint(accentArgb, .82)
                 : isProfessional
-                ? accentColor
+                ? professionalAccentColor
                 : primaryColor,
           ),
           headerStyle: pw.TextStyle(
@@ -596,6 +640,16 @@ PdfColor _tint(int color, double amount) {
   return _pdfColor((blend(red) << 16) | (blend(green) << 8) | blend(blue));
 }
 
+int _darkenForText(int color) {
+  final red = (color >> 16) & 0xFF;
+  final green = (color >> 8) & 0xFF;
+  final blue = color & 0xFF;
+  final luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+  if (luminance <= .58) return color;
+  int darken(int channel) => (channel * .55).round();
+  return (darken(red) << 16) | (darken(green) << 8) | darken(blue);
+}
+
 pw.Widget _infoCell(String label, String value) => pw.Expanded(
   child: pw.RichText(
     text: pw.TextSpan(
@@ -622,30 +676,35 @@ pw.Widget _infoRow(pw.Widget left, pw.Widget right) => pw.Row(
   children: [left, pw.SizedBox(width: 16), right],
 );
 
-pw.Widget _summaryRow(String label, String value, {bool bold = false}) =>
-    pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 4),
-      child: pw.Row(
-        children: [
-          pw.Expanded(
-            child: pw.Text(
-              label,
-              style: pw.TextStyle(
-                fontSize: 9,
-                fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-              ),
-            ),
+pw.Widget _summaryRow(
+  String label,
+  String value, {
+  bool bold = false,
+  PdfColor? valueColor,
+}) => pw.Padding(
+  padding: const pw.EdgeInsets.symmetric(vertical: 4),
+  child: pw.Row(
+    children: [
+      pw.Expanded(
+        child: pw.Text(
+          label,
+          style: pw.TextStyle(
+            fontSize: 9,
+            fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
           ),
-          pw.Text(
-            value,
-            style: pw.TextStyle(
-              fontSize: 9,
-              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-            ),
-          ),
-        ],
+        ),
       ),
-    );
+      pw.Text(
+        value,
+        style: pw.TextStyle(
+          color: valueColor,
+          fontSize: 9,
+          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+      ),
+    ],
+  ),
+);
 
 pw.Widget _signatureBlock({
   required String title,

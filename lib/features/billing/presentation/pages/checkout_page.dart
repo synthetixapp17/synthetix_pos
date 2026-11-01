@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:billing_app/core/widgets/primary_button.dart';
 import 'package:flutter/material.dart';
@@ -325,7 +326,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       ),
                                     ),
                                   ),
-                                if (!billingState.saleRecorded) ...[
+                                if (!billingState.saleRecorded &&
+                                    CreditPreferences.enabled) ...[
                                   _CreditSaleOptions(
                                     enabled: billingState.customer != null,
                                     isCreditSale: _isCreditSale,
@@ -714,7 +716,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       quotationSaved = true;
       if (!mounted) return;
       final shared = await Printing.sharePdf(
-        bytes: bytes,
+        bytes: Uint8List.fromList(bytes),
         filename: 'cotizacion-${quotation.id}.pdf',
       );
       if (mounted && shared) {
