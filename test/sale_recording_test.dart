@@ -11,6 +11,34 @@ import 'package:fpdart/fpdart.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('cart does not allow quantities above available stock', () async {
+    final bloc = BillingBloc(
+      getProductByBarcodeUseCase: GetProductByBarcodeUseCase(
+        _FakeProductRepository(),
+      ),
+      recordSaleUseCase: RecordSaleUseCase(_FakeReportsRepository()),
+    );
+    addTearDown(bloc.close);
+
+    const product = Product(
+      id: 'limited-product',
+      name: 'Producto limitado',
+      barcode: '98765432',
+      price: 4.5,
+      stock: 1,
+    );
+    bloc.add(const AddProductToCartEvent(product));
+    await bloc.stream.firstWhere((state) => state.cartItems.isNotEmpty);
+
+    bloc.add(const AddProductToCartEvent(product));
+    final rejected = await bloc.stream.firstWhere(
+      (state) => state.error != null,
+    );
+
+    expect(rejected.cartItems.single.quantity, 1);
+    expect(rejected.error, contains('Solo hay 1 unidad disponible'));
+  });
+
   test('sale is persisted before any receipt or printer action', () async {
     final reportsRepository = _FakeReportsRepository();
     final bloc = BillingBloc(
@@ -26,18 +54,20 @@ void main() {
       name: 'Café',
       barcode: '12345678',
       price: 4.5,
+      stock: 5,
       currencyCode: 'USD',
     );
     bloc.add(const AddProductToCartEvent(product));
     await bloc.stream.firstWhere((state) => state.cartItems.isNotEmpty);
 
-    bloc.add(CompleteSaleEvent());
+    bloc.add(const CompleteSaleEvent(paymentMethod: 'Transferencia'));
     final completed = await bloc.stream.firstWhere(
       (state) => state.saleRecorded,
     );
 
     expect(reportsRepository.sales, hasLength(1));
     expect(completed.completedSale?.total, 4.5);
+    expect(completed.completedSale?.paymentMethod, 'Transferencia');
     expect(completed.completedSale?.lines.single.barcode, '12345678');
     expect(completed.printSuccess, isFalse);
     expect(

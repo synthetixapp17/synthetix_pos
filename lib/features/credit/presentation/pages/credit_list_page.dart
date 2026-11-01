@@ -20,7 +20,18 @@ class _CreditListPageState extends State<CreditListPage> {
   Widget build(BuildContext context) {
     final allCredits = CreditRepository.getAll();
     final openCredits = allCredits.where((credit) => !credit.isPaid).toList();
+    final today = DateUtils.dateOnly(DateTime.now());
+    final overdueCredits = openCredits
+        .where(
+          (credit) =>
+              credit.dueDate != null && credit.dueDate!.isBefore(today),
+        )
+        .toList();
     final totalDue = openCredits.fold<double>(
+      0,
+      (total, credit) => total + credit.balance,
+    );
+    final overdueBalance = overdueCredits.fold<double>(
       0,
       (total, credit) => total + credit.balance,
     );
@@ -48,28 +59,48 @@ class _CreditListPageState extends State<CreditListPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryCard(
-                  label: 'Saldo por cobrar',
-                  value: AppCurrency.formatConfigured(totalDue),
-                  detail: '${openCredits.length} créditos pendientes',
-                  icon: Icons.account_balance_wallet_outlined,
-                  color: colors.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _SummaryCard(
-                  label: 'Créditos registrados',
-                  value: '${allCredits.length}',
-                  detail: '${allCredits.length - openCredits.length} pagados',
-                  icon: Icons.receipt_long_outlined,
-                  color: const Color(0xFF3878C7),
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final tileWidth = constraints.maxWidth < 520
+                  ? (constraints.maxWidth - 12) / 2
+                  : (constraints.maxWidth - 24) / 3;
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  SizedBox(
+                    width: tileWidth,
+                    child: _SummaryCard(
+                      label: 'Saldo por cobrar',
+                      value: AppCurrency.formatConfigured(totalDue),
+                      detail: '${openCredits.length} créditos pendientes',
+                      icon: Icons.account_balance_wallet_outlined,
+                      color: colors.primary,
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _SummaryCard(
+                      label: 'Vencido',
+                      value: AppCurrency.formatConfigured(overdueBalance),
+                      detail: '${overdueCredits.length} créditos atrasados',
+                      icon: Icons.event_busy_outlined,
+                      color: colors.error,
+                    ),
+                  ),
+                  SizedBox(
+                    width: tileWidth,
+                    child: _SummaryCard(
+                      label: 'Créditos registrados',
+                      value: '${allCredits.length}',
+                      detail: '${allCredits.length - openCredits.length} pagados',
+                      icon: Icons.receipt_long_outlined,
+                      color: const Color(0xFF3878C7),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 18),
           TextField(
@@ -186,6 +217,9 @@ class _CreditCard extends StatelessWidget {
         : isOverdue
         ? 'Vencido'
         : 'Pendiente';
+    final paidProgress = credit.total <= 0
+        ? 0.0
+        : (credit.paidAmount / credit.total).clamp(0, 1).toDouble();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -277,7 +311,19 @@ class _CreditCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: paidProgress,
+                  minHeight: 6,
+                  backgroundColor: colors.surfaceContainerHighest,
+                  color: credit.isPaid
+                      ? const Color(0xFF16865B)
+                      : colors.primary,
+                ),
+              ),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Icon(

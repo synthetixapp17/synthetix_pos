@@ -53,6 +53,14 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     AddProductToCartEvent event,
     Emitter<BillingState> emit,
   ) {
+    if (event.product.stock <= 0) {
+      emit(
+        state.copyWith(
+          error: 'No hay existencias disponibles de "${event.product.name}".',
+        ),
+      );
+      return;
+    }
     if (state.cartItems.isNotEmpty &&
         state.cartItems.first.product.currencyCode !=
             event.product.currencyCode) {
@@ -72,6 +80,19 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     );
     if (existingIndex >= 0) {
       final existingItem = cleanState.cartItems[existingIndex];
+      if (existingItem.quantity >= event.product.stock) {
+        final stockMessage = event.product.stock == 1
+            ? 'Solo hay 1 unidad disponible'
+            : 'Solo hay ${event.product.stock} unidades disponibles';
+        emit(
+          cleanState.copyWith(
+            error:
+                '$stockMessage de '
+                '"${event.product.name}".',
+          ),
+        );
+        return;
+      }
       final backendItems = List<CartItem>.from(cleanState.cartItems);
       backendItems[existingIndex] = existingItem.copyWith(
         quantity: existingItem.quantity + 1,
@@ -126,6 +147,17 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       (item) => item.product.id == event.productId,
     );
     if (index >= 0) {
+      final currentItem = state.cartItems[index];
+      if (event.quantity > currentItem.product.stock) {
+        emit(
+          state.copyWith(
+            error:
+                'La cantidad supera la existencia disponible '
+                '(${currentItem.product.stock}).',
+          ),
+        );
+        return;
+      }
       final items = List<CartItem>.from(state.cartItems);
       items[index] = items[index].copyWith(quantity: event.quantity);
       emit(
@@ -171,6 +203,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       customerId: state.customer?.id,
       customerName: state.customer?.name,
       currencyCode: state.cartItems.first.product.currencyCode,
+      paymentMethod: event.paymentMethod,
       lines: state.cartItems
           .map(
             (item) => SaleLine(
@@ -232,6 +265,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       customerId: event.customer.id,
       customerName: event.customer.name,
       currencyCode: sale.currencyCode,
+      paymentMethod: sale.paymentMethod,
       lines: sale.lines,
     );
     final result = await recordSaleUseCase!(updatedSale);
@@ -311,6 +345,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
         total: state.totalAmount,
         footer: event.footer,
         currencyCode: event.currencyCode,
+        paymentMethod: event.paymentMethod,
         showAddress: event.showAddress,
         showPhone: event.showPhone,
         showDate: event.showDate,

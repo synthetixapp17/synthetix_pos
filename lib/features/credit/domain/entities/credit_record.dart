@@ -1,24 +1,70 @@
+import '../../../../core/utils/payment_methods.dart';
+
 class CreditPayment {
+  static const methods = paymentMethodOptions;
+
   final DateTime paidAt;
   final double amount;
   final String note;
+  final String method;
 
   const CreditPayment({
     required this.paidAt,
     required this.amount,
     this.note = '',
+    this.method = 'Efectivo',
   });
 
   Map<String, Object> toJson() => {
     'paidAt': paidAt.toIso8601String(),
     'amount': amount,
     'note': note,
+    'method': method,
   };
 
   factory CreditPayment.fromJson(Map<String, dynamic> json) => CreditPayment(
     paidAt: DateTime.parse(json['paidAt'] as String),
     amount: (json['amount'] as num).toDouble(),
     note: json['note'] as String? ?? '',
+    method: json['method'] as String? ?? 'Efectivo',
+  );
+}
+
+class CreditLineItem {
+  final String productId;
+  final String productName;
+  final String category;
+  final String barcode;
+  final int quantity;
+  final double unitPrice;
+
+  const CreditLineItem({
+    required this.productId,
+    required this.productName,
+    required this.quantity,
+    required this.unitPrice,
+    this.category = '',
+    this.barcode = '',
+  });
+
+  double get total => quantity * unitPrice;
+
+  Map<String, Object> toJson() => {
+    'productId': productId,
+    'productName': productName,
+    'category': category,
+    'barcode': barcode,
+    'quantity': quantity,
+    'unitPrice': unitPrice,
+  };
+
+  factory CreditLineItem.fromJson(Map<String, dynamic> json) => CreditLineItem(
+    productId: json['productId'] as String? ?? '',
+    productName: json['productName'] as String,
+    category: json['category'] as String? ?? '',
+    barcode: json['barcode'] as String? ?? '',
+    quantity: json['quantity'] as int,
+    unitPrice: (json['unitPrice'] as num).toDouble(),
   );
 }
 
@@ -33,11 +79,16 @@ class CreditRecord {
   final String customerEmail;
   final String customerAddress;
   final double total;
+  final double? purchaseAmount;
+  final double initialPayment;
+  final int? installmentCount;
+  final int? daysBetweenPayments;
   final double interestPercentage;
   final double interestAmount;
   final String currencyCode;
   final String pdfBase64;
   final List<CreditPayment> payments;
+  final List<CreditLineItem> lines;
 
   const CreditRecord({
     required this.id,
@@ -47,6 +98,11 @@ class CreditRecord {
     required this.total,
     required this.currencyCode,
     required this.pdfBase64,
+    this.purchaseAmount,
+    this.initialPayment = 0,
+    this.installmentCount,
+    this.daysBetweenPayments,
+    this.lines = const [],
     this.dueDate,
     this.customerPhone = '',
     this.customerIdentity = '',
@@ -76,11 +132,16 @@ class CreditRecord {
         customerEmail: customerEmail,
         customerAddress: customerAddress,
         total: total,
+        purchaseAmount: purchaseAmount,
+        initialPayment: initialPayment,
+        installmentCount: installmentCount,
+        daysBetweenPayments: daysBetweenPayments,
         interestPercentage: interestPercentage,
         interestAmount: interestAmount,
         currencyCode: currencyCode,
         pdfBase64: pdfBase64 ?? this.pdfBase64,
         payments: payments ?? this.payments,
+        lines: lines,
       );
 
   Map<String, Object?> toJson() => {
@@ -94,34 +155,56 @@ class CreditRecord {
     'customerEmail': customerEmail,
     'customerAddress': customerAddress,
     'total': total,
+    'purchaseAmount': purchaseAmount,
+    'initialPayment': initialPayment,
+    'installmentCount': installmentCount,
+    'daysBetweenPayments': daysBetweenPayments,
     'interestPercentage': interestPercentage,
     'interestAmount': interestAmount,
     'currencyCode': currencyCode,
     'pdfBase64': pdfBase64,
     'payments': payments.map((payment) => payment.toJson()).toList(),
+    'lines': lines.map((line) => line.toJson()).toList(),
   };
 
-  factory CreditRecord.fromJson(Map<String, dynamic> json) => CreditRecord(
-    id: json['id'] as String,
-    createdAt: DateTime.parse(json['createdAt'] as String),
-    dueDate: json['dueDate'] == null
-        ? null
-        : DateTime.parse(json['dueDate'] as String),
-    customerId: json['customerId'] as String,
-    customerName: json['customerName'] as String,
-    customerPhone: json['customerPhone'] as String? ?? '',
-    customerIdentity: json['customerIdentity'] as String? ?? '',
-    customerEmail: json['customerEmail'] as String? ?? '',
-    customerAddress: json['customerAddress'] as String? ?? '',
-    total: (json['total'] as num).toDouble(),
-    interestPercentage: (json['interestPercentage'] as num?)?.toDouble() ?? 0,
-    interestAmount: (json['interestAmount'] as num?)?.toDouble() ?? 0,
-    currencyCode: json['currencyCode'] as String? ?? 'USD',
-    pdfBase64: json['pdfBase64'] as String? ?? '',
-    payments: (json['payments'] as List<dynamic>? ?? const [])
+  factory CreditRecord.fromJson(Map<String, dynamic> json) {
+    final payments = (json['payments'] as List<dynamic>? ?? const [])
         .map(
           (payment) => CreditPayment.fromJson(payment as Map<String, dynamic>),
         )
-        .toList(),
-  );
+        .toList();
+    return CreditRecord(
+      id: json['id'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      dueDate: json['dueDate'] == null
+          ? null
+          : DateTime.parse(json['dueDate'] as String),
+      customerId: json['customerId'] as String,
+      customerName: json['customerName'] as String,
+      customerPhone: json['customerPhone'] as String? ?? '',
+      customerIdentity: json['customerIdentity'] as String? ?? '',
+      customerEmail: json['customerEmail'] as String? ?? '',
+      customerAddress: json['customerAddress'] as String? ?? '',
+      total: (json['total'] as num).toDouble(),
+      purchaseAmount: (json['purchaseAmount'] as num?)?.toDouble(),
+      initialPayment:
+          (json['initialPayment'] as num?)?.toDouble() ??
+          payments
+              .where((payment) => payment.note == 'Abono inicial')
+              .fold<double>(0, (total, payment) => total + payment.amount),
+      installmentCount: json['installmentCount'] as int?,
+      daysBetweenPayments: json['daysBetweenPayments'] as int?,
+      interestPercentage:
+          (json['interestPercentage'] as num?)?.toDouble() ?? 0,
+      interestAmount: (json['interestAmount'] as num?)?.toDouble() ?? 0,
+      currencyCode: json['currencyCode'] as String? ?? 'USD',
+      pdfBase64: json['pdfBase64'] as String? ?? '',
+      payments: payments,
+      lines: (json['lines'] as List<dynamic>? ?? const [])
+          .map(
+            (line) => CreditLineItem.fromJson(line as Map<String, dynamic>),
+          )
+          .toList(),
+    );
+  }
 }

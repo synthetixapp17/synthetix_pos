@@ -22,6 +22,8 @@ class SaleModel extends HiveObject {
   final String linesJson;
   @HiveField(6, defaultValue: 'USD')
   final String currencyCode;
+  @HiveField(7, defaultValue: 'Efectivo')
+  final String paymentMethod;
 
   SaleModel({
     required this.id,
@@ -29,6 +31,7 @@ class SaleModel extends HiveObject {
     required this.total,
     required this.linesJson,
     this.currencyCode = 'USD',
+    this.paymentMethod = 'Efectivo',
     this.customerId,
     this.customerName,
   });
@@ -41,6 +44,7 @@ class SaleModel extends HiveObject {
     customerName: sale.customerName,
     linesJson: sale.linesJson,
     currencyCode: sale.currencyCode,
+    paymentMethod: sale.paymentMethod,
   );
 
   SaleRecord toEntity() => SaleRecord(
@@ -50,6 +54,7 @@ class SaleModel extends HiveObject {
     customerId: customerId,
     customerName: customerName,
     currencyCode: currencyCode,
+    paymentMethod: paymentMethod,
     lines: decodeSaleLines(linesJson),
   );
 }

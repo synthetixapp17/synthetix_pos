@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:billing_app/core/widgets/primary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +13,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/utils/app_currency.dart';
+import '../../../../core/utils/payment_methods.dart';
 import '../../../../core/utils/receipt_preferences.dart';
 import '../../../credit/data/credit_pdf.dart';
 import '../../../credit/data/credit_preferences.dart';
@@ -21,6 +21,7 @@ import '../../../credit/domain/entities/credit_schedule.dart';
 import '../../../credit/data/credit_repository.dart';
 import '../../../credit/domain/entities/credit_record.dart';
 import '../../../reports/domain/entities/sale_record.dart';
+import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../settings/data/quotation_pdf.dart';
 import '../../../settings/data/quotation_preferences.dart';
 import '../../../settings/domain/entities/quotation.dart';
@@ -49,6 +50,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
   int _creditInstallments = 1;
   int _creditDaysBetweenPayments = 30;
   double _creditInterestRate = 0;
+  String _creditInitialPaymentMethod = CreditPayment.methods.first;
+  String _paymentMethod = paymentMethodOptions.first;
   bool _isCreditSale = false;
   bool _isRecordingCredit = false;
   bool _isCreatingQuotation = false;
@@ -105,6 +108,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 state.completedSale!.id != _receiptDialogSaleId) {
               _receiptDialogSaleId = state.completedSale!.id;
               context.read<DashboardBloc>().add(const LoadDashboardEvent());
+              if (state.saleRecorded) {
+                context.read<ProductBloc>().add(LoadProducts());
+              }
               if (_isCreditSale) {
                 unawaited(_recordCreditPurchase(context, state));
               } else {
@@ -138,6 +144,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 final currencyCode = billingState.cartItems.isEmpty
                     ? AppCurrency.currentCode
                     : billingState.cartItems.first.product.currencyCode;
+                final parsedDownPayment = double.tryParse(
+                  _initialPaymentController.text.trim().replaceAll(',', '.'),
+                );
+                final downPaymentAmount =
+                    parsedDownPayment != null && parsedDownPayment.isFinite
+                    ? parsedDownPayment
+                    : 0;
+                final upiPaymentAmount = _isCreditSale
+                    ? downPaymentAmount.clamp(0, billingState.totalAmount)
+                    : billingState.totalAmount;
 
                 if (shopState is ShopLoaded) {
                   upiId = shopState.shop.upiId;
@@ -237,204 +253,268 @@ class _CheckoutPageState extends State<CheckoutPage> {
                               ),
                             ),
                             const SizedBox(height: 24),
-
-                            const SizedBox(
-                              height: 120,
-                            ), // padding for bottom fixed bar
+                            if (upiId.isNotEmpty &&
+                                currencyCode == 'INR' &&
+                                (!_isCreditSale || upiPaymentAmount > 0))
+                              Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    children: [
+                                      const Text(
+                                        'Pagar con UPI',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        width: 160,
+                                        height: 160,
+                                        child: PrettyQrView.data(
+                                          data:
+                                              'upi://pay?pa=$upiId&pn=$shopName&am=${upiPaymentAmount.toStringAsFixed(2)}&cu=$currencyCode',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            if (!billingState.saleRecorded && !_isCreditSale) ...[
+                              const SizedBox(height: 12),
+                              Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(14),
+                                  child: DropdownButtonFormField<String>(
+                                    initialValue: _paymentMethod,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Forma de pago',
+                                      prefixIcon: Icon(
+                                        Icons.account_balance_wallet_outlined,
+                                      ),
+                                    ),
+                                    items: [
+                                      for (final method in paymentMethodOptions)
+                                        DropdownMenuItem(
+                                          value: method,
+                                          child: Text(method),
+                                        ),
+                                    ],
+                                    onChanged: (value) {
+                                      if (value != null) {
+                                        setState(() => _paymentMethod = value);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (QuotationPreferences.enabled &&
+                                !billingState.saleRecorded) ...[
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: _isCreatingQuotation
+                                      ? null
+                                      : () => _createQuotation(
+                                          billingState,
+                                          shopName,
+                                        ),
+                                  icon: _isCreatingQuotation
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.picture_as_pdf_outlined,
+                                        ),
+                                  label: const Text('Crear cotización PDF'),
+                                ),
+                              ),
+                            ],
+                            if (!billingState.saleRecorded &&
+                                CreditPreferences.enabled) ...[
+                              const SizedBox(height: 12),
+                              _CreditSaleOptions(
+                                enabled: billingState.customer != null,
+                                isCreditSale: _isCreditSale,
+                                initialPaymentController:
+                                    _initialPaymentController,
+                                installmentsController:
+                                    _installmentsController,
+                                daysBetweenPaymentsController:
+                                    _daysBetweenPaymentsController,
+                                interestRateController: _creditRateController,
+                                total: billingState.totalAmount,
+                                currencyCode: currencyCode,
+                                interestRate: _creditInterestRate,
+                                installmentCount: _creditInstallments,
+                                daysBetweenPayments:
+                                    _creditDaysBetweenPayments,
+                                initialPaymentMethod:
+                                    _creditInitialPaymentMethod,
+                                onInitialPaymentMethodChanged: (value) =>
+                                    setState(
+                                      () => _creditInitialPaymentMethod = value,
+                                    ),
+                                onChanged: (value) =>
+                                    setState(() => _isCreditSale = value),
+                                onInstallmentsChanged: (value) => setState(
+                                  () => _creditInstallments =
+                                      int.tryParse(value) ?? 0,
+                                ),
+                                onDaysBetweenPaymentsChanged: (value) =>
+                                    setState(
+                                      () => _creditDaysBetweenPayments =
+                                          int.tryParse(value) ?? 0,
+                                    ),
+                                onInitialPaymentChanged: (_) =>
+                                    setState(() {}),
+                                onInterestRateChanged: (value) => setState(
+                                  () => _creditInterestRate =
+                                      _parseCreditRate(value),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 16),
                           ],
                         ),
                       ),
                     ),
 
-                    // Bottom Bar
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        borderRadius: const BorderRadius.horizontal(
-                          left: Radius.circular(24),
-                          right: Radius.circular(24),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, -4),
+                    SafeArea(
+                      top: false,
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          border: Border(
+                            top: BorderSide(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Column(
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: .06),
+                              blurRadius: 16,
+                              offset: const Offset(0, -4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const SizedBox(height: 8),
-                                upiId.isNotEmpty && currencyCode == 'INR'
-                                    ? Column(
-                                        children: [
-                                          const Text(
-                                            'Escanea para pagar',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                              letterSpacing: 1.1,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          SizedBox(
-                                            width: 180,
-                                            height: 180,
-                                            child: PrettyQrView.data(
-                                              data:
-                                                  'upi://pay?pa=$upiId&pn=$shopName&am=${billingState.totalAmount.toStringAsFixed(2)}&cu=$currencyCode',
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : const SizedBox.shrink(),
-                                const SizedBox(height: 15),
-                                if (QuotationPreferences.enabled &&
-                                    !billingState.saleRecorded)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 10),
-                                    child: SizedBox(
-                                      width: double.infinity,
-                                      child: OutlinedButton.icon(
-                                        onPressed: _isCreatingQuotation
-                                            ? null
-                                            : () => _createQuotation(
-                                                billingState,
-                                                shopName,
-                                              ),
-                                        icon: _isCreatingQuotation
-                                            ? const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                    ),
-                                              )
-                                            : const Icon(
-                                                Icons.picture_as_pdf_outlined,
-                                              ),
-                                        label: const Text(
-                                          'Crear cotización PDF',
-                                        ),
-                                      ),
-                                    ),
+                                Text(
+                                  'Total de la venta',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
                                   ),
-                                if (!billingState.saleRecorded &&
-                                    CreditPreferences.enabled) ...[
-                                  _CreditSaleOptions(
-                                    enabled: billingState.customer != null,
-                                    isCreditSale: _isCreditSale,
-                                    initialPaymentController:
-                                        _initialPaymentController,
-                                    installmentsController:
-                                        _installmentsController,
-                                    daysBetweenPaymentsController:
-                                        _daysBetweenPaymentsController,
-                                    interestRateController:
-                                        _creditRateController,
-                                    total: billingState.totalAmount,
-                                    currencyCode: currencyCode,
-                                    interestRate: _creditInterestRate,
-                                    installmentCount: _creditInstallments,
-                                    daysBetweenPayments:
-                                        _creditDaysBetweenPayments,
-                                    onChanged: (value) =>
-                                        setState(() => _isCreditSale = value),
-                                    onInstallmentsChanged: (value) => setState(
-                                      () => _creditInstallments =
-                                          int.tryParse(value) ?? 0,
-                                    ),
-                                    onDaysBetweenPaymentsChanged: (value) =>
-                                        setState(
-                                          () => _creditDaysBetweenPayments =
-                                              int.tryParse(value) ?? 0,
-                                        ),
-                                    onInitialPaymentChanged: (_) =>
-                                        setState(() {}),
-                                    onInterestRateChanged: (value) => setState(
-                                      () => _creditInterestRate =
-                                          _parseCreditRate(value),
-                                    ),
+                                ),
+                                Text(
+                                  AppCurrency.formatConfigured(
+                                    billingState.totalAmount,
                                   ),
-                                  const SizedBox(height: 12),
-                                ],
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'TOTAL A PAGAR',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.grey[400],
-                                        letterSpacing: 1.2,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w900,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
                                       ),
-                                    ),
-                                    Text(
-                                      AppCurrency.formatConfigured(
-                                        billingState.totalAmount,
-                                      ),
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: -0.5,
-                                        color: Color(0xFF0F172A),
-                                      ),
-                                    ),
-                                  ],
                                 ),
                               ],
                             ),
-                          ),
-                          PrimaryButton(
-                            onPressed: () {
-                              if (billingState.saleRecorded) {
-                                final saleId = billingState.completedSale?.id;
-                                if (_isCreditSale &&
-                                    saleId != _creditSavedSaleId) {
-                                  unawaited(
-                                    _recordCreditPurchase(
-                                      context,
-                                      billingState,
-                                    ),
-                                  );
-                                } else if (!_isCreditSale) {
-                                  unawaited(
-                                    _showReceiptOptions(context, billingState),
-                                  );
-                                }
-                              } else if (_validateCreditSale(billingState)) {
-                                context.read<BillingBloc>().add(
-                                  CompleteSaleEvent(),
-                                );
-                              }
-                            },
-                            label: _isRecordingCredit
-                                ? 'Guardando crédito...'
-                                : billingState.saleRecorded
-                                ? _isCreditSale
-                                      ? 'Guardar compra a crédito'
-                                      : 'Ver opciones del ticket'
-                                : _isCreditSale
-                                ? 'Registrar compra a crédito'
-                                : 'Finalizar venta',
-                            icon: _isCreditSale
-                                ? Icons.account_balance_wallet_outlined
-                                : Icons.check_circle_outline,
-                            isLoading:
-                                billingState.isPrinting ||
-                                billingState.isSavingSale ||
-                                _isRecordingCredit,
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed:
+                                    billingState.isPrinting ||
+                                        billingState.isSavingSale ||
+                                        _isRecordingCredit
+                                    ? null
+                                    : () {
+                                        if (billingState.saleRecorded) {
+                                          final saleId = billingState
+                                              .completedSale
+                                              ?.id;
+                                          if (_isCreditSale &&
+                                              saleId != _creditSavedSaleId) {
+                                            unawaited(
+                                              _recordCreditPurchase(
+                                                context,
+                                                billingState,
+                                              ),
+                                            );
+                                          } else if (!_isCreditSale) {
+                                            unawaited(
+                                              _showReceiptOptions(
+                                                context,
+                                                billingState,
+                                              ),
+                                            );
+                                          }
+                                        } else if (_validateCreditSale(
+                                          billingState,
+                                        )) {
+                                          context.read<BillingBloc>().add(
+                                            CompleteSaleEvent(
+                                              paymentMethod: _isCreditSale
+                                                  ? _creditInitialPaymentMethod
+                                                  : _paymentMethod,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                icon: _isRecordingCredit ||
+                                        billingState.isSavingSale ||
+                                        billingState.isPrinting
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Icon(
+                                        _isCreditSale
+                                            ? Icons
+                                                  .account_balance_wallet_outlined
+                                            : Icons.check_circle_outline,
+                                      ),
+                                label: Text(
+                                  _isRecordingCredit
+                                      ? 'Guardando crédito...'
+                                      : billingState.saleRecorded
+                                      ? _isCreditSale
+                                            ? 'Guardar compra a crédito'
+                                            : 'Ver opciones del ticket'
+                                      : _isCreditSale
+                                      ? 'Registrar compra a crédito'
+                                      : 'Finalizar venta',
+                                ),
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 15,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -541,6 +621,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         customerAddress: customer.address,
         customerIdentity: customer.identityNumber,
         initialPayment: paid,
+        initialPaymentMethod: _creditInitialPaymentMethod,
         numberOfInstallments: _creditInstallments,
         daysBetweenPayments: _creditDaysBetweenPayments,
         interestPercentage: _creditInterestRate,
@@ -568,14 +649,31 @@ class _CheckoutPageState extends State<CheckoutPage> {
         total: sale.total + interestAmount,
         interestPercentage: _creditInterestRate,
         interestAmount: interestAmount,
+        purchaseAmount: sale.total,
+        initialPayment: paid,
+        installmentCount: _creditInstallments,
+        daysBetweenPayments: _creditDaysBetweenPayments,
         currencyCode: sale.currencyCode,
         pdfBase64: base64Encode(pdfBytes),
+        lines: sale.lines
+            .map(
+              (line) => CreditLineItem(
+                productId: line.productId,
+                productName: line.productName,
+                category: line.category,
+                barcode: line.barcode,
+                quantity: line.quantity,
+                unitPrice: line.unitPrice,
+              ),
+            )
+            .toList(),
         payments: paid > 0
             ? [
                 CreditPayment(
                   paidAt: sale.soldAt,
                   amount: paid,
                   note: 'Abono inicial',
+                  method: _creditInitialPaymentMethod,
                 ),
               ]
             : const [],
@@ -786,6 +884,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             logoData: shop.logoData,
             footer: ReceiptPreferences.footerText ?? shop.footerText,
             currencyCode: sale.currencyCode,
+            paymentMethod: sale.paymentMethod,
             showAddress: ReceiptPreferences.showAddress,
             showPhone: ReceiptPreferences.showPhone,
             showDate: ReceiptPreferences.showDate,
@@ -932,6 +1031,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
     message
       ..writeln()
+      ..writeln('Forma de pago: ${sale.paymentMethod}')
+      ..writeln()
       ..write(
         'TOTAL: ${AppCurrency.format(sale.total, code: sale.currencyCode)}',
       );
@@ -1036,11 +1137,13 @@ class _CreditSaleOptions extends StatelessWidget {
   final int installmentCount;
   final int daysBetweenPayments;
   final double interestRate;
+  final String initialPaymentMethod;
   final ValueChanged<bool> onChanged;
   final ValueChanged<String> onInstallmentsChanged;
   final ValueChanged<String> onDaysBetweenPaymentsChanged;
   final ValueChanged<String> onInitialPaymentChanged;
   final ValueChanged<String> onInterestRateChanged;
+  final ValueChanged<String> onInitialPaymentMethodChanged;
 
   const _CreditSaleOptions({
     required this.enabled,
@@ -1054,11 +1157,13 @@ class _CreditSaleOptions extends StatelessWidget {
     required this.installmentCount,
     required this.daysBetweenPayments,
     required this.interestRate,
+    required this.initialPaymentMethod,
     required this.onChanged,
     required this.onInstallmentsChanged,
     required this.onDaysBetweenPaymentsChanged,
     required this.onInitialPaymentChanged,
     required this.onInterestRateChanged,
+    required this.onInitialPaymentMethodChanged,
   });
 
   @override
@@ -1079,6 +1184,7 @@ class _CreditSaleOptions extends StatelessWidget {
         : 0;
     final totalDue = principal + interest;
     final count = installmentCount.clamp(1, 600);
+    final previewCount = count < 4 ? count : 4;
     final installments = CreditSchedule.splitEvenly(totalDue, count);
     final scheduleDays = daysBetweenPayments.clamp(1, 3650);
 
@@ -1159,6 +1265,23 @@ class _CreditSaleOptions extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: initialPaymentMethod,
+                    decoration: const InputDecoration(
+                      labelText: 'Forma de pago del abono inicial',
+                      prefixIcon: Icon(Icons.account_balance_outlined),
+                    ),
+                    items: [
+                      for (final method in CreditPayment.methods)
+                        DropdownMenuItem(value: method, child: Text(method)),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        onInitialPaymentMethodChanged(value);
+                      }
+                    },
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -1259,68 +1382,69 @@ class _CreditSaleOptions extends StatelessWidget {
                   const SizedBox(height: 8),
                   if (installmentCount > 0 && daysBetweenPayments > 0)
                     Container(
-                      constraints: const BoxConstraints(maxHeight: 176),
                       decoration: BoxDecoration(
                         border: Border.all(color: colors.outlineVariant),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        itemCount: count,
-                        separatorBuilder: (_, _) =>
-                            Divider(height: 1, color: colors.outlineVariant),
-                        itemBuilder: (context, index) {
-                          final date = DateTime.now().add(
-                            Duration(days: scheduleDays * (index + 1)),
-                          );
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 9),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 28,
-                                  height: 28,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: colors.primaryContainer,
-                                    shape: BoxShape.circle,
+                      child: Column(
+                        children: [
+                          for (var index = 0; index < previewCount; index++)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 9,
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 28,
+                                    height: 28,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: colors.primaryContainer,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: TextStyle(
+                                        color: colors.primary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
                                   ),
-                                  child: Text(
-                                    '${index + 1}',
-                                    style: TextStyle(
-                                      color: colors.primary,
-                                      fontSize: 12,
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Cuota ${index + 1} · '
+                                      '${DateFormat('dd/MM/yyyy').format(DateTime.now().add(Duration(days: scheduleDays * (index + 1))))}',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                  ),
+                                  Text(
+                                    AppCurrency.format(
+                                      installments[index],
+                                      code: currencyCode,
+                                    ),
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Cuota ${index + 1} · '
-                                    '${DateFormat('dd/MM/yyyy').format(date)}',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                  ),
-                                ),
-                                Text(
-                                  AppCurrency.format(
-                                    installments[index],
-                                    code: currencyCode,
-                                  ),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          );
-                        },
+                          if (count > previewCount)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                              child: Text(
+                                'Las ${count - previewCount} cuotas restantes se incluirán en el contrato.',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: colors.onSurfaceVariant),
+                              ),
+                            ),
+                        ],
                       ),
                     )
                   else
@@ -1450,6 +1574,11 @@ class _ReceiptPreviewDialog extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+              Text(
+                'Forma de pago: ${sale.paymentMethod}',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
               if (ReceiptPreferences.showDate)
                 Text(
                   DateFormat('dd/MM/yyyy HH:mm', 'es').format(sale.soldAt),

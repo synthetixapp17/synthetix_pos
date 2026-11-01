@@ -176,6 +176,7 @@ class PrinterHelper {
     required double total,
     required String footer,
     String currencyCode = 'USD',
+    String paymentMethod = 'Efectivo',
     bool showAddress = true,
     bool showPhone = true,
     bool showDate = true,
@@ -236,6 +237,8 @@ class PrinterHelper {
       bytes += _textToBytes('Cliente: $customerName');
       bytes += EscPos.lineFeed;
     }
+    bytes += _textToBytes('Forma de pago: $paymentMethod');
+    bytes += EscPos.lineFeed;
 
     bytes += _textToBytes('--------------------------------');
     bytes += EscPos.lineFeed;

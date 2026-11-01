@@ -814,6 +814,7 @@ class _CatalogProductCard extends StatelessWidget {
                         visualDensity: VisualDensity.compact,
                         tooltip: 'Agregar una unidad',
                         onPressed: available
+                            && quantity < product.stock
                             ? () => context.read<BillingBloc>().add(
                                 AddProductToCartEvent(product),
                               )

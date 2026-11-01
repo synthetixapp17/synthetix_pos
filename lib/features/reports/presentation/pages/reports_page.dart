@@ -41,6 +41,24 @@ class _ReportsPageState extends State<ReportsPage> {
   void _load() =>
       context.read<ReportsBloc>().add(LoadReportsEvent(from: _from, to: _to));
 
+  void _showMetricDetails({
+    required String title,
+    required List<SaleRecord> sales,
+    bool showProducts = false,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (context) => _ReportMetricDetailsSheet(
+        title: title,
+        sales: sales,
+        showProducts: showProducts,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     AppCurrencyScope.of(context);
@@ -159,8 +177,12 @@ class _ReportsPageState extends State<ReportsPage> {
                                 title: 'Ingresos del periodo',
                                 value: totalLabel,
                                 accent: const Color(0xFF1E9B72),
-                            badgeLabel: 'En el periodo',
-                            trend: revenueTrend,
+                                badgeLabel: 'En el periodo',
+                                trend: revenueTrend,
+                                onTap: () => _showMetricDetails(
+                                  title: 'Ventas que componen los ingresos',
+                                  sales: state.sales,
+                                ),
                               ),
                             ),
                             SizedBox(
@@ -169,8 +191,12 @@ class _ReportsPageState extends State<ReportsPage> {
                                 title: 'Transacciones',
                                 value: '${state.sales.length}',
                                 accent: const Color(0xFF3977D5),
-                            badgeLabel: 'En el periodo',
-                            trend: transactionTrend,
+                                badgeLabel: 'En el periodo',
+                                trend: transactionTrend,
+                                onTap: () => _showMetricDetails(
+                                  title: 'Transacciones del periodo',
+                                  sales: state.sales,
+                                ),
                               ),
                             ),
                             SizedBox(
@@ -179,8 +205,13 @@ class _ReportsPageState extends State<ReportsPage> {
                                 title: 'Unidades vendidas',
                                 value: '$unitsSold',
                                 accent: const Color(0xFF8A61C9),
-                            badgeLabel: 'En el periodo',
-                            trend: unitsTrend,
+                                badgeLabel: 'En el periodo',
+                                trend: unitsTrend,
+                                onTap: () => _showMetricDetails(
+                                  title: 'Productos vendidos',
+                                  sales: state.sales,
+                                  showProducts: true,
+                                ),
                               ),
                             ),
                             SizedBox(
@@ -189,8 +220,12 @@ class _ReportsPageState extends State<ReportsPage> {
                                 title: 'Ticket promedio',
                                 value: averageLabel,
                                 accent: const Color(0xFFE59B36),
-                            badgeLabel: 'Por venta',
-                            trend: averageTrend,
+                                badgeLabel: 'Por venta',
+                                trend: averageTrend,
+                                onTap: () => _showMetricDetails(
+                                  title: 'Ventas y ticket promedio',
+                                  sales: state.sales,
+                                ),
                               ),
                             ),
                           ],
@@ -816,6 +851,7 @@ class _SummaryTile extends StatelessWidget {
   final Color accent;
   final String badgeLabel;
   final List<double> trend;
+  final VoidCallback onTap;
 
   const _SummaryTile({
     required this.title,
@@ -823,6 +859,7 @@ class _SummaryTile extends StatelessWidget {
     required this.accent,
     required this.badgeLabel,
     required this.trend,
+    required this.onTap,
   });
 
   @override
@@ -832,7 +869,179 @@ class _SummaryTile extends StatelessWidget {
     color: accent,
     trend: trend,
     badgeLabel: badgeLabel,
+    onTap: onTap,
   );
+}
+
+class _ReportMetricDetailsSheet extends StatelessWidget {
+  final String title;
+  final List<SaleRecord> sales;
+  final bool showProducts;
+
+  const _ReportMetricDetailsSheet({
+    required this.title,
+    required this.sales,
+    required this.showProducts,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final products = <String, _DetailedProduct>{};
+    for (final sale in sales) {
+      for (final line in sale.lines) {
+        final key = '${sale.currencyCode}:${line.productId}';
+        final product = products.putIfAbsent(
+          key,
+          () => _DetailedProduct(
+            name: line.productName,
+            currencyCode: sale.currencyCode,
+          ),
+        );
+        product
+          ..quantity += line.quantity
+          ..amount += line.total;
+      }
+    }
+    final sortedProducts = products.values.toList()
+      ..sort((first, second) => second.quantity.compareTo(first.quantity));
+    final sortedSales = sales.toList()
+      ..sort((first, second) => second.soldAt.compareTo(first.soldAt));
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * .84,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              showProducts
+                  ? 'Unidades e importes agrupados por producto'
+                  : '${sales.length} ventas · toca una venta para ver sus productos',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 14),
+            Expanded(
+              child: showProducts
+                  ? sortedProducts.isEmpty
+                        ? const _NoData()
+                        : ListView.separated(
+                            itemCount: sortedProducts.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (context, index) {
+                              final product = sortedProducts[index];
+                              return ListTile(
+                                tileColor: theme.colorScheme.surface,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: BorderSide(
+                                    color: theme.colorScheme.outlineVariant,
+                                  ),
+                                ),
+                                leading: CircleAvatar(
+                                  backgroundColor:
+                                      theme.colorScheme.primaryContainer,
+                                  foregroundColor: theme.colorScheme.primary,
+                                  child: Text('${index + 1}'),
+                                ),
+                                title: Text(
+                                  product.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                subtitle: Text('${product.quantity} unidades'),
+                                trailing: Text(
+                                  AppCurrency.format(
+                                    product.amount,
+                                    code: product.currencyCode,
+                                  ),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                  : sortedSales.isEmpty
+                        ? const _NoData()
+                        : ListView.separated(
+                            itemCount: sortedSales.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (context, index) {
+                              final sale = sortedSales[index];
+                              return Card(
+                                margin: EdgeInsets.zero,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: BorderSide(
+                                    color: theme.colorScheme.outlineVariant,
+                                  ),
+                                ),
+                                child: ExpansionTile(
+                                  title: Text(
+                                    AppCurrency.format(
+                                      sale.total,
+                                      code: sale.currencyCode,
+                                    ),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '${DateFormat('dd/MM/yyyy HH:mm', 'es').format(sale.soldAt)} · '
+                                    '${sale.customerName ?? 'Venta sin cliente'} · '
+                                    '${sale.paymentMethod} · '
+                                    '${sale.lines.length} productos',
+                                  ),
+                                  children: [
+                                    for (final line in sale.lines)
+                                      ListTile(
+                                        dense: true,
+                                        title: Text(line.productName),
+                                        subtitle: Text(
+                                          '${line.quantity} × ${AppCurrency.format(line.unitPrice, code: sale.currencyCode)}',
+                                        ),
+                                        trailing: Text(
+                                          AppCurrency.format(
+                                            line.total,
+                                            code: sale.currencyCode,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailedProduct {
+  final String name;
+  final String currencyCode;
+  int quantity = 0;
+  double amount = 0;
+
+  _DetailedProduct({required this.name, required this.currencyCode});
 }
 
 class _ReportsHeader extends StatelessWidget {

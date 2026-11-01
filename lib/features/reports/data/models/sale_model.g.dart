@@ -18,6 +18,7 @@ class SaleModelAdapter extends TypeAdapter<SaleModel> {
       total: fields[2] as double,
       linesJson: fields[5] == null ? '[]' : fields[5] as String,
       currencyCode: fields[6] == null ? 'USD' : fields[6] as String,
+      paymentMethod: fields[7] == null ? 'Efectivo' : fields[7] as String,
       customerId: fields[3] as String?,
       customerName: fields[4] as String?,
     );
@@ -26,7 +27,7 @@ class SaleModelAdapter extends TypeAdapter<SaleModel> {
   @override
   void write(BinaryWriter writer, SaleModel obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -40,7 +41,9 @@ class SaleModelAdapter extends TypeAdapter<SaleModel> {
       ..writeByte(5)
       ..write(obj.linesJson)
       ..writeByte(6)
-      ..write(obj.currencyCode);
+      ..write(obj.currencyCode)
+      ..writeByte(7)
+      ..write(obj.paymentMethod);
   }
 
   @override

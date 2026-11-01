@@ -30,6 +30,7 @@ class CreditPdf {
     required String customerEmail,
     required String customerAddress,
     required double initialPayment,
+    String initialPaymentMethod = 'Efectivo',
     String customerIdentity = '',
     int numberOfInstallments = 1,
     int daysBetweenPayments = 30,
@@ -69,6 +70,7 @@ class CreditPdf {
     ],
     'totalVenta': sale.total,
     'abonoInicial': initialPayment,
+    'formaPagoAbonoInicial': initialPaymentMethod,
     'numeroCuotas': numberOfInstallments,
     'diasPlazo': daysBetweenPayments,
     'porcentajeCredito': interestPercentage,
@@ -97,6 +99,10 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
     fallback: _productsTotal(products),
   );
   final initialPayment = _number(datos['abonoInicial'], fallback: 0);
+  final initialPaymentMethod = _text(
+    datos['formaPagoAbonoInicial'],
+    fallback: 'No especificada',
+  );
   final installments = _integer(datos['numeroCuotas']);
   final daysBetweenPayments = _integer(datos['diasPlazo']);
   final interestPercentage = _number(datos['porcentajeCredito'], fallback: 0);
@@ -469,6 +475,8 @@ Future<Uint8List> buildCreditContractPdf(Map<String, dynamic> datos) async {
                 bold: true,
                 valueColor: accentTextColor,
               ),
+              if (initialPayment > 0)
+                _summaryRow('Forma de pago', initialPaymentMethod),
               _summaryRow(
                 'Precio de venta',
                 formatMoney(total),

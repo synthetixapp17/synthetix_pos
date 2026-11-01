@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 import '../../../../core/utils/app_currency.dart';
 import '../../data/credit_repository.dart';
 import '../../domain/entities/credit_record.dart';
+import '../../domain/entities/credit_schedule.dart';
 
 class CreditDetailPage extends StatefulWidget {
   final String creditId;
@@ -19,6 +20,7 @@ class CreditDetailPage extends StatefulWidget {
 class _CreditDetailPageState extends State<CreditDetailPage> {
   CreditRecord? _record;
   bool _isProcessing = false;
+  bool _showAllInstallments = false;
 
   @override
   void initState() {
@@ -34,80 +36,103 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    var paymentMethod = CreditPayment.methods.first;
     final result = await showDialog<CreditPayment>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Registrar abono'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Saldo pendiente: ${AppCurrency.format(record.balance, code: record.currencyCode)}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: amountController,
-                autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Importe del abono',
-                  prefixIcon: Icon(Icons.payments_outlined),
-                ),
-                validator: (value) {
-                  final amount = double.tryParse(
-                    (value ?? '').trim().replaceAll(',', '.'),
-                  );
-                  if (amount == null || amount <= 0) {
-                    return 'Escribe un importe válido.';
-                  }
-                  if (amount > record.balance) {
-                    return 'El abono supera el saldo pendiente.';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: noteController,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Nota (opcional)',
-                  prefixIcon: Icon(Icons.notes_outlined),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              Navigator.pop(
-                context,
-                CreditPayment(
-                  paidAt: DateTime.now(),
-                  amount: double.parse(
-                    amountController.text.trim().replaceAll(',', '.'),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Registrar abono'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Saldo pendiente: ${AppCurrency.format(record.balance, code: record.currencyCode)}',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
-                  note: noteController.text.trim(),
-                ),
-              );
-            },
-            child: const Text('Guardar abono'),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: amountController,
+                    autofocus: true,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Importe del abono',
+                      prefixIcon: Icon(Icons.payments_outlined),
+                    ),
+                    validator: (value) {
+                      final amount = double.tryParse(
+                        (value ?? '').trim().replaceAll(',', '.'),
+                      );
+                      if (amount == null || amount <= 0) {
+                        return 'Escribe un importe válido.';
+                      }
+                      if (amount > record.balance) {
+                        return 'El abono supera el saldo pendiente.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: paymentMethod,
+                    decoration: const InputDecoration(
+                      labelText: 'Forma de pago',
+                      prefixIcon: Icon(Icons.account_balance_outlined),
+                    ),
+                    items: [
+                      for (final method in CreditPayment.methods)
+                        DropdownMenuItem(value: method, child: Text(method)),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => paymentMethod = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: noteController,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      labelText: 'Nota (opcional)',
+                      prefixIcon: Icon(Icons.notes_outlined),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                Navigator.pop(
+                  dialogContext,
+                  CreditPayment(
+                    paidAt: DateTime.now(),
+                    amount: double.parse(
+                      amountController.text.trim().replaceAll(',', '.'),
+                    ),
+                    note: noteController.text.trim(),
+                    method: paymentMethod,
+                  ),
+                );
+              },
+              child: const Text('Guardar abono'),
+            ),
+          ],
+        ),
       ),
     );
     amountController.dispose();
@@ -177,6 +202,26 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
       );
     }
     final colors = Theme.of(context).colorScheme;
+    final purchaseAmount =
+        record.purchaseAmount ?? record.total - record.interestAmount;
+    final financedPrincipal = (purchaseAmount - record.initialPayment)
+        .clamp(0, purchaseAmount)
+        .toDouble();
+    final paymentProgress = record.total <= 0
+        ? 0.0
+        : (record.paidAmount / record.total).clamp(0, 1).toDouble();
+    final installmentCount = record.installmentCount;
+    final daysBetweenPayments = record.daysBetweenPayments;
+    final installments = installmentCount == null || installmentCount < 1
+        ? const <double>[]
+        : CreditSchedule.splitEvenly(
+            (record.total - record.initialPayment).clamp(0, record.total),
+            installmentCount,
+          );
+    final visibleInstallments = _showAllInstallments ||
+            installments.length <= 6
+        ? installments.length
+        : 6;
 
     return Scaffold(
       appBar: AppBar(
@@ -229,7 +274,26 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text('Folio ${record.id} · ${_date(record.createdAt)}'),
+                Text(
+                  'Folio ${record.id} · ${_date(record.createdAt)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: paymentProgress,
+                    minHeight: 8,
+                    backgroundColor: colors.surface.withValues(alpha: .5),
+                    color: record.isPaid ? const Color(0xFF16865B) : colors.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${(paymentProgress * 100).round()}% pagado · '
+                  '${AppCurrency.format(record.paidAmount, code: record.currencyCode)} abonados',
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
               ],
             ),
           ),
@@ -254,21 +318,110 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
           ),
           const SizedBox(height: 12),
           _DetailCard(
+            title: 'Productos de la compra',
+            icon: Icons.shopping_bag_outlined,
+            children: record.lines.isEmpty
+                ? [
+                    const Text(
+                      'Este crédito es anterior al detalle de productos. '
+                      'Consulta el comprobante PDF para ver la compra.',
+                    ),
+                  ]
+                : [
+                    for (final line in record.lines)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 34,
+                              height: 34,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: colors.primaryContainer,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '${line.quantity}',
+                                style: TextStyle(
+                                  color: colors.primary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    line.productName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    [
+                                      if (line.category.isNotEmpty)
+                                        line.category,
+                                      if (line.barcode.isNotEmpty)
+                                        'Código ${line.barcode}',
+                                      '${AppCurrency.format(line.unitPrice, code: record.currencyCode)} c/u',
+                                    ].join(' · '),
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              AppCurrency.format(
+                                line.total,
+                                code: record.currencyCode,
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+          ),
+          const SizedBox(height: 12),
+          _DetailCard(
             title: 'Resumen de la compra',
             icon: Icons.receipt_long_outlined,
             children: [
               _MoneyRow(
-                label: 'Total del crédito',
-                amount: record.total,
+                label: 'Valor de los productos',
+                amount: purchaseAmount,
                 code: record.currencyCode,
               ),
-              if (record.interestPercentage > 0)
+              _MoneyRow(
+                label: 'Abono inicial',
+                amount: record.initialPayment,
+                code: record.currencyCode,
+              ),
+              _MoneyRow(
+                label: 'Capital financiado',
+                amount: financedPrincipal,
+                code: record.currencyCode,
+              ),
+              if (record.interestPercentage > 0 ||
+                  record.interestAmount > 0)
                 _MoneyRow(
                   label:
                       'Interés (${record.interestPercentage.toStringAsFixed(2)}%)',
                   amount: record.interestAmount,
                   code: record.currencyCode,
                 ),
+              _MoneyRow(
+                label: 'Total pactado',
+                amount: record.total,
+                code: record.currencyCode,
+              ),
               _MoneyRow(
                 label: 'Total abonado',
                 amount: record.paidAmount,
@@ -288,6 +441,76 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                 ),
             ],
           ),
+          const SizedBox(height: 12),
+          if (installments.isNotEmpty && daysBetweenPayments != null)
+            _DetailCard(
+                title: 'Calendario de cuotas',
+                icon: Icons.event_note_outlined,
+                children: [
+                  Text(
+                    '$installmentCount cuotas · cada $daysBetweenPayments días',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  for (var index = 0; index < visibleInstallments; index++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 15,
+                            backgroundColor: colors.primaryContainer,
+                            foregroundColor: colors.primary,
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Vence ${_date(record.createdAt.add(Duration(days: daysBetweenPayments * (index + 1))))}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                          Text(
+                            AppCurrency.format(
+                              installments[index],
+                              code: record.currencyCode,
+                            ),
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (visibleInstallments < installments.length)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () =>
+                            setState(() => _showAllInstallments = true),
+                        icon: const Icon(Icons.expand_more_rounded),
+                        label: Text(
+                          'Ver ${installments.length - visibleInstallments} cuotas más',
+                        ),
+                      ),
+                    ),
+                ],
+            )
+          else
+            _DetailCard(
+                title: 'Calendario de cuotas',
+                icon: Icons.event_note_outlined,
+                children: const [
+                  Text(
+                    'Este crédito se registró antes de guardar el plan de cuotas. '
+                    'El PDF adjunto conserva las condiciones originales.',
+                  ),
+                ],
+            ),
           const SizedBox(height: 12),
           _DetailCard(
             title: 'Historial de pagos',
@@ -312,13 +535,16 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(_date(payment.paidAt)),
-                                  if (payment.note.isNotEmpty)
-                                    Text(
-                                      payment.note,
+                                  Text(
+                                    [
+                                      payment.method,
+                                      if (payment.note.isNotEmpty)
+                                        payment.note,
+                                    ].join(' · '),
                                       style: Theme.of(
                                         context,
                                       ).textTheme.bodySmall,
-                                    ),
+                                  ),
                                 ],
                               ),
                             ),

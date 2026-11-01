@@ -147,7 +147,9 @@ class MetricChartCard extends StatelessWidget {
                       ),
                     ),
                     Icon(
-                      negative
+                      onTap != null
+                          ? Icons.arrow_forward_rounded
+                          : negative
                           ? Icons.trending_down_rounded
                           : Icons.trending_up_rounded,
                       color: negative ? const Color(0xFFD64545) : color,

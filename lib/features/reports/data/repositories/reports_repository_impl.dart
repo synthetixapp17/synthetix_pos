@@ -2,6 +2,7 @@ import 'package:fpdart/fpdart.dart';
 
 import '../../../../core/data/hive_database.dart';
 import '../../../../core/error/failure.dart';
+import '../../../product/data/models/product_model.dart';
 import '../../domain/entities/sale_record.dart';
 import '../../domain/repositories/reports_repository.dart';
 import '../models/sale_model.dart';
@@ -27,10 +28,66 @@ class ReportsRepositoryImpl implements ReportsRepository {
 
   @override
   Future<Either<Failure, void>> recordSale(SaleRecord sale) async {
+    final productsBox = HiveDatabase.productBox;
+    final salesBox = HiveDatabase.salesBox;
+    final isNewSale = !salesBox.containsKey(sale.id);
+    final productsToUpdate = <String, ProductModel>{};
+    final previousProducts = <String, ProductModel>{};
+
     try {
-      await HiveDatabase.salesBox.put(sale.id, SaleModel.fromEntity(sale));
+      if (isNewSale) {
+        for (final line in sale.lines) {
+          final product = productsToUpdate[line.productId] ??
+              productsBox.get(line.productId);
+          if (product == null) {
+            return Left(
+              CacheFailure(
+                'No se encontró "${line.productName}" en el inventario; '
+                'no se registró la venta.',
+              ),
+            );
+          }
+          if (product.stock < line.quantity) {
+            return Left(
+              CacheFailure(
+                'Existencia insuficiente para "${line.productName}". '
+                'Disponible: ${product.stock}; solicitado: ${line.quantity}.',
+              ),
+            );
+          }
+          previousProducts.putIfAbsent(line.productId, () => product);
+          productsToUpdate[line.productId] = ProductModel(
+            id: product.id,
+            name: product.name,
+            barcode: product.barcode,
+            price: product.price,
+            stock: product.stock - line.quantity,
+            description: product.description,
+            imageData: product.imageData,
+            currencyCode: product.currencyCode,
+            category: product.category,
+          );
+        }
+        await productsBox.putAll(productsToUpdate);
+      }
+
+      await salesBox.put(sale.id, SaleModel.fromEntity(sale));
       return const Right(null);
     } catch (error) {
+      if (isNewSale && previousProducts.isNotEmpty) {
+        try {
+          await productsBox.putAll(previousProducts);
+          await salesBox.delete(sale.id);
+        } catch (rollbackError) {
+          return Left(
+            CacheFailure(
+              'No se pudo completar la venta ($error) y tampoco restaurar '
+              'el inventario ($rollbackError). Revisa las existencias antes '
+              'de continuar.',
+            ),
+          );
+        }
+      }
       return Left(CacheFailure(error.toString()));
     }
   }
