@@ -14,6 +14,9 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/utils/app_currency.dart';
 import '../../../../core/utils/receipt_preferences.dart';
+import '../../../credit/data/credit_pdf.dart';
+import '../../../credit/data/credit_repository.dart';
+import '../../../credit/domain/entities/credit_record.dart';
 import '../../../reports/domain/entities/sale_record.dart';
 import '../../../settings/data/quotation_pdf.dart';
 import '../../../settings/data/quotation_preferences.dart';
@@ -33,8 +36,25 @@ class CheckoutPage extends StatefulWidget {
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
+  final _initialPaymentController = TextEditingController();
+  final _installmentsController = TextEditingController(text: '1');
+  final _daysBetweenPaymentsController = TextEditingController(text: '30');
   String? _receiptDialogSaleId;
+  String? _creditSavedSaleId;
+  double _creditInitialPayment = 0;
+  int _creditInstallments = 1;
+  int _creditDaysBetweenPayments = 30;
+  bool _isCreditSale = false;
+  bool _isRecordingCredit = false;
   bool _isCreatingQuotation = false;
+
+  @override
+  void dispose() {
+    _initialPaymentController.dispose();
+    _installmentsController.dispose();
+    _daysBetweenPaymentsController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +99,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 state.completedSale!.id != _receiptDialogSaleId) {
               _receiptDialogSaleId = state.completedSale!.id;
               context.read<DashboardBloc>().add(const LoadDashboardEvent());
-              unawaited(_showReceiptOptions(context, state));
+              if (_isCreditSale) {
+                unawaited(_recordCreditPurchase(context, state));
+              } else {
+                unawaited(_showReceiptOptions(context, state));
+              }
             }
             if (state.printSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -296,6 +320,35 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       ),
                                     ),
                                   ),
+                                if (!billingState.saleRecorded) ...[
+                                  _CreditSaleOptions(
+                                    enabled: billingState.customer != null,
+                                    isCreditSale: _isCreditSale,
+                                    initialPaymentController:
+                                        _initialPaymentController,
+                                    installmentsController:
+                                        _installmentsController,
+                                    daysBetweenPaymentsController:
+                                        _daysBetweenPaymentsController,
+                                    installmentCount: _creditInstallments,
+                                    daysBetweenPayments:
+                                        _creditDaysBetweenPayments,
+                                    onChanged: (value) =>
+                                        setState(() => _isCreditSale = value),
+                                    onInstallmentsChanged: (value) => setState(
+                                      () => _creditInstallments =
+                                          int.tryParse(value) ?? 0,
+                                    ),
+                                    onDaysBetweenPaymentsChanged: (value) =>
+                                        setState(
+                                          () => _creditDaysBetweenPayments =
+                                              int.tryParse(value) ?? 0,
+                                        ),
+                                    onInitialPaymentChanged: (_) =>
+                                        setState(() {}),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
@@ -328,22 +381,42 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           PrimaryButton(
                             onPressed: () {
                               if (billingState.saleRecorded) {
-                                unawaited(
-                                  _showReceiptOptions(context, billingState),
-                                );
-                              } else {
+                                final saleId = billingState.completedSale?.id;
+                                if (_isCreditSale &&
+                                    saleId != _creditSavedSaleId) {
+                                  unawaited(
+                                    _recordCreditPurchase(
+                                      context,
+                                      billingState,
+                                    ),
+                                  );
+                                } else if (!_isCreditSale) {
+                                  unawaited(
+                                    _showReceiptOptions(context, billingState),
+                                  );
+                                }
+                              } else if (_validateCreditSale(billingState)) {
                                 context.read<BillingBloc>().add(
                                   CompleteSaleEvent(),
                                 );
                               }
                             },
-                            label: billingState.saleRecorded
-                                ? 'Ver opciones del ticket'
+                            label: _isRecordingCredit
+                                ? 'Guardando crédito...'
+                                : billingState.saleRecorded
+                                ? _isCreditSale
+                                      ? 'Guardar compra a crédito'
+                                      : 'Ver opciones del ticket'
+                                : _isCreditSale
+                                ? 'Registrar compra a crédito'
                                 : 'Finalizar venta',
-                            icon: Icons.check_circle_outline,
+                            icon: _isCreditSale
+                                ? Icons.account_balance_wallet_outlined
+                                : Icons.check_circle_outline,
                             isLoading:
                                 billingState.isPrinting ||
-                                billingState.isSavingSale,
+                                billingState.isSavingSale ||
+                                _isRecordingCredit,
                           ),
                         ],
                       ),
@@ -356,6 +429,213 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
       ),
     );
+  }
+
+  bool _validateCreditSale(BillingState billingState) {
+    if (!_isCreditSale) return true;
+    if (billingState.customer == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona un cliente para registrar el crédito.'),
+        ),
+      );
+      return false;
+    }
+
+    final initialPayment = _initialPaymentController.text.trim().isEmpty
+        ? 0.0
+        : double.tryParse(
+            _initialPaymentController.text.trim().replaceAll(',', '.'),
+          );
+    if (initialPayment == null ||
+        initialPayment < 0 ||
+        initialPayment > billingState.totalAmount) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'El abono inicial debe ser válido y no superar el total.',
+          ),
+        ),
+      );
+      return false;
+    }
+    final installments = int.tryParse(_installmentsController.text.trim());
+    final daysBetweenPayments = int.tryParse(
+      _daysBetweenPaymentsController.text.trim(),
+    );
+    if (installments == null ||
+        installments < 1 ||
+        daysBetweenPayments == null ||
+        daysBetweenPayments < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Indica un número de cuotas y un plazo en días válidos.',
+          ),
+        ),
+      );
+      return false;
+    }
+    _creditInitialPayment = initialPayment;
+    _creditInstallments = installments;
+    _creditDaysBetweenPayments = daysBetweenPayments;
+    return true;
+  }
+
+  Future<void> _recordCreditPurchase(
+    BuildContext context,
+    BillingState billingState,
+  ) async {
+    final sale = billingState.completedSale;
+    final customer = billingState.customer;
+    if (sale == null || customer == null || _isRecordingCredit) return;
+
+    setState(() => _isRecordingCredit = true);
+    try {
+      final shopState = context.read<ShopBloc>().state;
+      final shop = shopState is ShopLoaded ? shopState.shop : const Shop();
+      final paid = _creditInitialPayment.clamp(0, sale.total).toDouble();
+      final finalDueDate = sale.soldAt.add(
+        Duration(days: _creditDaysBetweenPayments * _creditInstallments),
+      );
+      final pdfBytes = await CreditPdf.build(
+        sale: sale,
+        shopName: shop.name,
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        customerEmail: customer.email,
+        customerAddress: customer.address,
+        initialPayment: paid,
+        numberOfInstallments: _creditInstallments,
+        daysBetweenPayments: _creditDaysBetweenPayments,
+        shopAddress: [
+          shop.addressLine1,
+          shop.addressLine2,
+        ].where((line) => line.trim().isNotEmpty).join(', '),
+        shopPhone: shop.phoneNumber,
+        logoData: shop.logoData,
+      );
+      final record = CreditRecord(
+        id: sale.id,
+        createdAt: sale.soldAt,
+        dueDate: finalDueDate,
+        customerId: customer.id,
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        customerEmail: customer.email,
+        customerAddress: customer.address,
+        total: sale.total,
+        currencyCode: sale.currencyCode,
+        pdfBase64: base64Encode(pdfBytes),
+        payments: paid > 0
+            ? [
+                CreditPayment(
+                  paidAt: sale.soldAt,
+                  amount: paid,
+                  note: 'Abono inicial',
+                ),
+              ]
+            : const [],
+      );
+      await CreditRepository.save(record);
+      if (!mounted) return;
+      _creditSavedSaleId = sale.id;
+      final action = await showDialog<_CreditSavedAction>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          icon: const Icon(Icons.verified_outlined, size: 38),
+          title: const Text('Crédito registrado'),
+          content: Text(
+            'El comprobante PDF se guardó junto con los datos de ${customer.name}. '
+            'Saldo pendiente: ${AppCurrency.format(record.balance, code: record.currencyCode)}.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, _CreditSavedAction.close),
+              child: const Text('Listo'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(context, _CreditSavedAction.print),
+              icon: const Icon(Icons.print_outlined),
+              label: const Text('Imprimir / Guardar'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(context, _CreditSavedAction.share),
+              icon: const Icon(Icons.share_outlined),
+              label: const Text('Compartir'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(context, _CreditSavedAction.view),
+              icon: const Icon(Icons.open_in_new_rounded),
+              label: const Text('Ver crédito'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || action == null) return;
+
+      switch (action) {
+        case _CreditSavedAction.close:
+          context.read<BillingBloc>().add(ClearCartEvent());
+          context.go('/');
+        case _CreditSavedAction.view:
+          context.read<BillingBloc>().add(ClearCartEvent());
+          context.go('/settings/credits/${record.id}');
+        case _CreditSavedAction.share:
+          try {
+            await Printing.sharePdf(
+              bytes: pdfBytes,
+              filename: 'credito-${record.id}.pdf',
+            );
+            if (!mounted) return;
+            context.read<BillingBloc>().add(ClearCartEvent());
+            context.go('/');
+          } catch (error) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'El crédito quedó guardado, pero no se pudo compartir el PDF: $error',
+                  ),
+                ),
+              );
+            }
+          }
+        case _CreditSavedAction.print:
+          try {
+            await Printing.layoutPdf(
+              name: 'contrato-credito-${record.id}.pdf',
+              onLayout: (_) async => pdfBytes,
+            );
+            if (!mounted) return;
+            context.read<BillingBloc>().add(ClearCartEvent());
+            context.go('/');
+          } catch (error) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'El crédito quedó guardado, pero no se pudo abrir la impresión del contrato: $error',
+                  ),
+                ),
+              );
+            }
+          }
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'La venta quedó guardada, pero no se pudo guardar el crédito y su PDF: $error',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRecordingCredit = false);
+    }
   }
 
   Future<void> _createQuotation(
@@ -693,6 +973,133 @@ class _CheckoutPageState extends State<CheckoutPage> {
 }
 
 enum _ReceiptAction { print, whatsapp, noReceipt }
+
+enum _CreditSavedAction { close, view, share, print }
+
+class _CreditSaleOptions extends StatelessWidget {
+  final bool enabled;
+  final bool isCreditSale;
+  final TextEditingController initialPaymentController;
+  final TextEditingController installmentsController;
+  final TextEditingController daysBetweenPaymentsController;
+  final int installmentCount;
+  final int daysBetweenPayments;
+  final ValueChanged<bool> onChanged;
+  final ValueChanged<String> onInstallmentsChanged;
+  final ValueChanged<String> onDaysBetweenPaymentsChanged;
+  final ValueChanged<String> onInitialPaymentChanged;
+
+  const _CreditSaleOptions({
+    required this.enabled,
+    required this.isCreditSale,
+    required this.initialPaymentController,
+    required this.installmentsController,
+    required this.daysBetweenPaymentsController,
+    required this.installmentCount,
+    required this.daysBetweenPayments,
+    required this.onChanged,
+    required this.onInstallmentsChanged,
+    required this.onDaysBetweenPaymentsChanged,
+    required this.onInitialPaymentChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          CheckboxListTile(
+            value: isCreditSale,
+            onChanged: enabled ? (value) => onChanged(value ?? false) : null,
+            controlAffinity: ListTileControlAffinity.leading,
+            secondary: Icon(
+              Icons.account_balance_wallet_outlined,
+              color: colors.primary,
+            ),
+            title: const Text(
+              'Registrar como compra a crédito',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              enabled
+                  ? 'El saldo y el comprobante se guardarán en Créditos.'
+                  : 'Selecciona un cliente para habilitar esta opción.',
+            ),
+          ),
+          if (isCreditSale)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: initialPaymentController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: onInitialPaymentChanged,
+                    decoration: const InputDecoration(
+                      labelText: 'Abono inicial (opcional)',
+                      hintText: '0,00',
+                      prefixIcon: Icon(Icons.payments_outlined),
+                      helperText: 'Déjalo vacío si no hay abono inicial.',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: installmentsController,
+                          keyboardType: TextInputType.number,
+                          onChanged: onInstallmentsChanged,
+                          decoration: const InputDecoration(
+                            labelText: 'Número de cuotas',
+                            prefixIcon: Icon(Icons.format_list_numbered),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: daysBetweenPaymentsController,
+                          keyboardType: TextInputType.number,
+                          onChanged: onDaysBetweenPaymentsChanged,
+                          decoration: const InputDecoration(
+                            labelText: 'Días entre pagos',
+                            prefixIcon: Icon(Icons.calendar_month_outlined),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'La primera cuota vence en $daysBetweenPayments días; '
+                    'el crédito vencerá en '
+                    '${daysBetweenPayments * installmentCount} días.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'El contrato se calcula a partir de estos plazos.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 class _WhatsappRecipient {
   final String phone;

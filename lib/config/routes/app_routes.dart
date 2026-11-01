@@ -12,12 +12,15 @@ import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/settings/presentation/pages/receipt_settings_page.dart';
 import '../../features/settings/presentation/pages/product_barcodes_page.dart';
 import '../../features/settings/presentation/pages/quotation_settings_page.dart';
+import '../../features/settings/presentation/pages/category_management_page.dart';
 import '../../features/billing/presentation/pages/checkout_page.dart';
 import '../../features/product/domain/entities/product.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/customer/domain/entities/customer.dart';
 import '../../features/customer/presentation/pages/customer_list_page.dart';
 import '../../features/customer/presentation/pages/customer_form_page.dart';
+import '../../features/credit/presentation/pages/credit_list_page.dart';
+import '../../features/credit/presentation/pages/credit_detail_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
 
 final router = GoRouter(
@@ -87,6 +90,21 @@ final router = GoRouter(
         GoRoute(
           path: '/settings/barcodes',
           builder: (context, state) => const ProductBarcodesPage(),
+        ),
+        GoRoute(
+          path: '/settings/credits',
+          builder: (context, state) => const CreditListPage(),
+          routes: [
+            GoRoute(
+              path: ':id',
+              builder: (context, state) =>
+                  CreditDetailPage(creditId: state.pathParameters['id']!),
+            ),
+          ],
+        ),
+        GoRoute(
+          path: '/settings/categories',
+          builder: (context, state) => const CategoryManagementPage(),
         ),
         GoRoute(
           path: '/settings/quotation',

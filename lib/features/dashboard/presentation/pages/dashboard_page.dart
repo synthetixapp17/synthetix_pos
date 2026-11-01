@@ -96,7 +96,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 _WelcomeCard(onNewSale: () => context.push('/new-sale')),
                 const SizedBox(height: 16),
                 LayoutBuilder(
-                  builder: (context, constraints) {
+                  builder: (context, _) {
                     final dailyTrend = summary.lastSevenDays
                         .where(
                           (day) => day.currencyCode == AppCurrency.currentCode,
@@ -142,25 +142,6 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                       ),
                     ];
-                    if (constraints.maxWidth < 380) {
-                      return Column(
-                        children: [
-                          for (
-                            var index = 0;
-                            index < metricCards.length;
-                            index++
-                          )
-                            Padding(
-                              padding: EdgeInsets.only(
-                                bottom: index == metricCards.length - 1
-                                    ? 0
-                                    : 12,
-                              ),
-                              child: metricCards[index],
-                            ),
-                        ],
-                      );
-                    }
                     return Row(
                       children: [
                         Expanded(child: metricCards[0]),

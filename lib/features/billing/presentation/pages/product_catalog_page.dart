@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/data/hive_database.dart';
 import '../../../../core/utils/app_currency.dart';
+import '../../../../core/utils/product_categories.dart';
 import '../../../billing/presentation/bloc/billing_bloc.dart';
 import '../../../product/domain/entities/product.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
@@ -36,46 +37,25 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
     super.dispose();
   }
 
-  IconData _categoryIcon(String category) {
-    final normalized = category.toLowerCase();
-    if (normalized == 'todas') return Icons.grid_view_rounded;
-    if (normalized.contains('zapato') || normalized.contains('shoe')) {
-      return Icons.directions_walk_rounded;
-    }
-    if (normalized.contains('reloj') || normalized.contains('watch')) {
-      return Icons.watch_rounded;
-    }
-    if (normalized.contains('bolso') || normalized.contains('bag')) {
-      return Icons.backpack_rounded;
-    }
-    if (normalized.contains('belleza') ||
-        normalized.contains('beauty') ||
-        normalized.contains('cosm')) {
-      return Icons.brush_outlined;
-    }
-    if (normalized.contains('ropa') ||
-        normalized.contains('clothing') ||
-        normalized.contains('vest')) {
-      return Icons.checkroom_rounded;
-    }
-    if (normalized.contains('comida') ||
-        normalized.contains('food') ||
-        normalized.contains('alimento')) {
-      return Icons.restaurant_rounded;
-    }
-    return Icons.category_outlined;
-  }
-
   Future<void> _showFilters({
     required int availableCount,
     required int lowStockCount,
     required int outOfStockCount,
     required int totalCount,
   }) async {
+    final colors = Theme.of(context).colorScheme;
+    var draftFilter = _filter;
     final selectedFilter = await showModalBottomSheet<_CatalogFilter>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) {
+      backgroundColor: colors.surface,
+      barrierColor: Colors.black54,
+      elevation: 24,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
         final options = [
           (_CatalogFilter.all, 'Todos los productos', totalCount),
           (_CatalogFilter.available, 'Disponibles', availableCount),
@@ -83,40 +63,87 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
           (_CatalogFilter.outOfStock, 'Agotados', outOfStockCount),
         ];
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
-                  child: Text(
+          child: StatefulBuilder(
+            builder: (context, setSheetState) => Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
                     'Filtrar productos',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),
-                for (final (filter, label, count) in options)
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    title: Text(label),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('$count'),
-                        const SizedBox(width: 12),
-                        if (_filter == filter)
-                          Icon(
-                            Icons.check_circle_rounded,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                      ],
+                  const SizedBox(height: 4),
+                  Text(
+                    'Elige qué productos quieres ver en el catálogo.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
                     ),
-                    onTap: () => Navigator.pop(context, filter),
                   ),
-              ],
+                  const SizedBox(height: 16),
+                  for (final (filter, label, count) in options)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Material(
+                        color: draftFilter == filter
+                            ? colors.primaryContainer
+                            : colors.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(14),
+                        child: ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          title: Text(
+                            label,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('$count'),
+                              const SizedBox(width: 12),
+                              Icon(
+                                draftFilter == filter
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                color: draftFilter == filter
+                                    ? colors.primary
+                                    : colors.onSurfaceVariant,
+                              ),
+                            ],
+                          ),
+                          onTap: () =>
+                              setSheetState(() => draftFilter = filter),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => setSheetState(
+                          () => draftFilter = _CatalogFilter.all,
+                        ),
+                        child: const Text('Restablecer'),
+                      ),
+                      const Spacer(),
+                      OutlinedButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        child: const Text('Cancelar'),
+                      ),
+                      const SizedBox(width: 10),
+                      FilledButton(
+                        onPressed: () =>
+                            Navigator.pop(sheetContext, draftFilter),
+                        child: const Text('Aplicar'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -178,13 +205,7 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
             );
           }
 
-          final categories =
-              productState.products
-                  .map((product) => product.category.trim())
-                  .where((category) => category.isNotEmpty)
-                  .toSet()
-                  .toList()
-                ..sort();
+          final categories = ProductCategories.load();
           final allTimeSales = <String, int>{};
           final recentSales = <String, int>{};
           final lastSoldAt = <String, DateTime>{};
@@ -274,7 +295,7 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
                         controller: _searchController,
                         onChanged: (value) => setState(() => _query = value),
                         decoration: InputDecoration(
-                          hintText: 'What are you looking for?',
+                          hintText: '¿Qué estás buscando?',
                           prefixIcon: const Icon(Icons.search_rounded),
                           suffixIcon: _query.isEmpty
                               ? null
@@ -315,7 +336,11 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
                         totalCount: productState.products.length,
                       ),
                       icon: const Icon(Icons.tune_rounded, size: 19),
-                      label: const Text('Filter'),
+                      label: Text(
+                        _filter == _CatalogFilter.all
+                            ? 'Filtros'
+                            : 'Filtro (1)',
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Theme.of(context).colorScheme.primary,
                         side: BorderSide(
@@ -340,23 +365,23 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
                     _SortTab(
-                      label: 'Popular',
+                      label: 'Populares',
                       selected: _sort == _CatalogSort.popular,
                       onTap: () => setState(() => _sort = _CatalogSort.popular),
                     ),
                     _SortTab(
-                      label: 'Latest',
+                      label: 'Recientes',
                       selected: _sort == _CatalogSort.latest,
                       onTap: () => setState(() => _sort = _CatalogSort.latest),
                     ),
                     _SortTab(
-                      label: 'Best Sellers',
+                      label: 'Más vendidos',
                       selected: _sort == _CatalogSort.bestSellers,
                       onTap: () =>
                           setState(() => _sort = _CatalogSort.bestSellers),
                     ),
                     _SortTab(
-                      label: _priceAscending ? 'Price ↑' : 'Price ↓',
+                      label: _priceAscending ? 'Precio ↑' : 'Precio ↓',
                       selected: _sort == _CatalogSort.price,
                       onTap: () => setState(() {
                         if (_sort == _CatalogSort.price) {
@@ -373,14 +398,22 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  children: ['Todas', ...categories].map((category) {
-                    return _CategoryButton(
-                      label: category,
-                      icon: _categoryIcon(category),
-                      selected: _category == category,
-                      onTap: () => setState(() => _category = category),
-                    );
-                  }).toList(),
+                  children: [
+                    _CategoryButton(
+                      label: 'Todas',
+                      icon: Icons.grid_view_rounded,
+                      selected: _category == 'Todas',
+                      onTap: () => setState(() => _category = 'Todas'),
+                    ),
+                    ...categories.map(
+                      (category) => _CategoryButton(
+                        label: category.name,
+                        icon: category.icon,
+                        selected: _category == category.name,
+                        onTap: () => setState(() => _category = category.name),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Padding(
@@ -428,7 +461,7 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
                                       crossAxisCount: 2,
                                       crossAxisSpacing: 14,
                                       mainAxisSpacing: 14,
-                                      mainAxisExtent: 342,
+                                      mainAxisExtent: 300,
                                     ),
                                 itemCount: visibleProducts.length,
                                 itemBuilder: (context, index) =>
@@ -461,25 +494,36 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: FilledButton(
-                onPressed: () => context.push('/checkout'),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.shopping_bag_outlined),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Revisar venta · $quantity ${quantity == 1 ? 'producto' : 'productos'}',
+              child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                elevation: 12,
+                borderRadius: BorderRadius.circular(18),
+                child: FilledButton(
+                  onPressed: () => context.push('/checkout'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 13,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.shopping_bag_outlined),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Revisar carrito · $quantity ${quantity == 1 ? 'producto' : 'productos'}',
+                        ),
                       ),
-                    ),
-                    Text(
-                      AppCurrency.formatConfigured(state.totalAmount),
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ],
+                      Text(
+                        AppCurrency.formatConfigured(state.totalAmount),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

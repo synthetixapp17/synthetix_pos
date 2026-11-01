@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:pretty_qr_code/pretty_qr_code.dart';
+import 'package:barcode_widget/barcode_widget.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/app_currency.dart';
 import '../../../../core/utils/app_validators.dart';
+import '../../../../core/utils/barcode_generator.dart';
+import '../../../../core/utils/product_categories.dart';
 import '../../domain/entities/product.dart';
 import '../bloc/product_bloc.dart';
 
@@ -30,7 +32,16 @@ class _AddProductPageState extends State<AddProductPage> {
   final _categoryController = TextEditingController();
   String _currencyCode = AppCurrency.currentCode;
   String? _imageData;
+  late List<String> _categories;
   bool _isPickingImage = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _categories = ProductCategories.load()
+        .map((category) => category.name)
+        .toList();
+  }
 
   @override
   void dispose() {
@@ -68,6 +79,17 @@ class _AddProductPageState extends State<AddProductPage> {
     final result = await context.push<String>('/scan-code');
     if (result != null && result.isNotEmpty && mounted) {
       setState(() => _barcodeController.text = result);
+    }
+  }
+
+  Future<void> _manageCategories() async {
+    await context.push('/settings/categories');
+    if (mounted) {
+      setState(() {
+        _categories = ProductCategories.load()
+            .map((category) => category.name)
+            .toList();
+      });
     }
   }
 
@@ -165,15 +187,36 @@ class _AddProductPageState extends State<AddProductPage> {
                 ),
               ),
               const SizedBox(height: 14),
-              TextFormField(
-                controller: _categoryController,
-                textCapitalization: TextCapitalization.words,
+              DropdownButtonFormField<String>(
+                initialValue: _categories.contains(_categoryController.text)
+                    ? _categoryController.text
+                    : '',
                 decoration: const InputDecoration(
                   labelText: 'Categoría',
-                  hintText: 'Ej.: Bebidas, alimentos o accesorios',
-                  helperText:
-                      'Agrupa productos para consultar sus ventas y métricas.',
+                  helperText: 'Selecciona una categoría del catálogo.',
                   prefixIcon: Icon(Icons.category_outlined),
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text('Sin categoría'),
+                  ),
+                  ..._categories.map(
+                    (category) => DropdownMenuItem(
+                      value: category,
+                      child: Text(category),
+                    ),
+                  ),
+                ],
+                onChanged: (value) =>
+                    setState(() => _categoryController.text = value ?? ''),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _manageCategories,
+                  icon: const Icon(Icons.settings_outlined, size: 18),
+                  label: const Text('Administrar categorías'),
                 ),
               ),
               const SizedBox(height: 14),
@@ -273,20 +316,54 @@ class _AddProductPageState extends State<AddProductPage> {
     );
   }
 
-  Widget _buildCodeField() => TextFormField(
-    controller: _barcodeController,
-    onChanged: (_) => setState(() {}),
-    decoration: InputDecoration(
-      labelText: 'Código QR o de barras',
-      hintText: 'Escribe o escanea el código',
-      prefixIcon: const Icon(Icons.qr_code_2),
-      suffixIcon: IconButton(
-        tooltip: 'Escanear código',
-        onPressed: _scanBarcode,
-        icon: const Icon(Icons.qr_code_scanner),
+  void _generateBarcode() {
+    final existingBarcodes = context
+        .read<ProductBloc>()
+        .state
+        .products
+        .map((product) => product.barcode)
+        .toSet();
+    try {
+      final barcode = BarcodeGenerator.generateEan13(
+        excluding: existingBarcodes,
+      );
+      setState(() => _barcodeController.text = barcode);
+    } on StateError {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se pudo generar un código único. Inténtalo nuevamente.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildCodeField() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      TextFormField(
+        controller: _barcodeController,
+        onChanged: (_) => setState(() {}),
+        decoration: InputDecoration(
+          labelText: 'Código de barras',
+          hintText: 'Genera, escribe o escanea el código',
+          prefixIcon: const Icon(Icons.qr_code_2),
+          suffixIcon: IconButton(
+            tooltip: 'Escanear código',
+            onPressed: _scanBarcode,
+            icon: const Icon(Icons.qr_code_scanner),
+          ),
+        ),
+        validator: AppValidators.required('El código es obligatorio.'),
       ),
-    ),
-    validator: AppValidators.required('El código es obligatorio.'),
+      const SizedBox(height: 8),
+      OutlinedButton.icon(
+        onPressed: _generateBarcode,
+        icon: const Icon(Icons.auto_awesome_outlined, size: 18),
+        label: const Text('Generar código automáticamente'),
+      ),
+    ],
   );
 
   Widget _buildSectionIntro(
@@ -408,9 +485,13 @@ class _QrPreview extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 76,
-            height: 76,
-            child: PrettyQrView.data(data: value),
+            width: 140,
+            height: 72,
+            child: BarcodeWidget(
+              barcode: Barcode.code128(),
+              data: value,
+              drawText: false,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(

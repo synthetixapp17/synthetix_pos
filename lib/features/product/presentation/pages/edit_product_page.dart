@@ -8,6 +8,7 @@ import 'package:pretty_qr_code/pretty_qr_code.dart';
 
 import '../../../../core/utils/app_currency.dart';
 import '../../../../core/utils/app_validators.dart';
+import '../../../../core/utils/product_categories.dart';
 import '../../domain/entities/product.dart';
 import '../bloc/product_bloc.dart';
 
@@ -36,6 +37,15 @@ class _EditProductPageState extends State<EditProductPage> {
   );
   late String _currencyCode = widget.product.currencyCode;
   late String? _imageData = widget.product.imageData;
+  late List<String> _categories;
+
+  @override
+  void initState() {
+    super.initState();
+    _categories = ProductCategories.load()
+        .map((category) => category.name)
+        .toList();
+  }
 
   @override
   void dispose() {
@@ -66,6 +76,17 @@ class _EditProductPageState extends State<EditProductPage> {
     }
   }
 
+  Future<void> _manageCategories() async {
+    await context.push('/settings/categories');
+    if (mounted) {
+      setState(() {
+        _categories = ProductCategories.load()
+            .map((category) => category.name)
+            .toList();
+      });
+    }
+  }
+
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     final amount = double.parse(
@@ -91,6 +112,7 @@ class _EditProductPageState extends State<EditProductPage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentCategory = _categoryController.text.trim();
     return Scaffold(
       appBar: AppBar(title: const Text('Editar producto')),
       body: Form(
@@ -132,15 +154,31 @@ class _EditProductPageState extends State<EditProductPage> {
               ),
             ),
             const SizedBox(height: 14),
-            TextFormField(
-              controller: _categoryController,
-              textCapitalization: TextCapitalization.words,
+            DropdownButtonFormField<String>(
+              initialValue: _categories.contains(currentCategory)
+                  ? currentCategory
+                  : '',
               decoration: const InputDecoration(
                 labelText: 'Categoría',
-                hintText: 'Ej.: Bebidas, alimentos o accesorios',
-                helperText:
-                    'Agrupa productos para consultar sus ventas y métricas.',
+                helperText: 'Selecciona una categoría del catálogo.',
                 prefixIcon: Icon(Icons.category_outlined),
+              ),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Sin categoría')),
+                ..._categories.map(
+                  (category) =>
+                      DropdownMenuItem(value: category, child: Text(category)),
+                ),
+              ],
+              onChanged: (value) =>
+                  setState(() => _categoryController.text = value ?? ''),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _manageCategories,
+                icon: const Icon(Icons.settings_outlined, size: 18),
+                label: const Text('Administrar categorías'),
               ),
             ),
             const SizedBox(height: 14),
