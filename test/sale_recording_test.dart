@@ -17,6 +17,7 @@ void main() {
         _FakeProductRepository(),
       ),
       recordSaleUseCase: RecordSaleUseCase(_FakeReportsRepository()),
+      playCartAddSound: () async {},
     );
     addTearDown(bloc.close);
 
@@ -46,6 +47,7 @@ void main() {
         _FakeProductRepository(),
       ),
       recordSaleUseCase: RecordSaleUseCase(reportsRepository),
+      playCartAddSound: () async {},
     );
     addTearDown(bloc.close);
 
@@ -78,6 +80,38 @@ void main() {
     bloc.add(CompleteSaleEvent());
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(reportsRepository.sales, hasLength(1));
+  });
+
+  test('plays the cart sound for each successful product addition', () async {
+    var soundCount = 0;
+    final bloc = BillingBloc(
+      getProductByBarcodeUseCase: GetProductByBarcodeUseCase(
+        _FakeProductRepository(),
+      ),
+      playCartAddSound: () async {
+        soundCount++;
+      },
+    );
+    addTearDown(bloc.close);
+
+    const product = Product(
+      id: 'product-with-sound',
+      name: 'Producto',
+      barcode: '12345678',
+      price: 4.5,
+      stock: 3,
+    );
+
+    bloc.add(const AddProductToCartEvent(product));
+    await bloc.stream.firstWhere(
+      (state) => state.cartItems.single.quantity == 1,
+    );
+    bloc.add(const AddProductToCartEvent(product));
+    await bloc.stream.firstWhere(
+      (state) => state.cartItems.single.quantity == 2,
+    );
+
+    expect(soundCount, 2);
   });
 }
 

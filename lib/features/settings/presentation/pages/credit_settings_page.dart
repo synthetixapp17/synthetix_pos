@@ -280,20 +280,18 @@ class _CreditSettingsPageState extends State<CreditSettingsPage> {
                             const _SectionHeading(
                               title: 'Diseño del PDF',
                               subtitle:
-                                  'Toca una plantilla para usarla. Mantén presionado o usa el ícono para verla grande. Se aplica al guardar.',
+                                  'Elige una presentación, revisa la miniatura y guarda los cambios para aplicarlos al contrato.',
                             ),
                             const SizedBox(height: 18),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                for (
-                                  var index = 0;
-                                  index < _templates.length;
-                                  index++
-                                ) ...[
-                                  if (index > 0) const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _ContractTemplateOption(
+                            SizedBox(
+                              height: 154,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _templates.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 14),
+                                itemBuilder: (context, index) =>
+                                    _ContractTemplateOption(
                                       name: _templates[index],
                                       selected: _template == _templates[index],
                                       primaryColor: _primaryColor,
@@ -304,9 +302,7 @@ class _CreditSettingsPageState extends State<CreditSettingsPage> {
                                       onPreview: () =>
                                           _previewTemplate(_templates[index]),
                                     ),
-                                  ),
-                                ],
-                              ],
+                              ),
                             ),
                             const Divider(height: 30),
                             const _SectionHeading(
@@ -515,7 +511,9 @@ class _CreditSettingsPageState extends State<CreditSettingsPage> {
                               )
                             : const Icon(Icons.save_outlined),
                         label: Text(
-                          _saving ? 'Guardando...' : 'Guardar',
+                          _saving
+                              ? 'Guardando...'
+                              : 'Guardar diseño y contrato',
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                       ),
@@ -598,89 +596,92 @@ class _ContractTemplateOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = Color(primaryColor);
-    return Column(
-      children: [
-        SizedBox(
-          height: 116,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  child: InkWell(
-                    onTap: onTap,
-                    onLongPress: onPreview,
+    return SizedBox(
+      width: 124,
+      child: Column(
+        children: [
+          SizedBox(
+            height: 116,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Material(
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(9),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: selected ? primary : const Color(0xFFDCE2EA),
-                          width: selected ? 2.5 : 1,
+                    child: InkWell(
+                      onTap: onTap,
+                      onLongPress: onPreview,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(9),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: selected ? primary : const Color(0xFFDCE2EA),
+                            width: selected ? 2.5 : 1,
+                          ),
+                        ),
+                        child: _MiniContractSheet(
+                          template: name,
+                          primaryColor: primaryColor,
+                          accentColor: accentColor,
                         ),
                       ),
-                      child: _MiniContractSheet(
-                        template: name,
-                        primaryColor: primaryColor,
-                        accentColor: accentColor,
+                    ),
+                  ),
+                ),
+                if (selected)
+                  Positioned(
+                    top: 5,
+                    left: 5,
+                    child: CircleAvatar(
+                      radius: 10,
+                      backgroundColor: primary,
+                      child: const Icon(
+                        Icons.check,
+                        size: 13,
+                        color: Colors.white,
                       ),
                     ),
                   ),
-                ),
-              ),
-              if (selected)
                 Positioned(
-                  top: 5,
-                  left: 5,
-                  child: CircleAvatar(
-                    radius: 10,
-                    backgroundColor: primary,
-                    child: const Icon(
-                      Icons.check,
-                      size: 13,
-                      color: Colors.white,
+                  right: 3,
+                  bottom: 3,
+                  child: Material(
+                    color: Colors.white,
+                    shape: const CircleBorder(),
+                    elevation: 3,
+                    child: IconButton(
+                      tooltip: 'Ampliar plantilla $name',
+                      onPressed: onPreview,
+                      icon: Icon(
+                        Icons.open_in_full_rounded,
+                        color: primary,
+                        size: 15,
+                      ),
+                      constraints: const BoxConstraints.tightFor(
+                        width: 30,
+                        height: 30,
+                      ),
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
                     ),
                   ),
                 ),
-              Positioned(
-                right: 3,
-                bottom: 3,
-                child: Material(
-                  color: Colors.white,
-                  shape: const CircleBorder(),
-                  elevation: 3,
-                  child: IconButton(
-                    tooltip: 'Ampliar plantilla $name',
-                    onPressed: onPreview,
-                    icon: Icon(
-                      Icons.open_in_full_rounded,
-                      color: primary,
-                      size: 15,
-                    ),
-                    constraints: const BoxConstraints.tightFor(
-                      width: 30,
-                      height: 30,
-                    ),
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 7),
-        Text(
-          name,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+          const SizedBox(height: 7),
+          Text(
+            name,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -697,42 +698,267 @@ class _MiniContractSheet extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Container(
-        height: template == 'Minimal' ? 5 : 13,
-        decoration: BoxDecoration(
-          color: Color(primaryColor),
-          borderRadius: BorderRadius.circular(2),
-        ),
-      ),
-      const SizedBox(height: 8),
-      Container(height: 4, width: 42, color: const Color(0xFFE6E9ED)),
-      const SizedBox(height: 4),
-      Container(height: 3, color: const Color(0xFFE6E9ED)),
-      const SizedBox(height: 3),
-      Container(height: 3, color: const Color(0xFFE6E9ED)),
-      const SizedBox(height: 8),
-      Container(
-        height: 17,
-        decoration: BoxDecoration(
-          color: Color(accentColor).withValues(alpha: .3),
-          borderRadius: BorderRadius.circular(2),
-        ),
-      ),
-      const Spacer(),
-      Container(height: 3, color: const Color(0xFFE6E9ED)),
-      const SizedBox(height: 7),
-      Row(
+  Widget build(BuildContext context) {
+    final primary = Color(primaryColor);
+    final accent = Color(accentColor);
+    final minimal = template == 'Minimal';
+    final professional = template == 'Profesional';
+    const textColor = Color(0xFF263247);
+    const muted = Color(0xFF7C8797);
+    const line = Color(0xFFE5E9EF);
+
+    Widget detail(String name, String quantity, String amount) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
         children: [
-          Expanded(child: Container(height: 2, color: Color(primaryColor))),
-          const SizedBox(width: 8),
-          Expanded(child: Container(height: 2, color: Color(primaryColor))),
+          Expanded(
+            flex: 5,
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 4.5, color: textColor),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              quantity,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 4, color: muted),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              amount,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 4,
+                color: textColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
-    ],
-  );
+    );
+
+    Widget summary(String label, String value) => Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: .12),
+          borderRadius: BorderRadius.circular(2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: muted,
+                fontSize: 3,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              value,
+              style: TextStyle(
+                color: primary,
+                fontSize: 4,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (professional)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+            decoration: BoxDecoration(
+              color: primary,
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'MI NEGOCIO',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        'CONTRATO DE CRÉDITO',
+                        style: TextStyle(color: Colors.white70, fontSize: 3.5),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  'N.º CR-001',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: .85),
+                    fontSize: 4,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else ...[
+          Container(
+            height: minimal ? 2 : 4,
+            decoration: BoxDecoration(
+              color: minimal ? accent : primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'CONTRATO DE CRÉDITO',
+                  style: TextStyle(
+                    color: primary,
+                    fontSize: 5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const Text(
+                'N.º CR-001',
+                style: TextStyle(color: muted, fontSize: 4),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 3),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+          decoration: BoxDecoration(
+            color: minimal ? Colors.white : const Color(0xFFF3F5F8),
+            border: minimal ? Border.all(color: line) : null,
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.person_outline_rounded, size: 7, color: muted),
+              SizedBox(width: 3),
+              Expanded(
+                child: Text(
+                  'CLIENTE · María Pérez',
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 4,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 3),
+        Row(
+          children: [
+            summary('ABONO', '\$450'),
+            const SizedBox(width: 3),
+            summary('CUOTAS', '4 × \$525'),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+          decoration: BoxDecoration(
+            color: minimal ? Colors.white : accent,
+            border: minimal ? Border(bottom: BorderSide(color: line)) : null,
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 5,
+                child: Text(
+                  'PRODUCTO',
+                  style: TextStyle(
+                    color: minimal ? primary : Colors.white,
+                    fontSize: 3.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'CANT.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: minimal ? muted : Colors.white,
+                    fontSize: 3.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  'IMPORTE',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: minimal ? muted : Colors.white,
+                    fontSize: 3.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        detail('Equipo de oficina', '1', '\$1,850'),
+        Divider(height: 1, color: line),
+        detail('Accesorios', '2', '\$600'),
+        const SizedBox(height: 2),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: BoxDecoration(
+              color: minimal ? Colors.white : primary,
+              border: minimal ? Border(top: BorderSide(color: accent)) : null,
+              borderRadius: BorderRadius.circular(2),
+            ),
+            child: Text(
+              'TOTAL  \$2,450',
+              style: TextStyle(
+                color: minimal ? primary : Colors.white,
+                fontSize: 4.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+        const Spacer(),
+        Row(
+          children: [
+            Expanded(child: Container(height: 1, color: line)),
+            const SizedBox(width: 5),
+            Expanded(child: Container(height: 1, color: line)),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 class _CreditColorCard extends StatelessWidget {

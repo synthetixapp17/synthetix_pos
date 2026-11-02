@@ -1,5 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import '../../../../core/services/sound_service.dart';
 import '../../domain/entities/cart_item.dart';
 import 'package:billing_app/features/product/domain/entities/product.dart';
 import 'package:billing_app/features/product/domain/usecases/product_usecases.dart';
@@ -16,11 +17,15 @@ part 'billing_state.dart';
 class BillingBloc extends Bloc<BillingEvent, BillingState> {
   final GetProductByBarcodeUseCase getProductByBarcodeUseCase;
   final RecordSaleUseCase? recordSaleUseCase;
+  final Future<void> Function() _playCartAddSound;
 
   BillingBloc({
     required this.getProductByBarcodeUseCase,
     this.recordSaleUseCase,
-  }) : super(const BillingState()) {
+    Future<void> Function()? playCartAddSound,
+  }) : _playCartAddSound =
+           playCartAddSound ?? SoundService.instance.playScanSound,
+       super(const BillingState()) {
     on<ScanBarcodeEvent>(_onScanBarcode);
     on<AddProductToCartEvent>(_onAddProductToCart);
     on<RemoveProductFromCartEvent>(_onRemoveProductFromCart);
@@ -49,10 +54,10 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     );
   }
 
-  void _onAddProductToCart(
+  Future<void> _onAddProductToCart(
     AddProductToCartEvent event,
     Emitter<BillingState> emit,
-  ) {
+  ) async {
     if (event.product.stock <= 0) {
       emit(
         state.copyWith(
@@ -105,6 +110,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
           clearCompletedSale: true,
         ),
       );
+      await _playCartAddSound();
     } else {
       final newItem = CartItem(product: event.product);
       emit(
@@ -115,6 +121,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
           clearCompletedSale: true,
         ),
       );
+      await _playCartAddSound();
     }
   }
 

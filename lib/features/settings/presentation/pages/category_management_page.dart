@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/data/hive_database.dart';
 import '../../../../core/utils/product_categories.dart';
+import '../../../product/presentation/bloc/product_bloc.dart';
 
 class CategoryManagementPage extends StatefulWidget {
   const CategoryManagementPage({super.key});
@@ -36,106 +38,101 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     return showDialog<int>(
       context: context,
       builder: (dialogContext) => Dialog(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0F1F3),
-                      borderRadius: BorderRadius.circular(14),
+        backgroundColor: colors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: colors.primaryContainer,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        Icons.grid_view_rounded,
+                        color: colors.primary,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.grid_view_rounded,
-                      color: Color(0xFF111111),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Icono de categoría',
-                          style: TextStyle(
-                            color: Color(0xFF111111),
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Icono de categoría',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Elige un símbolo para identificarla.',
-                          style: TextStyle(
-                            color: Color(0xFF737985),
-                            fontSize: 12,
+                          const SizedBox(height: 3),
+                          Text(
+                            'Elige un símbolo para identificarla.',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: colors.onSurfaceVariant),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Cerrar',
-                    onPressed: () => Navigator.pop(dialogContext),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              GridView.count(
-                crossAxisCount: 5,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 9,
-                crossAxisSpacing: 9,
-                children: [
-                  for (final icon in ProductCategories.availableIcons)
-                    Tooltip(
-                      message: 'Seleccionar icono',
-                      child: Material(
-                        color: icon.codePoint == selectedCodePoint
-                            ? colors.primary
-                            : const Color(0xFFF3F4F6),
-                        borderRadius: BorderRadius.circular(13),
-                        child: InkWell(
+                    IconButton(
+                      tooltip: 'Cerrar',
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                GridView.count(
+                  crossAxisCount: 5,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 9,
+                  crossAxisSpacing: 9,
+                  children: [
+                    for (final icon in ProductCategories.availableIcons)
+                      Tooltip(
+                        message: 'Seleccionar icono',
+                        child: Material(
+                          color: icon.codePoint == selectedCodePoint
+                              ? colors.primary
+                              : colors.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(13),
-                          onTap: () =>
-                              Navigator.pop(dialogContext, icon.codePoint),
-                          child: Icon(
-                            icon,
-                            color: icon.codePoint == selectedCodePoint
-                                ? colors.onPrimary
-                                : const Color(0xFF343A40),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(13),
+                            onTap: () =>
+                                Navigator.pop(dialogContext, icon.codePoint),
+                            child: Icon(
+                              icon,
+                              color: icon.codePoint == selectedCodePoint
+                                  ? colors.onPrimary
+                                  : colors.onSurfaceVariant,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancelar'),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Cancelar'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 
@@ -147,7 +144,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     final result = await showDialog<(String, int)>(
       context: context,
       builder: (dialogContext) => Dialog(
-        backgroundColor: Colors.white,
+        backgroundColor: colors.surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
         child: ConstrainedBox(
@@ -177,17 +174,14 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                           ),
                         ),
                         const SizedBox(width: 14),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 'Crear categoría',
-                                style: TextStyle(
-                                  color: Color(0xFF111111),
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w800),
                               ),
                               SizedBox(height: 3),
                               Text(
@@ -231,7 +225,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                         counterText: '',
                         prefixIcon: const Icon(Icons.edit_outlined),
                         filled: true,
-                        fillColor: const Color(0xFFF6F7F8),
+                        fillColor: colors.surfaceContainerHighest,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: BorderSide.none,
@@ -244,8 +238,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF111111),
+                          borderSide: BorderSide(
+                            color: colors.primary,
                             width: 1.5,
                           ),
                         ),
@@ -411,14 +405,97 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     }
   }
 
-  Future<void> _editCategoryIcon(ProductCategory category) async {
-    final iconCodePoint = await _chooseIcon(category.iconCodePoint);
-    if (iconCodePoint == null || !mounted) return;
+  Future<void> _editCategory(ProductCategory category) async {
+    final controller = TextEditingController(text: category.name);
+    final formKey = GlobalKey<FormState>();
+    var selectedIconCodePoint = category.iconCodePoint;
+    final result = await showDialog<(String, int)>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Editar categoría'),
+          content: SizedBox(
+            width: 420,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: controller,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.words,
+                    maxLength: 40,
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Escribe un nombre para continuar.'
+                        : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre de la categoría',
+                      hintText: 'Ej.: Bebidas y alimentos',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final iconCodePoint = await _chooseIcon(
+                        selectedIconCodePoint,
+                      );
+                      if (iconCodePoint != null) {
+                        setDialogState(
+                          () => selectedIconCodePoint = iconCodePoint,
+                        );
+                      }
+                    },
+                    icon: Icon(
+                      ProductCategories.iconFor(selectedIconCodePoint),
+                    ),
+                    label: const Text('Cambiar icono'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.pop(dialogContext, (
+                    controller.text.trim(),
+                    selectedIconCodePoint,
+                  ));
+                }
+              },
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Guardar cambios'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (result == null || !mounted) return;
+
     try {
-      await ProductCategories.updateIcon(category.name, iconCodePoint);
-      if (mounted) setState(_reloadCategories);
+      final updated = await ProductCategories.rename(
+        category.name,
+        result.$1,
+        iconCodePoint: result.$2,
+      );
+      if (!mounted) return;
+      if (!updated) {
+        _showMessage('Ya existe una categoría con ese nombre.');
+        return;
+      }
+      context.read<ProductBloc>().add(LoadProducts());
+      setState(_reloadCategories);
+      _showMessage('Categoría actualizada.');
     } catch (error) {
-      if (mounted) _showMessage('No se pudo actualizar el icono: $error');
+      if (mounted) _showMessage('No se pudo actualizar la categoría: $error');
     }
   }
 
@@ -589,10 +666,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: colors.primary,
-                    width: 1.4,
-                  ),
+                  borderSide: BorderSide(color: colors.primary, width: 1.4),
                 ),
               ),
             ),
@@ -687,8 +761,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          tooltip: 'Cambiar icono',
-                          onPressed: () => _editCategoryIcon(category),
+                          tooltip: 'Editar categoría',
+                          onPressed: () => _editCategory(category),
                           style: IconButton.styleFrom(
                             foregroundColor: const Color(0xFF30343B),
                             backgroundColor: const Color(0xFFF3F4F6),

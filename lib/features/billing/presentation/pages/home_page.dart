@@ -1,4 +1,3 @@
-import 'package:billing_app/core/services/sound_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -53,9 +52,6 @@ class _HomePageState extends State<HomePage> {
         }
 
         _lastScanTimes[rawValue] = now;
-
-        // Play scan sound
-        await SoundService.instance.playScanSound();
 
         // Vibrate
         final hasVibrator = await Vibration.hasVibrator();
@@ -178,9 +174,7 @@ class _HomePageState extends State<HomePage> {
                             children: [
                               Text(
                                 'Punto de venta',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineSmall
+                                style: Theme.of(context).textTheme.headlineSmall
                                     ?.copyWith(fontWeight: FontWeight.w800),
                               ),
                               Text(

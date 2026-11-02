@@ -416,10 +416,25 @@ class _WelcomeCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                FilledButton.tonalIcon(
-                  onPressed: onNewSale,
-                  icon: const Icon(Icons.add_shopping_cart),
-                  label: const Text('Nueva venta'),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onNewSale,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.onPrimary,
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      minimumSize: const Size.fromHeight(50),
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_shopping_cart_rounded),
+                    label: const Text(
+                      'Nueva venta',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
                 ),
               ],
             ),

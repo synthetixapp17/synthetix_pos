@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../data/hive_database.dart';
+import '../../features/product/data/models/product_model.dart';
+import '../../features/product/domain/entities/product.dart';
 
 class ProductCategory {
   final String name;
@@ -134,6 +136,64 @@ class ProductCategories {
       iconCodePoint: iconCodePoint,
     );
     await _save(categories);
+  }
+
+  static Future<bool> rename(
+    String currentName,
+    String newName, {
+    required int iconCodePoint,
+  }) async {
+    final normalized = newName.trim();
+    if (normalized.isEmpty) return false;
+
+    final categories = load();
+    final index = categories.indexWhere(
+      (category) => category.name.toLowerCase() == currentName.toLowerCase(),
+    );
+    if (index == -1) return false;
+    if (categories.indexed.any(
+      (entry) =>
+          entry.$1 != index &&
+          entry.$2.name.toLowerCase() == normalized.toLowerCase(),
+    )) {
+      return false;
+    }
+
+    categories[index] = ProductCategory(
+      name: normalized,
+      iconCodePoint: iconCodePoint,
+    );
+    categories.sort(
+      (first, second) =>
+          first.name.toLowerCase().compareTo(second.name.toLowerCase()),
+    );
+
+    final replacements = <dynamic, ProductModel>{};
+    for (final entry in HiveDatabase.productBox.toMap().entries) {
+      final product = entry.value;
+      if (product.category.trim().toLowerCase() !=
+          currentName.trim().toLowerCase()) {
+        continue;
+      }
+      replacements[entry.key] = ProductModel.fromEntity(
+        Product(
+          id: product.id,
+          name: product.name,
+          barcode: product.barcode,
+          price: product.price,
+          stock: product.stock,
+          description: product.description,
+          imageData: product.imageData,
+          currencyCode: product.currencyCode,
+          category: normalized,
+        ),
+      );
+    }
+    if (replacements.isNotEmpty) {
+      await HiveDatabase.productBox.putAll(replacements);
+    }
+    await _save(categories);
+    return true;
   }
 
   static Future<bool> remove(String name) async {

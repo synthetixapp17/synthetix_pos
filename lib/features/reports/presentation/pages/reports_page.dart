@@ -51,6 +51,13 @@ class _ReportsPageState extends State<ReportsPage> {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      barrierColor: Colors.black54,
+      elevation: 18,
+      clipBehavior: Clip.antiAlias,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (context) => _ReportMetricDetailsSheet(
         title: title,
         sales: sales,
@@ -144,202 +151,242 @@ class _ReportsPageState extends State<ReportsPage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
               children: [
-                    _ReportsHeader(
-                      dateLabel:
-                          '${_dateFormat.format(_from)} – ${_dateFormat.format(_to)}',
-                      transactionCount: state.sales.length,
-                    ),
-                    const SizedBox(height: 16),
-                    _FilterCard(
-                      from: _from,
-                      to: _to,
-                      grouping: _grouping,
-                      dateLabel:
-                          '${_dateFormat.format(_from)} – ${_dateFormat.format(_to)}',
-                      onChooseDates: _chooseDates,
-                      onGroupingChanged: (grouping) =>
-                          setState(() => _grouping = grouping),
-                    ),
-                    const SizedBox(height: 16),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
+                _ReportsHeader(
+                  dateLabel:
+                      '${_dateFormat.format(_from)} – ${_dateFormat.format(_to)}',
+                  transactionCount: state.sales.length,
+                ),
+                const SizedBox(height: 16),
+                _FilterCard(
+                  from: _from,
+                  to: _to,
+                  grouping: _grouping,
+                  dateLabel:
+                      '${_dateFormat.format(_from)} – ${_dateFormat.format(_to)}',
+                  onChooseDates: _chooseDates,
+                  onGroupingChanged: (grouping) =>
+                      setState(() => _grouping = grouping),
+                ),
+                const SizedBox(height: 16),
+                LayoutBuilder(
+                  builder: (context, constraints) {
                     final columns = constraints.maxWidth < 300 ? 1 : 2;
                     final tileWidth = columns == 1
                         ? constraints.maxWidth
-                            : (constraints.maxWidth - 12) / 2;
-                        return Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          children: [
-                            SizedBox(
-                              width: tileWidth,
-                              child: _SummaryTile(
-                                title: 'Ingresos del periodo',
-                                value: totalLabel,
-                                accent: const Color(0xFF1E9B72),
-                                badgeLabel: 'En el periodo',
-                                trend: revenueTrend,
-                                onTap: () => _showMetricDetails(
-                                  title: 'Ventas que componen los ingresos',
-                                  sales: state.sales,
-                                ),
-                              ),
+                        : (constraints.maxWidth - 12) / 2;
+                    return Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        SizedBox(
+                          width: tileWidth,
+                          child: _SummaryTile(
+                            title: 'Ingresos del periodo',
+                            value: totalLabel,
+                            accent: const Color(0xFF1E9B72),
+                            badgeLabel: 'En el periodo',
+                            trend: revenueTrend,
+                            onTap: () => _showMetricDetails(
+                              title: 'Ventas que componen los ingresos',
+                              sales: state.sales,
                             ),
-                            SizedBox(
-                              width: tileWidth,
-                              child: _SummaryTile(
-                                title: 'Transacciones',
-                                value: '${state.sales.length}',
-                                accent: const Color(0xFF3977D5),
-                                badgeLabel: 'En el periodo',
-                                trend: transactionTrend,
-                                onTap: () => _showMetricDetails(
-                                  title: 'Transacciones del periodo',
-                                  sales: state.sales,
-                                ),
-                              ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: tileWidth,
+                          child: _SummaryTile(
+                            title: 'Transacciones',
+                            value: '${state.sales.length}',
+                            accent: const Color(0xFF3977D5),
+                            badgeLabel: 'En el periodo',
+                            trend: transactionTrend,
+                            onTap: () => _showMetricDetails(
+                              title: 'Transacciones del periodo',
+                              sales: state.sales,
                             ),
-                            SizedBox(
-                              width: tileWidth,
-                              child: _SummaryTile(
-                                title: 'Unidades vendidas',
-                                value: '$unitsSold',
-                                accent: const Color(0xFF8A61C9),
-                                badgeLabel: 'En el periodo',
-                                trend: unitsTrend,
-                                onTap: () => _showMetricDetails(
-                                  title: 'Productos vendidos',
-                                  sales: state.sales,
-                                  showProducts: true,
-                                ),
-                              ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: tileWidth,
+                          child: _SummaryTile(
+                            title: 'Unidades vendidas',
+                            value: '$unitsSold',
+                            accent: const Color(0xFF8A61C9),
+                            badgeLabel: 'En el periodo',
+                            trend: unitsTrend,
+                            onTap: () => _showMetricDetails(
+                              title: 'Productos vendidos',
+                              sales: state.sales,
+                              showProducts: true,
                             ),
-                            SizedBox(
-                              width: tileWidth,
-                              child: _SummaryTile(
-                                title: 'Ticket promedio',
-                                value: averageLabel,
-                                accent: const Color(0xFFE59B36),
-                                badgeLabel: 'Por venta',
-                                trend: averageTrend,
-                                onTap: () => _showMetricDetails(
-                                  title: 'Ventas y ticket promedio',
-                                  sales: state.sales,
-                                ),
-                              ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: tileWidth,
+                          child: _SummaryTile(
+                            title: 'Ticket promedio',
+                            value: averageLabel,
+                            accent: const Color(0xFFE59B36),
+                            badgeLabel: 'Por venta',
+                            trend: averageTrend,
+                            onTap: () => _showMetricDetails(
+                              title: 'Ventas y ticket promedio',
+                              sales: state.sales,
                             ),
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 18),
-                    _ReportCard(
-                      title: 'Ventas por ${_groupLabel(_grouping)}',
-                      child: Column(
-                        children: [
-                          if (state.status == ReportsStatus.loading &&
-                              state.sales.isEmpty)
-                            const SizedBox(
-                              height: 220,
-                              child: Center(child: CircularProgressIndicator()),
-                            )
-                          else if (groupedSales.isEmpty)
-                            const _NoData()
-                          else
-                            LayoutBuilder(
-                              builder: (context, constraints) {
-                                final chartWidth = groupedSales.length > 12
-                                    ? (groupedSales.length * 42.0)
-                                          .clamp(constraints.maxWidth, 1400.0)
-                                          .toDouble()
-                                    : constraints.maxWidth;
-                                final hasMultipleCurrencies =
-                                    currencyCodes.length > 1;
-                                final maxY = hasMultipleCurrencies
-                                    ? 110.0
-                                    : _maxAmount(groupedSales);
-                                final interval = maxY / 4;
-                                return SizedBox(
-                                  height: 286,
-                                  child: SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: SizedBox(
-                                      width: chartWidth,
-                                      child: LineChart(
-                                        LineChartData(
-                                          minX: 0,
-                                          maxX: (groupedSales.length - 1)
-                                              .clamp(1, double.infinity)
-                                              .toDouble(),
-                                          minY: 0,
-                                          maxY: maxY,
-                                          lineTouchData: LineTouchData(
-                                            handleBuiltInTouches: true,
-                                            touchTooltipData: LineTouchTooltipData(
-                                              getTooltipItems: (spots) => spots.map((
-                                                spot,
-                                              ) {
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 18),
+                _ReportCard(
+                  title: 'Ventas por ${_groupLabel(_grouping)}',
+                  child: Column(
+                    children: [
+                      if (state.status == ReportsStatus.loading &&
+                          state.sales.isEmpty)
+                        const SizedBox(
+                          height: 220,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (groupedSales.isEmpty)
+                        const _NoData()
+                      else
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final chartWidth = groupedSales.length > 12
+                                ? (groupedSales.length * 42.0)
+                                      .clamp(constraints.maxWidth, 1400.0)
+                                      .toDouble()
+                                : constraints.maxWidth;
+                            final hasMultipleCurrencies =
+                                currencyCodes.length > 1;
+                            final maxY = hasMultipleCurrencies
+                                ? 110.0
+                                : _maxAmount(groupedSales);
+                            final interval = maxY / 4;
+                            return SizedBox(
+                              height: 286,
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: SizedBox(
+                                  width: chartWidth,
+                                  child: LineChart(
+                                    LineChartData(
+                                      minX: 0,
+                                      maxX: (groupedSales.length - 1)
+                                          .clamp(1, double.infinity)
+                                          .toDouble(),
+                                      minY: 0,
+                                      maxY: maxY,
+                                      lineTouchData: LineTouchData(
+                                        handleBuiltInTouches: true,
+                                        touchTooltipData: LineTouchTooltipData(
+                                          getTooltipItems: (spots) => spots.map((
+                                            spot,
+                                          ) {
                                             final bucketIndex = spot.x.toInt();
                                             final currencyIndex = spot.barIndex;
-                                                if (bucketIndex < 0 ||
-                                                    bucketIndex >=
-                                                        groupedSales.length ||
-                                                    currencyIndex >=
-                                                        currencyCodes.length) {
-                                                  return null;
-                                                }
-                                                final currencyCode =
-                                                    currencyCodes[currencyIndex];
-                                                final amount =
-                                                    groupedSales[bucketIndex]
-                                                        .amounts[currencyCode] ??
-                                                    0;
-                                                return LineTooltipItem(
-                                                  '${groupedSales[bucketIndex].label}\n${AppCurrency.format(amount, code: currencyCode)}',
-                                                  TextStyle(
-                                                    color: _chartColor(
-                                                      currencyIndex,
-                                                    ),
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                );
-                                              }).toList(),
-                                            ),
-                                          ),
-                                          gridData: FlGridData(
-                                            show: true,
-                                            drawVerticalLine: false,
-                                            horizontalInterval: interval,
-                                        getDrawingHorizontalLine: (_) => FlLine(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .outlineVariant
-                                                      .withValues(alpha: 0.65),
-                                                  strokeWidth: 1,
-                                                  dashArray: [4, 4],
+                                            if (bucketIndex < 0 ||
+                                                bucketIndex >=
+                                                    groupedSales.length ||
+                                                currencyIndex >=
+                                                    currencyCodes.length) {
+                                              return null;
+                                            }
+                                            final currencyCode =
+                                                currencyCodes[currencyIndex];
+                                            final amount =
+                                                groupedSales[bucketIndex]
+                                                    .amounts[currencyCode] ??
+                                                0;
+                                            return LineTooltipItem(
+                                              '${groupedSales[bucketIndex].label}\n${AppCurrency.format(amount, code: currencyCode)}',
+                                              TextStyle(
+                                                color: _chartColor(
+                                                  currencyIndex,
                                                 ),
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ),
+                                      ),
+                                      gridData: FlGridData(
+                                        show: true,
+                                        drawVerticalLine: false,
+                                        horizontalInterval: interval,
+                                        getDrawingHorizontalLine: (_) => FlLine(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .outlineVariant
+                                              .withValues(alpha: 0.65),
+                                          strokeWidth: 1,
+                                          dashArray: [4, 4],
+                                        ),
+                                      ),
+                                      borderData: FlBorderData(show: false),
+                                      titlesData: FlTitlesData(
+                                        topTitles: const AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: false,
                                           ),
-                                          borderData: FlBorderData(show: false),
-                                          titlesData: FlTitlesData(
-                                            topTitles: const AxisTitles(
-                                              sideTitles: SideTitles(
-                                                showTitles: false,
-                                              ),
+                                        ),
+                                        rightTitles: const AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: false,
+                                          ),
+                                        ),
+                                        leftTitles: AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: true,
+                                            reservedSize: 52,
+                                            interval: interval,
+                                            getTitlesWidget: (value, _) => Text(
+                                              hasMultipleCurrencies
+                                                  ? '${value.toInt()}%'
+                                                  : '${AppCurrency.optionFor(currencyCodes.first).symbol}${_shortAmount(value)}',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .labelSmall
+                                                  ?.copyWith(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
                                             ),
-                                            rightTitles: const AxisTitles(
-                                              sideTitles: SideTitles(
-                                                showTitles: false,
-                                              ),
-                                            ),
-                                            leftTitles: AxisTitles(
-                                              sideTitles: SideTitles(
-                                                showTitles: true,
-                                                reservedSize: 52,
-                                                interval: interval,
-                                                getTitlesWidget: (value, _) => Text(
-                                                  hasMultipleCurrencies
-                                                      ? '${value.toInt()}%'
-                                                      : '${AppCurrency.optionFor(currencyCodes.first).symbol}${_shortAmount(value)}',
+                                          ),
+                                        ),
+                                        bottomTitles: AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: true,
+                                            reservedSize: 34,
+                                            interval: 1,
+                                            getTitlesWidget: (value, _) {
+                                              final index = value.toInt();
+                                              if (index < 0 ||
+                                                  index >=
+                                                      groupedSales.length) {
+                                                return const SizedBox.shrink();
+                                              }
+                                              final step =
+                                                  groupedSales.length > 14
+                                                  ? 4
+                                                  : groupedSales.length > 8
+                                                  ? 2
+                                                  : 1;
+                                              if (index % step != 0 &&
+                                                  index !=
+                                                      groupedSales.length - 1) {
+                                                return const SizedBox.shrink();
+                                              }
+                                              return Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 10,
+                                                ),
+                                                child: Text(
+                                                  groupedSales[index].label,
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .labelSmall
@@ -349,207 +396,169 @@ class _ReportsPageState extends State<ReportsPage> {
                                                             .onSurfaceVariant,
                                                       ),
                                                 ),
-                                              ),
-                                            ),
-                                            bottomTitles: AxisTitles(
-                                              sideTitles: SideTitles(
-                                                showTitles: true,
-                                                reservedSize: 34,
-                                                interval: 1,
-                                                getTitlesWidget: (value, _) {
-                                                  final index = value.toInt();
-                                                  if (index < 0 ||
-                                                      index >=
-                                                          groupedSales.length) {
-                                                    return const SizedBox.shrink();
-                                                  }
-                                                  final step =
-                                                      groupedSales.length > 14
-                                                      ? 4
-                                                      : groupedSales.length > 8
-                                                      ? 2
-                                                      : 1;
-                                                  if (index % step != 0 &&
-                                                      index !=
-                                                      groupedSales.length - 1) {
-                                                    return const SizedBox.shrink();
-                                                  }
-                                                  return Padding(
-                                                padding: const EdgeInsets.only(
-                                                          top: 10,
-                                                        ),
-                                                    child: Text(
-                                                      groupedSales[index].label,
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .labelSmall
-                                                          ?.copyWith(
-                                                            color: Theme.of(context)
-                                                                .colorScheme
-                                                                .onSurfaceVariant,
-                                                          ),
-                                                    ),
-                                                  );
-                                                },
-                                              ),
-                                            ),
+                                              );
+                                            },
                                           ),
-                                          lineBarsData: [
-                                            for (
-                                              var series = 0;
-                                              series < currencyCodes.length;
-                                              series++
-                                            )
-                                              LineChartBarData(
-                                                spots: [
-                                                  for (
-                                                    var index = 0;
-                                                    index < groupedSales.length;
-                                                    index++
-                                                  )
-                                                    FlSpot(
-                                                      index.toDouble(),
-                                                      _chartValue(
-                                                        groupedSales[index]
-                                                                .amounts[currencyCodes[series]] ??
-                                                            0,
-                                                        groupedSales,
-                                                        currencyCodes[series],
-                                                        normalized:
-                                                            hasMultipleCurrencies,
-                                                      ),
-                                                    ),
-                                                ],
-                                                isCurved: true,
-                                                curveSmoothness: 0.22,
-                                                color: _chartColor(series),
-                                                barWidth: 3,
-                                                isStrokeCapRound: true,
-                                                dotData: FlDotData(
-                                              show: groupedSales.length == 1,
-                                                  getDotPainter:
-                                                      (
-                                                        spot,
-                                                        percent,
-                                                        barData,
-                                                        index,
-                                                      ) => FlDotCirclePainter(
-                                                        radius: 4,
-                                                    color: _chartColor(series),
-                                                        strokeWidth: 2,
-                                                        strokeColor: Theme.of(
-                                                          context,
-                                                        ).colorScheme.surface,
-                                                      ),
-                                                ),
-                                                belowBarData: BarAreaData(
-                                                  show: true,
-                                                  gradient: LinearGradient(
-                                                    begin: Alignment.topCenter,
-                                                    end: Alignment.bottomCenter,
-                                                    colors: [
-                                                      _chartColor(
-                                                        series,
-                                                      ).withValues(alpha: 0.18),
-                                                      _chartColor(
-                                                        series,
-                                                      ).withValues(alpha: 0.01),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          if (groupedSales.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 14,
-                              runSpacing: 8,
-                              children: currencyCodes
-                                  .asMap()
-                                  .entries
-                                  .map(
-                                    (entry) => Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 9,
-                                          height: 9,
-                                          decoration: BoxDecoration(
-                                            color: _chartColor(entry.key),
-                                            shape: BoxShape.circle,
+                                      lineBarsData: [
+                                        for (
+                                          var series = 0;
+                                          series < currencyCodes.length;
+                                          series++
+                                        )
+                                          LineChartBarData(
+                                            spots: [
+                                              for (
+                                                var index = 0;
+                                                index < groupedSales.length;
+                                                index++
+                                              )
+                                                FlSpot(
+                                                  index.toDouble(),
+                                                  _chartValue(
+                                                    groupedSales[index]
+                                                            .amounts[currencyCodes[series]] ??
+                                                        0,
+                                                    groupedSales,
+                                                    currencyCodes[series],
+                                                    normalized:
+                                                        hasMultipleCurrencies,
+                                                  ),
+                                                ),
+                                            ],
+                                            isCurved: true,
+                                            curveSmoothness: 0.22,
+                                            color: _chartColor(series),
+                                            barWidth: 3,
+                                            isStrokeCapRound: true,
+                                            dotData: FlDotData(
+                                              show: groupedSales.length == 1,
+                                              getDotPainter:
+                                                  (
+                                                    spot,
+                                                    percent,
+                                                    barData,
+                                                    index,
+                                                  ) => FlDotCirclePainter(
+                                                    radius: 4,
+                                                    color: _chartColor(series),
+                                                    strokeWidth: 2,
+                                                    strokeColor: Theme.of(
+                                                      context,
+                                                    ).colorScheme.surface,
+                                                  ),
+                                            ),
+                                            belowBarData: BarAreaData(
+                                              show: true,
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  _chartColor(
+                                                    series,
+                                                  ).withValues(alpha: 0.18),
+                                                  _chartColor(
+                                                    series,
+                                                  ).withValues(alpha: 0.01),
+                                                ],
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 5),
-                                        Text(
-                                          entry.value,
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.labelSmall,
-                                        ),
                                       ],
                                     ),
-                                  )
-                                  .toList(),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    _ReportCard(
-                      title: 'Productos más vendidos',
-                      child: products.isEmpty
-                          ? const _NoData()
-                          : Column(
-                              children: [
-                                for (
-                                  var index = 0;
-                                  index < products.length;
-                                  index++
-                                )
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 10,
-                                    ),
-                                    child: _RankedProductBar(
-                                      rank: index + 1,
-                                      name: products[index].name,
-                                      quantity: products[index].quantity,
-                                      maximum: products.first.quantity,
-                                      color: _chartColor(index),
-                                    ),
                                   ),
-                              ],
-                            ),
-                    ),
-                    const SizedBox(height: 18),
-                    _ReportCard(
-                      title: 'Rendimiento por categoría',
-                      child: categoryStats.isEmpty
-                          ? const _NoData()
-                          : Column(
-                                children: [
-                                  for (var index = 0;
-                                      index < categoryStats.length;
-                                      index++)
-                                    _CategoryMetricTile(
-                                      category: categoryStats[index],
-                                      share: totalCategoryUnits == 0
-                                          ? 0
-                                          : categoryStats[index].units /
-                                                totalCategoryUnits,
-                                      color: _chartColor(index),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      if (groupedSales.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 14,
+                          runSpacing: 8,
+                          children: currencyCodes
+                              .asMap()
+                              .entries
+                              .map(
+                                (entry) => Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 9,
+                                      height: 9,
+                                      decoration: BoxDecoration(
+                                        color: _chartColor(entry.key),
+                                        shape: BoxShape.circle,
+                                      ),
                                     ),
-                                ],
-                            ),
-                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      entry.value,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.labelSmall,
+                                    ),
+                                  ],
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _ReportCard(
+                  title: 'Productos más vendidos',
+                  child: products.isEmpty
+                      ? const _NoData()
+                      : Column(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < products.length;
+                              index++
+                            )
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                                child: _RankedProductBar(
+                                  rank: index + 1,
+                                  name: products[index].name,
+                                  quantity: products[index].quantity,
+                                  maximum: products.first.quantity,
+                                  color: _chartColor(index),
+                                ),
+                              ),
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 18),
+                _ReportCard(
+                  title: 'Rendimiento por categoría',
+                  child: categoryStats.isEmpty
+                      ? const _NoData()
+                      : Column(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < categoryStats.length;
+                              index++
+                            )
+                              _CategoryMetricTile(
+                                category: categoryStats[index],
+                                share: totalCategoryUnits == 0
+                                    ? 0
+                                    : categoryStats[index].units /
+                                          totalCategoryUnits,
+                                color: _chartColor(index),
+                              ),
+                          ],
+                        ),
+                ),
               ],
             ),
           );
@@ -975,58 +984,57 @@ class _ReportMetricDetailsSheet extends StatelessWidget {
                             },
                           )
                   : sortedSales.isEmpty
-                        ? const _NoData()
-                        : ListView.separated(
-                            itemCount: sortedSales.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (context, index) {
-                              final sale = sortedSales[index];
-                              return Card(
-                                margin: EdgeInsets.zero,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  side: BorderSide(
-                                    color: theme.colorScheme.outlineVariant,
+                  ? const _NoData()
+                  : ListView.separated(
+                      itemCount: sortedSales.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final sale = sortedSales[index];
+                        return Card(
+                          margin: EdgeInsets.zero,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: BorderSide(
+                              color: theme.colorScheme.outlineVariant,
+                            ),
+                          ),
+                          child: ExpansionTile(
+                            title: Text(
+                              AppCurrency.format(
+                                sale.total,
+                                code: sale.currencyCode,
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${DateFormat('dd/MM/yyyy HH:mm', 'es').format(sale.soldAt)} · '
+                              '${sale.customerName ?? 'Venta sin cliente'} · '
+                              '${sale.paymentMethod} · '
+                              '${sale.lines.length} productos',
+                            ),
+                            children: [
+                              for (final line in sale.lines)
+                                ListTile(
+                                  dense: true,
+                                  title: Text(line.productName),
+                                  subtitle: Text(
+                                    '${line.quantity} × ${AppCurrency.format(line.unitPrice, code: sale.currencyCode)}',
                                   ),
-                                ),
-                                child: ExpansionTile(
-                                  title: Text(
+                                  trailing: Text(
                                     AppCurrency.format(
-                                      sale.total,
+                                      line.total,
                                       code: sale.currencyCode,
                                     ),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                    ),
                                   ),
-                                  subtitle: Text(
-                                    '${DateFormat('dd/MM/yyyy HH:mm', 'es').format(sale.soldAt)} · '
-                                    '${sale.customerName ?? 'Venta sin cliente'} · '
-                                    '${sale.paymentMethod} · '
-                                    '${sale.lines.length} productos',
-                                  ),
-                                  children: [
-                                    for (final line in sale.lines)
-                                      ListTile(
-                                        dense: true,
-                                        title: Text(line.productName),
-                                        subtitle: Text(
-                                          '${line.quantity} × ${AppCurrency.format(line.unitPrice, code: sale.currencyCode)}',
-                                        ),
-                                        trailing: Text(
-                                          AppCurrency.format(
-                                            line.total,
-                                            code: sale.currencyCode,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
                                 ),
-                              );
-                            },
+                            ],
                           ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -1212,7 +1220,10 @@ class _RankedProductBar extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [color.withValues(alpha: 0.18), color.withValues(alpha: 0.07)],
+              colors: [
+                color.withValues(alpha: 0.18),
+                color.withValues(alpha: 0.07),
+              ],
             ),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -1271,10 +1282,7 @@ class _RankedProductBar extends StatelessWidget {
                       height: 7,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [
-                            color.withValues(alpha: 0.62),
-                            color,
-                          ],
+                          colors: [color.withValues(alpha: 0.62), color],
                         ),
                         borderRadius: BorderRadius.circular(8),
                       ),
