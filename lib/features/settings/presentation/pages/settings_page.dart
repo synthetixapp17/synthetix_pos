@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:app_settings/app_settings.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -11,11 +12,15 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/utils/app_currency.dart';
 import '../../../billing/presentation/bloc/billing_bloc.dart';
+import '../../../customer/presentation/bloc/customer_bloc.dart';
+import '../../../dashboard/presentation/bloc/dashboard_bloc.dart';
 import '../../../product/data/models/product_model.dart';
 import '../../../product/domain/entities/product.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
+import '../../../reports/presentation/bloc/reports_bloc.dart';
 import '../../../shop/presentation/bloc/shop_bloc.dart';
 import '../../data/csv_backup_exporter.dart';
+import '../../data/csv_backup_importer.dart';
 import '../bloc/printer_bloc.dart';
 import '../bloc/printer_event.dart';
 import '../bloc/printer_state.dart';
@@ -32,6 +37,7 @@ class _SettingsPageState extends State<SettingsPage> {
   late int _stockThreshold;
   int _currencyDropdownVersion = 0;
   bool _isExportingBackup = false;
+  bool _isRestoringBackup = false;
 
   @override
   void initState() {
@@ -133,17 +139,15 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_isExportingBackup) return;
     setState(() => _isExportingBackup = true);
     try {
-      final backup = CsvBackupExporter().createBackup();
+      final backup = CsvBackupExporter().createBackupPackage();
       await SharePlus.instance.share(
         ShareParams(
-          title: 'Copia de seguridad en CSV',
+          title: 'Copia completa de seguridad',
           text:
-              'Respaldo de productos, clientes, ventas y configuración de la tienda.',
-          files: [
-            for (final file in backup)
-              XFile.fromData(file.bytes, mimeType: 'text/csv'),
-          ],
-          fileNameOverrides: [for (final file in backup) file.name],
+              'Paquete ZIP con los CSV de productos, categorías, clientes, créditos, ventas y configuración de la tienda.',
+          files: [XFile.fromData(backup.bytes, mimeType: 'application/zip')],
+          fileNameOverrides: [backup.name],
+          downloadFallbackEnabled: true,
         ),
       );
     } catch (error) {
@@ -154,6 +158,143 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } finally {
       if (mounted) setState(() => _isExportingBackup = false);
+    }
+  }
+
+  Future<void> _restoreCsvBackup() async {
+    if (_isRestoringBackup) return;
+    final billingBloc = context.read<BillingBloc>();
+    final customerBloc = context.read<CustomerBloc>();
+    final dashboardBloc = context.read<DashboardBloc>();
+    final productBloc = context.read<ProductBloc>();
+    final reportsBloc = context.read<ReportsBloc>();
+    final shopBloc = context.read<ShopBloc>();
+    final printerBloc = context.read<PrinterBloc>();
+    final reportsFrom = reportsBloc.state.from;
+    final reportsTo = reportsBloc.state.to;
+    final messenger = ScaffoldMessenger.of(context);
+    if (billingBloc.state.cartItems.isNotEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Finaliza o vacía la venta actual antes de restaurar una copia.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final selectedFile = await FilePicker.pickFile(
+        dialogTitle: 'Seleccionar CSV o paquete de respaldo',
+        type: FileType.custom,
+        allowedExtensions: ['csv', 'zip'],
+      );
+      if (selectedFile == null) return;
+      final bytes = await selectedFile.readAsBytes();
+      final importer = CsvBackupImporter();
+      final plan = switch (selectedFile.extension?.toLowerCase()) {
+        'csv' => importer.parseCsvFile(selectedFile.name, bytes),
+        'zip' => importer.parsePackage(bytes),
+        _ => throw const FormatException(
+          'Selecciona un archivo CSV o ZIP de respaldo.',
+        ),
+      };
+      if (!mounted) return;
+      final summary = importer.summarize(plan);
+      final details = switch (plan.scope) {
+        CsvBackupScope.all => [
+          '${summary.products} productos',
+          '${summary.categories} categorías',
+          '${summary.customers} clientes',
+          '${summary.sales} ventas',
+          '${summary.credits} créditos',
+        ],
+        CsvBackupScope.products => ['${summary.products} productos'],
+        CsvBackupScope.categories => ['${summary.categories} categorías'],
+        CsvBackupScope.customers => ['${summary.customers} clientes'],
+        CsvBackupScope.sales => ['${summary.sales} ventas'],
+        CsvBackupScope.credits => ['${summary.credits} créditos'],
+        CsvBackupScope.configuration => [
+          'Configuración de la tienda y preferencias',
+        ],
+      };
+      final replacesAllData = plan.scope == CsvBackupScope.all;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(
+            replacesAllData
+                ? 'Reemplazar datos actuales'
+                : 'Restaurar CSV seleccionado',
+          ),
+          content: Text(
+            '${replacesAllData ? 'Se reemplazarán todos los datos locales' : 'Se reemplazarán solo los datos de este archivo; los demás se conservarán'} '
+            'usando "${selectedFile.name}":\n\n'
+            '${details.map((item) => '• $item').join('\n')}\n\n'
+            'Si el archivo o el paquete tiene datos faltantes o inválidos, no se aplicará.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(
+                replacesAllData ? 'Reemplazar y restaurar' : 'Restaurar CSV',
+              ),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+
+      setState(() => _isRestoringBackup = true);
+      await importer.restore(plan);
+      await AppThemeController.loadSavedMode();
+      AppCurrency.loadSavedCurrency();
+      billingBloc.add(ClearCartEvent());
+      customerBloc.add(const LoadCustomersEvent());
+      dashboardBloc.add(
+        LoadDashboardEvent(
+          threshold:
+              HiveDatabase.settingsBox.get(
+                    'low_stock_threshold',
+                    defaultValue: 5,
+                  )
+                  as int,
+        ),
+      );
+      productBloc.add(LoadProducts());
+      if (reportsFrom != null && reportsTo != null) {
+        reportsBloc.add(LoadReportsEvent(from: reportsFrom, to: reportsTo));
+      }
+      shopBloc.add(LoadShopEvent());
+      printerBloc.add(InitPrinterEvent());
+      if (mounted) {
+        setState(() {
+          _currencyCode = AppCurrency.currentCode;
+          _stockThreshold =
+              HiveDatabase.settingsBox.get(
+                    'low_stock_threshold',
+                    defaultValue: 5,
+                  )
+                  as int;
+          _currencyDropdownVersion++;
+        });
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Copia restaurada correctamente.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('No se pudo restaurar la copia: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRestoringBackup = false);
     }
   }
 
@@ -475,7 +616,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                           child: selected
                                               ? Icon(
                                                   Icons.check,
-                                                  color: AppTheme.onColor(color),
+                                                  color: AppTheme.onColor(
+                                                    color,
+                                                  ),
                                                   size: 18,
                                                 )
                                               : null,
@@ -652,7 +795,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 icon: Icons.download_outlined,
                 title: 'Exportar datos en CSV',
                 subtitle:
-                    'Productos, clientes, ventas y datos de la tienda en archivos separados.',
+                    'Descarga un ZIP con los CSV de productos, categorías, clientes, créditos y configuración.',
                 onTap: _isExportingBackup ? null : _exportCsvBackup,
                 trailing: _isExportingBackup
                     ? const SizedBox(
@@ -662,10 +805,25 @@ class _SettingsPageState extends State<SettingsPage> {
                       )
                     : const Icon(Icons.ios_share_outlined),
               ),
+              const _SettingsDivider(),
+              _SettingsTile(
+                icon: Icons.settings_backup_restore_outlined,
+                title: 'Restaurar copia de seguridad',
+                subtitle:
+                    'Restaura un CSV individual o el paquete ZIP completo exportado.',
+                onTap: _isRestoringBackup ? null : _restoreCsvBackup,
+                trailing: _isRestoringBackup
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload_file_outlined),
+              ),
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
                 child: Text(
-                  'Las imágenes y el logotipo se incluyen codificados en Base64 dentro de los CSV. Guarda estos archivos en un lugar seguro.',
+                  'Las imágenes y el logotipo se incluyen codificados en Base64. La restauración reemplaza los datos actuales; conserva una copia antes de continuar.',
                 ),
               ),
             ],

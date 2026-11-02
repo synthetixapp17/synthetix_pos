@@ -7,6 +7,10 @@ A feature-rich, high-performance offline-first billing and Point of Sale (POS) a
 
 https://github.com/user-attachments/assets/f2d16454-5408-43b3-b207-cd843bbc2c9e
 
+## Live Demo
+
+Try Synthetix POS on [GitHub Pages](https://synthetixapp17.github.io/synthetix_pos/).
+
 
 
 ## 🎯 Project Scope
@@ -18,6 +22,7 @@ This application serves as a complete offline POS system for small to medium-siz
 - **Smart Checkout System**: Rapid cart building via camera-based barcode scanning or manual entry, and robust order calculation functionality.
 - **Bluetooth Thermal Printing**: Direct integration with thermal printers (`print_bluetooth_thermal`) to instantly output physical receipts.
 - **Shop Settings & Customization**: Centrally managed shop details printed dynamically on receipts.
+- **CSV Backups**: Export a complete ZIP backup or restore an individual CSV without replacing unrelated data.
 - **Offline-First Architecture**: Powered by `Hive` for lightning-fast localized NoSQL data storage. No active internet connectivity required.
 
 ## 🛠 Tech Stack & Architecture
