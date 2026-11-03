@@ -1,7 +1,7 @@
 import '../../../../core/utils/payment_methods.dart';
 
 class CreditPayment {
-  static const methods = paymentMethodOptions;
+  static List<String> get methods => loadPaymentMethods();
 
   final DateTime paidAt;
   final double amount;

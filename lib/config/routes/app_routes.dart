@@ -14,6 +14,7 @@ import '../../features/settings/presentation/pages/product_barcodes_page.dart';
 import '../../features/settings/presentation/pages/quotation_settings_page.dart';
 import '../../features/settings/presentation/pages/credit_settings_page.dart';
 import '../../features/settings/presentation/pages/category_management_page.dart';
+import '../../features/settings/presentation/pages/payment_methods_settings_page.dart';
 import '../../features/billing/presentation/pages/checkout_page.dart';
 import '../../features/product/domain/entities/product.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
@@ -106,6 +107,10 @@ final router = GoRouter(
         GoRoute(
           path: '/settings/categories',
           builder: (context, state) => const CategoryManagementPage(),
+        ),
+        GoRoute(
+          path: '/settings/payment-methods',
+          builder: (context, state) => const PaymentMethodsSettingsPage(),
         ),
         GoRoute(
           path: '/settings/quotation',

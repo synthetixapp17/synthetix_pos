@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../core/utils/app_currency.dart';
+import '../../../../core/utils/payment_methods.dart';
 import '../../data/credit_repository.dart';
 import '../../domain/entities/credit_record.dart';
 import '../../domain/entities/credit_schedule.dart';
@@ -36,7 +37,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
     final formKey = GlobalKey<FormState>();
-    var paymentMethod = CreditPayment.methods.first;
+    var paymentMethod = loadPaymentMethods().first;
     final result = await showDialog<CreditPayment>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -87,7 +88,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                       prefixIcon: Icon(Icons.account_balance_outlined),
                     ),
                     items: [
-                      for (final method in CreditPayment.methods)
+                      for (final method in loadPaymentMethods())
                         DropdownMenuItem(value: method, child: Text(method)),
                     ],
                     onChanged: (value) {

@@ -154,6 +154,55 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
     }
   }
 
+  Future<void> _scanProduct() async {
+    final barcode = await context.push<String>('/scan-code');
+    if (!mounted || barcode == null || barcode.isEmpty) return;
+    final matches = context.read<ProductBloc>().state.products.where(
+      (product) => product.barcode == barcode,
+    );
+    if (matches.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se encontró un producto con el código $barcode.'),
+        ),
+      );
+      return;
+    }
+
+    final product = matches.first;
+    final billingBloc = context.read<BillingBloc>();
+    final currentItems = billingBloc.state.cartItems;
+    if (product.stock <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No hay existencias disponibles de "${product.name}".'),
+        ),
+      );
+      return;
+    }
+    if (currentItems.isNotEmpty &&
+        currentItems.first.product.currencyCode != product.currencyCode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se pueden mezclar monedas distintas en una misma venta.',
+          ),
+        ),
+      );
+      return;
+    }
+    final currentQuantity = currentItems
+        .where((item) => item.product.id == product.id)
+        .fold<int>(0, (total, item) => total + item.quantity);
+    if (currentQuantity >= product.stock) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay más existencias disponibles.')),
+      );
+      return;
+    }
+    billingBloc.add(AddProductToCartEvent(product));
+  }
+
   @override
   Widget build(BuildContext context) {
     AppCurrencyScope.of(context);
@@ -327,6 +376,12 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
                       ),
                     ),
                     const SizedBox(width: 10),
+                    IconButton.filledTonal(
+                      tooltip: 'Escanear producto',
+                      onPressed: _scanProduct,
+                      icon: const Icon(Icons.qr_code_scanner_rounded),
+                    ),
+                    const SizedBox(width: 4),
                     OutlinedButton.icon(
                       onPressed: () => _showFilters(
                         availableCount: availableCount,
@@ -428,7 +483,7 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
                     ),
                     const Spacer(),
                     Text(
-                      'Toca un producto para agregarlo',
+                      'Toca la imagen para ver detalles',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -681,60 +736,97 @@ class _CatalogProductCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: colors.surfaceContainerHighest.withValues(
-                        alpha: 0.55,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
+                  child: Material(
+                    color: colors.surfaceContainerHighest.withValues(
+                      alpha: 0.55,
                     ),
+                    borderRadius: BorderRadius.circular(16),
                     clipBehavior: Clip.antiAlias,
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: product.imageData == null
-                              ? Icon(
-                                  Icons.inventory_2_outlined,
-                                  size: 52,
-                                  color: colors.onSurfaceVariant.withValues(
-                                    alpha: 0.55,
-                                  ),
-                                )
-                              : Image.memory(
-                                  base64Decode(product.imageData!),
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (_, _, _) => Icon(
-                                    Icons.broken_image_outlined,
-                                    size: 44,
-                                    color: colors.onSurfaceVariant,
-                                  ),
-                                ),
-                        ),
-                        if (!available)
-                          Positioned(
-                            top: 10,
-                            left: 10,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 9,
-                                vertical: 5,
+                    child: InkWell(
+                      onTap: () => _showProductDetails(context),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (product.imageData == null)
+                            Icon(
+                              Icons.inventory_2_outlined,
+                              size: 52,
+                              color: colors.onSurfaceVariant.withValues(
+                                alpha: 0.55,
                               ),
+                            )
+                          else
+                            Image.memory(
+                              base64Decode(product.imageData!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Icon(
+                                Icons.broken_image_outlined,
+                                size: 44,
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          if (!available)
+                            Positioned(
+                              top: 10,
+                              left: 10,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colors.error,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  'Agotado',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: colors.onError,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                              ),
+                            ),
+                          Positioned(
+                            right: 9,
+                            bottom: 9,
+                            child: DecoratedBox(
                               decoration: BoxDecoration(
-                                color: colors.error,
+                                color: colors.surface.withValues(alpha: 0.92),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: Text(
-                                'Agotado',
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: colors.onError,
-                                      fontWeight: FontWeight.w700,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 6,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline_rounded,
+                                      size: 14,
+                                      color: colors.primary,
                                     ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Detalles',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: colors.primary,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -813,8 +905,7 @@ class _CatalogProductCard extends StatelessWidget {
                       IconButton.filledTonal(
                         visualDensity: VisualDensity.compact,
                         tooltip: 'Agregar una unidad',
-                        onPressed: available
-                            && quantity < product.stock
+                        onPressed: available && quantity < product.stock
                             ? () => context.read<BillingBloc>().add(
                                 AddProductToCartEvent(product),
                               )
@@ -845,6 +936,152 @@ class _CatalogProductCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _showProductDetails(BuildContext context) async {
+    final colors = Theme.of(context).colorScheme;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520, maxHeight: 680),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: 230,
+                child: product.imageData == null
+                    ? ColoredBox(
+                        color: colors.surfaceContainerHighest,
+                        child: Icon(
+                          Icons.inventory_2_outlined,
+                          size: 64,
+                          color: colors.onSurfaceVariant,
+                        ),
+                      )
+                    : Image.memory(
+                        base64Decode(product.imageData!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => ColoredBox(
+                          color: colors.surfaceContainerHighest,
+                          child: Icon(
+                            Icons.broken_image_outlined,
+                            size: 52,
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(22, 18, 22, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (product.category.isNotEmpty)
+                        Text(
+                          product.category.toUpperCase(),
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: colors.primary,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1,
+                              ),
+                        ),
+                      const SizedBox(height: 5),
+                      Text(
+                        product.name,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        product.description.trim().isEmpty
+                            ? 'No hay una descripción disponible para este producto.'
+                            : product.description.trim(),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          height: 1.5,
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              AppCurrency.format(
+                                product.price,
+                                code: product.currencyCode,
+                              ),
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w900,
+                                    color: colors.primary,
+                                  ),
+                            ),
+                          ),
+                          Text(
+                            product.stock > 0
+                                ? '${product.stock} disponibles'
+                                : 'Agotado',
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(
+                                  color: product.stock > 0
+                                      ? colors.primary
+                                      : colors.error,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ],
+                      ),
+                      if (product.barcode.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Código: ${product.barcode}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.onSurfaceVariant),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('Cerrar'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton.icon(
+                        onPressed: product.stock <= 0
+                            ? null
+                            : () {
+                                context.read<BillingBloc>().add(
+                                  AddProductToCartEvent(product),
+                                );
+                                Navigator.pop(dialogContext);
+                              },
+                        icon: const Icon(Icons.add_shopping_cart_rounded),
+                        label: const Text('Agregar al carrito'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

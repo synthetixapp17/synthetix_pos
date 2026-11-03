@@ -50,8 +50,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
   int _creditInstallments = 1;
   int _creditDaysBetweenPayments = 30;
   double _creditInterestRate = 0;
-  String _creditInitialPaymentMethod = CreditPayment.methods.first;
-  String _paymentMethod = paymentMethodOptions.first;
+  String _creditInitialPaymentMethod = loadPaymentMethods().first;
+  String _paymentMethod = loadPaymentMethods().first;
   bool _isCreditSale = false;
   bool _isRecordingCredit = false;
   bool _isCreatingQuotation = false;
@@ -311,7 +311,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       ),
                                     ),
                                     items: [
-                                      for (final method in paymentMethodOptions)
+                                      for (final method in loadPaymentMethods())
                                         DropdownMenuItem(
                                           value: method,
                                           child: Text(method),

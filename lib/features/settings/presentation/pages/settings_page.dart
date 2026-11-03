@@ -328,6 +328,13 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const _SettingsDivider(),
               _SettingsTile(
+                icon: Icons.account_balance_wallet_outlined,
+                title: 'Formas de pago',
+                subtitle: 'Crea y edita las opciones que acepta tu negocio',
+                onTap: () => context.push('/settings/payment-methods'),
+              ),
+              const _SettingsDivider(),
+              _SettingsTile(
                 icon: Icons.people_outline,
                 title: 'Clientes',
                 subtitle: 'Directorio y datos de contacto',

@@ -521,65 +521,99 @@ class _WelcomeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.primary,
+            Color.lerp(colors.primary, const Color(0xFF102A43), 0.38)!,
+          ],
+        ),
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: colors.primary.withValues(alpha: 0.2),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Row(
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
         children: [
-          Expanded(
+          Positioned(
+            right: -14,
+            top: -25,
+            child: Icon(
+              Icons.insights_rounded,
+              size: 150,
+              color: colors.onPrimary.withValues(alpha: 0.08),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(22),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Tu negocio, en una mirada',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    fontWeight: FontWeight.bold,
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colors.onPrimary.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 6,
+                    ),
+                    child: Text(
+                      'PANEL DE CONTROL',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.onPrimary,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 12),
                 Text(
-                  'Indicadores actualizados desde tu almacenamiento local.',
-                  style: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onPrimary.withValues(alpha: 0.75),
+                  'Tu negocio, en una mirada',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: colors.onPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Revisa el rendimiento y gestiona tus ventas desde aquí.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colors.onPrimary.withValues(alpha: 0.82),
                   ),
                 ),
                 const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: onNewSale,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.onPrimary,
-                      foregroundColor: Theme.of(context).colorScheme.primary,
-                      minimumSize: const Size.fromHeight(50),
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                FilledButton.icon(
+                  onPressed: onNewSale,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colors.onPrimary,
+                    foregroundColor: colors.primary,
+                    minimumSize: const Size(170, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    icon: const Icon(Icons.add_shopping_cart_rounded),
-                    label: const Text(
-                      'Nueva venta',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
+                  ),
+                  icon: const Icon(Icons.add_shopping_cart_rounded),
+                  label: const Text(
+                    'Nueva venta',
+                    style: TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Icon(
-            Icons.insights_outlined,
-            size: 48,
-            color: Theme.of(
-              context,
-            ).colorScheme.onPrimary.withValues(alpha: 0.8),
           ),
         ],
       ),
