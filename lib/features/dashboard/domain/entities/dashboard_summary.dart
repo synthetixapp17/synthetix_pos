@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../product/domain/entities/product.dart';
+import '../../../reports/domain/entities/sale_record.dart';
 
 class ProductSales extends Equatable {
   final String name;
@@ -35,6 +36,8 @@ class DashboardSummary extends Equatable {
   final List<DailySales> lastSevenDays;
   final int lowStockThreshold;
   final Map<String, double> dailyTotals;
+  final List<SaleRecord> recentSales;
+  final int unitsSoldToday;
 
   const DashboardSummary({
     required this.dailyTotal,
@@ -44,6 +47,8 @@ class DashboardSummary extends Equatable {
     required this.lastSevenDays,
     required this.lowStockThreshold,
     this.dailyTotals = const {},
+    this.recentSales = const [],
+    this.unitsSoldToday = 0,
   });
 
   @override
@@ -55,5 +60,7 @@ class DashboardSummary extends Equatable {
     lastSevenDays,
     lowStockThreshold,
     dailyTotals,
+    recentSales,
+    unitsSoldToday,
   ];
 }

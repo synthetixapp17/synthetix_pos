@@ -7,7 +7,7 @@ class AppThemeController {
   static const _primaryColorVersion = 1;
   static const _defaultPrimaryColor = Color(0xFF111111);
 
-  static final ValueNotifier<ThemeMode> mode = ValueNotifier(ThemeMode.dark);
+  static final ValueNotifier<ThemeMode> mode = ValueNotifier(ThemeMode.system);
   static final ValueNotifier<Color> primaryColor = ValueNotifier(
     _defaultPrimaryColor,
   );
@@ -41,15 +41,14 @@ class AppThemeController {
   ];
 
   static Future<void> loadSavedMode() async {
-    final saved =
-        HiveDatabase.settingsBox.get('theme_mode', defaultValue: 'dark')
-            as String;
-    mode.value = saved == 'dark' ? ThemeMode.dark : ThemeMode.light;
+    final saved = HiveDatabase.settingsBox.get('theme_mode') as String?;
+    mode.value = switch (saved) {
+      'dark' => ThemeMode.dark,
+      'light' => ThemeMode.light,
+      _ => ThemeMode.system,
+    };
     final colorVersion =
-        HiveDatabase.settingsBox.get(
-              _primaryColorVersionKey,
-              defaultValue: 0,
-            )
+        HiveDatabase.settingsBox.get(_primaryColorVersionKey, defaultValue: 0)
             as int;
     if (colorVersion < _primaryColorVersion) {
       primaryColor.value = _defaultPrimaryColor;
@@ -69,22 +68,23 @@ class AppThemeController {
   }
 
   static Future<void> toggle() async {
-    final next = mode.value == ThemeMode.dark
-        ? ThemeMode.light
-        : ThemeMode.dark;
-    mode.value = next;
-    await HiveDatabase.settingsBox.put(
-      'theme_mode',
-      next == ThemeMode.dark ? 'dark' : 'light',
+    final brightness = mode.value == ThemeMode.system
+        ? WidgetsBinding.instance.platformDispatcher.platformBrightness
+        : mode.value == ThemeMode.dark
+        ? Brightness.dark
+        : Brightness.light;
+    await setMode(
+      brightness == Brightness.dark ? ThemeMode.light : ThemeMode.dark,
     );
   }
 
   static Future<void> setMode(ThemeMode value) async {
     mode.value = value;
-    await HiveDatabase.settingsBox.put(
-      'theme_mode',
-      value == ThemeMode.dark ? 'dark' : 'light',
-    );
+    await HiveDatabase.settingsBox.put('theme_mode', switch (value) {
+      ThemeMode.dark => 'dark',
+      ThemeMode.light => 'light',
+      ThemeMode.system => 'system',
+    });
   }
 
   static Future<void> setPrimaryColor(Color color) async {

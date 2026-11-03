@@ -1,4 +1,6 @@
-# 🛒 Mobile POS & Billing App 
+# Synthetix POS
+
+[![Deploy Flutter Web to GitHub Pages](https://github.com/synthetixapp17/synthetix_pos/actions/workflows/deploy.yml/badge.svg)](https://github.com/synthetixapp17/synthetix_pos/actions/workflows/deploy.yml)
 
 A feature-rich, high-performance offline-first billing and Point of Sale (POS) application built with Flutter. Designed for seamless retail checkout operations featuring barcode scanning, thermal Bluetooth printing, and robust local data persistence.
 
@@ -11,7 +13,9 @@ https://github.com/user-attachments/assets/f2d16454-5408-43b3-b207-cd843bbc2c9e
 
 Try Synthetix POS on [GitHub Pages](https://synthetixapp17.github.io/synthetix_pos/).
 
+### GitHub Pages deployment
 
+The `Deploy Flutter Web to GitHub Pages` workflow runs tests and builds the web app for pushes and pull requests targeting `main`. It deploys only from `main`; pull requests are validated without changing the live demo. To redeploy, run the workflow manually from the Actions tab while `main` is selected.
 
 ## 🎯 Project Scope
 
@@ -29,7 +33,7 @@ This application serves as a complete offline POS system for small to medium-siz
 
 Built leveraging industry-standard architectural principles (Clean Architecture & Feature-Driven Design) ensuring scalability, separation of concerns, and robust testability. 
 
-- **Framework**: [Flutter](https://flutter.dev/) (SDK >=3.1.0)
+- **Framework**: [Flutter](https://flutter.dev/) (Dart SDK `3.12.2` or later)
 - **State Management**: `flutter_bloc`
 - **Dependency Injection**: `get_it`
 - **Routing**: `go_router`
@@ -54,9 +58,13 @@ lib/
 │   └── service_locator.dart    # get_it dependency injection setup
 │
 └── features/                   # Independent feature modules
-    ├── billing/                # Core POS operations: Cart, Checkout, Invoice Generation
-    ├── product/                # Inventory management: Adding, Listing, Scanning products
-    ├── settings/               # App configuration: Printer connections, App settings
+    ├── billing/                # Cart, checkout, and sale recording
+    ├── credit/                 # Credit sales and payment schedules
+    ├── customer/               # Customer records
+    ├── dashboard/              # Sales and inventory summaries
+    ├── product/                # Inventory management and barcode scanning
+    ├── reports/                # Sales reports and exports
+    ├── settings/               # Printer and app settings
     └── shop/                   # Shop details configuration
 ```
 
@@ -72,7 +80,7 @@ lib/
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Flutter SDK `^3.1.0` or higher
+- Flutter SDK with Dart SDK `>=3.12.2 <4.0.0`
 - Android Studio / Xcode for emulators and building.
 - *Optional*: A physical Android/iOS device and a Bluetooth Thermal Printer for testing hardware integrations natively.
 
@@ -80,8 +88,8 @@ lib/
 
 1. Clone the repository and navigate to the project directory:
    ```bash
-   git clone <repository_url>
-   cd billing_app
+   git clone https://github.com/synthetixapp17/synthetix_pos.git
+   cd synthetix_pos
    ```
 
 2. Fetch dependencies:

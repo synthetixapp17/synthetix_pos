@@ -173,6 +173,23 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             _CustomerSelector(
                               selectedCustomer: billingState.customer,
                             ),
+                            if (!billingState.saleRecorded &&
+                                billingState.cartItems.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () =>
+                                      context.go('/new-sale/products'),
+                                  icon: const Icon(
+                                    Icons.add_shopping_cart_outlined,
+                                  ),
+                                  label: const Text(
+                                    'Seguir agregando productos',
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 18),
                             // Table
                             Container(

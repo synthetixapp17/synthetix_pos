@@ -457,20 +457,31 @@ class _SettingsPageState extends State<SettingsPage> {
                 padding: const EdgeInsets.fromLTRB(16, 15, 16, 12),
                 child: ValueListenableBuilder<ThemeMode>(
                   valueListenable: AppThemeController.mode,
-                  builder: (context, mode, _) => SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    secondary: const Icon(Icons.dark_mode_outlined),
-                    title: const Text('Apariencia oscura'),
-                    subtitle: Text(
-                      mode == ThemeMode.dark
-                          ? 'Modo oscuro activado'
-                          : 'Modo claro activado',
-                    ),
-                    value: mode == ThemeMode.dark,
-                    onChanged: (dark) => AppThemeController.setMode(
-                      dark ? ThemeMode.dark : ThemeMode.light,
-                    ),
-                  ),
+                  builder: (context, mode, _) =>
+                      DropdownButtonFormField<ThemeMode>(
+                        initialValue: mode,
+                        decoration: const InputDecoration(
+                          labelText: 'Apariencia',
+                          prefixIcon: Icon(Icons.brightness_6_outlined),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: ThemeMode.system,
+                            child: Text('Seguir el sistema'),
+                          ),
+                          DropdownMenuItem(
+                            value: ThemeMode.light,
+                            child: Text('Claro'),
+                          ),
+                          DropdownMenuItem(
+                            value: ThemeMode.dark,
+                            child: Text('Oscuro'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) AppThemeController.setMode(value);
+                        },
+                      ),
                 ),
               ),
               const _SettingsDivider(),

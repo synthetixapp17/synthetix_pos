@@ -65,6 +65,13 @@ class DashboardRepositoryImpl implements DashboardRepository {
               .toList()
             ..sort((a, b) => b.quantity.compareTo(a.quantity));
 
+      final recentSales = HiveDatabase.salesBox.values.toList()
+        ..sort((first, second) => second.soldAt.compareTo(first.soldAt));
+      final recentSaleRecords = recentSales
+          .take(5)
+          .map((model) => model.toEntity())
+          .toList();
+
       final products =
           HiveDatabase.productBox.values
               .map(
@@ -110,6 +117,11 @@ class DashboardRepositoryImpl implements DashboardRepository {
                   .where((item) => item.currencyCode == sale.currencyCode)
                   .fold<double>(0, (total, item) => total + item.total),
           },
+          recentSales: recentSaleRecords,
+          unitsSoldToday: productQuantities.values.fold<int>(
+            0,
+            (total, quantity) => total + quantity,
+          ),
         ),
       );
     } catch (error) {
