@@ -304,6 +304,57 @@ void main() {
     expect(HiveDatabase.settingsBox.get('currency_code'), 'USD');
   });
 
+  test(
+    'restores categories from their own CSV and preserves products',
+    () async {
+      await HiveDatabase.settingsBox.put(
+        'product_categories',
+        jsonEncode([
+          {'name': 'Bebidas', 'icon': 100},
+        ]),
+      );
+      await HiveDatabase.settingsBox.put('currency_code', 'USD');
+      await HiveDatabase.productBox.put(
+        'product-1',
+        const ProductModel(
+          id: 'product-1',
+          name: 'Agua',
+          barcode: '123',
+          price: 2,
+          stock: 5,
+          category: 'Bebidas',
+        ),
+      );
+
+      final categoryCsv = CsvBackupExporter().createBackup().singleWhere(
+        (file) => file.name.startsWith('respaldo_categorias_'),
+      );
+      await HiveDatabase.settingsBox.put(
+        'product_categories',
+        jsonEncode([
+          {'name': 'Antigua', 'icon': 101},
+        ]),
+      );
+
+      final importer = CsvBackupImporter();
+      final plan = importer.parseCsvFile('categorias.csv', categoryCsv.bytes);
+      expect(plan.scope, CsvBackupScope.categories);
+      expect(importer.summarize(plan).categories, 1);
+      await importer.restore(plan);
+
+      expect(
+        HiveDatabase.settingsBox.get('product_categories'),
+        contains('Bebidas'),
+      );
+      expect(
+        HiveDatabase.settingsBox.get('product_categories'),
+        isNot(contains('Antigua')),
+      );
+      expect(HiveDatabase.productBox.get('product-1')?.category, 'Bebidas');
+      expect(HiveDatabase.settingsBox.get('currency_code'), 'USD');
+    },
+  );
+
   test('rejects invalid packages without changing local records', () async {
     await HiveDatabase.productBox.put(
       'existing-product',

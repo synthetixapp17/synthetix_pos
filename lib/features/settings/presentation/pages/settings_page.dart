@@ -32,6 +32,48 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
+enum _BackupScopeChoice {
+  complete,
+  products,
+  categories,
+  customers,
+  sales,
+  credits,
+  configuration,
+}
+
+extension on _BackupScopeChoice {
+  String get label => switch (this) {
+    _BackupScopeChoice.complete => 'Copia completa (ZIP)',
+    _BackupScopeChoice.products => 'Productos',
+    _BackupScopeChoice.categories => 'Categorías',
+    _BackupScopeChoice.customers => 'Clientes',
+    _BackupScopeChoice.sales => 'Ventas',
+    _BackupScopeChoice.credits => 'Créditos',
+    _BackupScopeChoice.configuration => 'Tienda y configuración',
+  };
+
+  CsvBackupScope? get csvScope => switch (this) {
+    _BackupScopeChoice.complete => null,
+    _BackupScopeChoice.products => CsvBackupScope.products,
+    _BackupScopeChoice.categories => CsvBackupScope.categories,
+    _BackupScopeChoice.customers => CsvBackupScope.customers,
+    _BackupScopeChoice.sales => CsvBackupScope.sales,
+    _BackupScopeChoice.credits => CsvBackupScope.credits,
+    _BackupScopeChoice.configuration => CsvBackupScope.configuration,
+  };
+
+  String get filePrefix => switch (this) {
+    _BackupScopeChoice.complete => '',
+    _BackupScopeChoice.products => 'respaldo_productos_',
+    _BackupScopeChoice.categories => 'respaldo_categorias_',
+    _BackupScopeChoice.customers => 'respaldo_clientes_',
+    _BackupScopeChoice.sales => 'respaldo_ventas_',
+    _BackupScopeChoice.credits => 'respaldo_creditos_',
+    _BackupScopeChoice.configuration => 'respaldo_tienda_configuracion_',
+  };
+}
+
 class _SettingsPageState extends State<SettingsPage> {
   late String _currencyCode;
   late int _stockThreshold;
@@ -135,17 +177,79 @@ class _SettingsPageState extends State<SettingsPage> {
     if (mounted) setState(() => _stockThreshold = value);
   }
 
+  Future<_BackupScopeChoice?> _chooseBackupScope(String title) {
+    const choices = _BackupScopeChoice.values;
+    return showModalBottomSheet<_BackupScopeChoice>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
+              child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+            ),
+            for (final choice in choices)
+              ListTile(
+                leading: Icon(
+                  choice == _BackupScopeChoice.complete
+                      ? Icons.folder_zip_outlined
+                      : Icons.table_chart_outlined,
+                ),
+                title: Text(choice.label),
+                subtitle: Text(
+                  choice == _BackupScopeChoice.complete
+                      ? 'Todos los datos en un solo archivo ZIP'
+                      : 'Un archivo CSV; los demás datos se conservan',
+                ),
+                onTap: () => Navigator.pop(context, choice),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _scopeName(CsvBackupScope scope) => switch (scope) {
+    CsvBackupScope.all => 'la copia completa',
+    CsvBackupScope.products => 'productos',
+    CsvBackupScope.categories => 'categorías',
+    CsvBackupScope.customers => 'clientes',
+    CsvBackupScope.sales => 'ventas',
+    CsvBackupScope.credits => 'créditos',
+    CsvBackupScope.configuration => 'tienda y configuración',
+  };
+
   Future<void> _exportCsvBackup() async {
     if (_isExportingBackup) return;
+    final choice = await _chooseBackupScope('¿Qué datos deseas exportar?');
+    if (choice == null || !mounted) return;
     setState(() => _isExportingBackup = true);
     try {
-      final backup = CsvBackupExporter().createBackupPackage();
+      final exporter = CsvBackupExporter();
+      final backup = choice == _BackupScopeChoice.complete
+          ? exporter.createBackupPackage()
+          : exporter.createBackup().singleWhere(
+              (file) => file.name.startsWith(choice.filePrefix),
+            );
+      final isPackage = choice == _BackupScopeChoice.complete;
       await SharePlus.instance.share(
         ShareParams(
-          title: 'Copia completa de seguridad',
-          text:
-              'Paquete ZIP con los CSV de productos, categorías, clientes, créditos, ventas y configuración de la tienda.',
-          files: [XFile.fromData(backup.bytes, mimeType: 'application/zip')],
+          title: isPackage
+              ? 'Copia completa de seguridad'
+              : 'Respaldo de ${choice.label.toLowerCase()}',
+          text: isPackage
+              ? 'Paquete ZIP con todos los datos del negocio.'
+              : 'Archivo CSV de ${choice.label.toLowerCase()}.',
+          files: [
+            XFile.fromData(
+              backup.bytes,
+              mimeType: isPackage ? 'application/zip' : 'text/csv',
+            ),
+          ],
           fileNameOverrides: [backup.name],
           downloadFallbackEnabled: true,
         ),
@@ -183,23 +287,37 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       return;
     }
+    final choice = await _chooseBackupScope('¿Qué datos deseas restaurar?');
+    if (choice == null || !mounted) return;
 
     try {
       final selectedFile = await FilePicker.pickFile(
-        dialogTitle: 'Seleccionar CSV o paquete de respaldo',
+        dialogTitle: choice == _BackupScopeChoice.complete
+            ? 'Seleccionar CSV o paquete ZIP'
+            : 'Seleccionar CSV de ${choice.label.toLowerCase()}',
         type: FileType.custom,
-        allowedExtensions: ['csv', 'zip'],
+        allowedExtensions: choice == _BackupScopeChoice.complete
+            ? ['csv', 'zip']
+            : ['csv'],
       );
       if (selectedFile == null) return;
       final bytes = await selectedFile.readAsBytes();
       final importer = CsvBackupImporter();
       final plan = switch (selectedFile.extension?.toLowerCase()) {
         'csv' => importer.parseCsvFile(selectedFile.name, bytes),
-        'zip' => importer.parsePackage(bytes),
+        'zip' when choice == _BackupScopeChoice.complete =>
+          importer.parsePackage(bytes),
         _ => throw const FormatException(
           'Selecciona un archivo CSV o ZIP de respaldo.',
         ),
       };
+      final expectedScope = choice.csvScope;
+      if (expectedScope != null && plan.scope != expectedScope) {
+        throw FormatException(
+          'El archivo seleccionado contiene ${_scopeName(plan.scope)}, '
+          'no ${choice.label.toLowerCase()}.',
+        );
+      }
       if (!mounted) return;
       final summary = importer.summarize(plan);
       final details = switch (plan.scope) {
@@ -813,7 +931,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 icon: Icons.download_outlined,
                 title: 'Exportar datos en CSV',
                 subtitle:
-                    'Descarga un ZIP con los CSV de productos, categorías, clientes, créditos y configuración.',
+                    'Elige una copia completa o exporta productos, categorías y otros datos por separado.',
                 onTap: _isExportingBackup ? null : _exportCsvBackup,
                 trailing: _isExportingBackup
                     ? const SizedBox(
@@ -828,7 +946,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 icon: Icons.settings_backup_restore_outlined,
                 title: 'Restaurar copia de seguridad',
                 subtitle:
-                    'Restaura un CSV individual o el paquete ZIP completo exportado.',
+                    'Restaura un tipo de dato desde su CSV o todos los datos desde un ZIP.',
                 onTap: _isRestoringBackup ? null : _restoreCsvBackup,
                 trailing: _isRestoringBackup
                     ? const SizedBox(
