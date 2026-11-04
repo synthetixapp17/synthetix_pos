@@ -28,7 +28,9 @@ class AppTheme {
       primaryColor: primaryColor,
       scaffoldBackgroundColor: backgroundColor,
       bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: Colors.transparent,
+        backgroundColor: surfaceColor,
+        modalBackgroundColor: surfaceColor,
+        surfaceTintColor: Colors.transparent,
       ),
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
@@ -152,9 +154,7 @@ class AppTheme {
         selectedColor: primaryColor.withValues(alpha: .12),
         checkmarkColor: primaryColor,
       ),
-      progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: primaryColor,
-      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: primaryColor),
     );
   }
 
@@ -175,6 +175,11 @@ class AppTheme {
       colorScheme: scheme,
       primaryColor: primaryColor,
       scaffoldBackgroundColor: const Color(0xFF101010),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Color(0xFF1C1C1C),
+        modalBackgroundColor: Color(0xFF1C1C1C),
+        surfaceTintColor: Colors.transparent,
+      ),
       textTheme: GoogleFonts.ibmPlexSansTextTheme(ThemeData.dark().textTheme),
       appBarTheme: const AppBarTheme(
         backgroundColor: Color(0xFF101010),
@@ -250,9 +255,7 @@ class AppTheme {
         selectedColor: primaryColor.withValues(alpha: .2),
         checkmarkColor: foregroundColor,
       ),
-      progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: primaryColor,
-      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: primaryColor),
     );
   }
 }

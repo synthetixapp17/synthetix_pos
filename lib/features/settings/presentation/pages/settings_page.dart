@@ -183,6 +183,11 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      barrierColor: Colors.black54,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (context) => SafeArea(
         child: ListView(
           shrinkWrap: true,
