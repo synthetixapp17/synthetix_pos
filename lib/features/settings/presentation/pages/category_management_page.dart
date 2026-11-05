@@ -144,14 +144,18 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     final result = await showDialog<(String, int)>(
       context: context,
       builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         backgroundColor: colors.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
+          constraints: BoxConstraints(
+            maxWidth: 440,
+            maxHeight: MediaQuery.sizeOf(dialogContext).height * .82,
+          ),
           child: StatefulBuilder(
-            builder: (context, setDialogState) => Padding(
-              padding: const EdgeInsets.all(24),
+            builder: (context, setDialogState) => SingleChildScrollView(
+              padding: const EdgeInsets.all(22),
               child: Form(
                 key: formKey,
                 child: Column(
@@ -161,35 +165,32 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                     Row(
                       children: [
                         Container(
-                          width: 54,
-                          height: 54,
+                          width: 46,
+                          height: 46,
                           decoration: BoxDecoration(
-                            color: colors.primary,
-                            borderRadius: BorderRadius.circular(17),
+                            color: colors.primaryContainer,
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(
                             ProductCategories.iconFor(selectedIconCodePoint),
-                            color: colors.onPrimary,
-                            size: 25,
+                            color: colors.primary,
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Crear categoría',
+                                'Nueva categoría',
                                 style: Theme.of(context).textTheme.titleLarge
                                     ?.copyWith(fontWeight: FontWeight.w800),
                               ),
-                              SizedBox(height: 3),
+                              const SizedBox(height: 3),
                               Text(
-                                'Organiza tus productos con una nueva categoría.',
-                                style: TextStyle(
-                                  color: Color(0xFF737985),
-                                  fontSize: 12,
-                                ),
+                                'Organiza mejor tus productos.',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: colors.onSurfaceVariant),
                               ),
                             ],
                           ),
@@ -202,15 +203,6 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'Nombre de la categoría',
-                      style: TextStyle(
-                        color: Color(0xFF282C32),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: controller,
                       autofocus: true,
@@ -220,121 +212,88 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                           value == null || value.trim().isEmpty
                           ? 'Escribe un nombre para continuar.'
                           : null,
-                      decoration: InputDecoration(
-                        hintText: 'Ej.: Bebidas y alimentos',
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre de la categoría',
+                        hintText: 'Ej.: Bebidas',
+                        prefixIcon: Icon(Icons.edit_outlined),
                         counterText: '',
-                        prefixIcon: const Icon(Icons.edit_outlined),
-                        filled: true,
-                        fillColor: colors.surfaceContainerHighest,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE6E8EB),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(
-                            color: colors.primary,
-                            width: 1.5,
-                          ),
-                        ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Icono identificador',
-                                style: TextStyle(
-                                  color: Color(0xFF282C32),
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              SizedBox(height: 3),
-                              Text(
-                                'Personaliza cómo aparece en el catálogo.',
-                                style: TextStyle(
-                                  color: Color(0xFF737985),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            final iconCodePoint = await _chooseIcon(
-                              selectedIconCodePoint,
-                            );
-                            if (iconCodePoint != null) {
-                              setDialogState(
-                                () => selectedIconCodePoint = iconCodePoint,
-                              );
-                            }
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF111111),
-                            side: const BorderSide(color: Color(0xFFD9DDE2)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(Icons.grid_view_rounded, size: 17),
-                          label: const Text('Elegir'),
-                        ),
-                      ],
+                    const SizedBox(height: 18),
+                    Text(
+                      'Icono',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(dialogContext),
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(48),
-                              foregroundColor: const Color(0xFF333840),
-                              side: const BorderSide(color: Color(0xFFD9DDE2)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(13),
-                              ),
-                            ),
-                            child: const Text('Cancelar'),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Elige un símbolo para identificar la categoría.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final iconCodePoint = await _chooseIcon(
+                          selectedIconCodePoint,
+                        );
+                        if (iconCodePoint != null) {
+                          setDialogState(
+                            () => selectedIconCodePoint = iconCodePoint,
+                          );
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        alignment: Alignment.centerLeft,
+                        foregroundColor: colors.onSurface,
+                        side: BorderSide(color: colors.outlineVariant),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: Icon(
+                        ProductCategories.iconFor(selectedIconCodePoint),
+                      ),
+                      label: const Text('Cambiar icono'),
+                    ),
+                    const SizedBox(height: 22),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          if (formKey.currentState!.validate()) {
+                            Navigator.pop(dialogContext, (
+                              controller.text.trim(),
+                              selectedIconCodePoint,
+                            ));
+                          }
+                        },
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          backgroundColor: colors.primary,
+                          foregroundColor: colors.onPrimary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: () {
-                              if (formKey.currentState!.validate()) {
-                                Navigator.pop(dialogContext, (
-                                  controller.text.trim(),
-                                  selectedIconCodePoint,
-                                ));
-                              }
-                            },
-                            style: FilledButton.styleFrom(
-                              minimumSize: const Size.fromHeight(48),
-                              backgroundColor: colors.primary,
-                              foregroundColor: colors.onPrimary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(13),
-                              ),
-                            ),
-                            icon: const Icon(Icons.add_rounded, size: 18),
-                            label: const Text('Crear categoría'),
-                          ),
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Crear categoría'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          foregroundColor: colors.onSurfaceVariant,
                         ),
-                      ],
+                        child: const Text('Cancelar'),
+                      ),
                     ),
                   ],
                 ),

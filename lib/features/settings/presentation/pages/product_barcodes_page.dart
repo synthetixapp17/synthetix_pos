@@ -18,9 +18,17 @@ class ProductBarcodesPage extends StatefulWidget {
 }
 
 class _ProductBarcodesPageState extends State<ProductBarcodesPage> {
+  final TextEditingController _searchController = TextEditingController();
   final Set<String> _selectedProductIds = {};
+  String _query = '';
   bool _printing = false;
   bool _downloading = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   List<Product> _withBarcodes(Iterable<Product> products) =>
       products.where((product) => product.barcode.trim().isNotEmpty).toList();
@@ -247,6 +255,20 @@ class _ProductBarcodesPageState extends State<ProductBarcodesPage> {
               child: Text('Aún no hay productos registrados.'),
             );
           }
+          final barcodedProducts = _withBarcodes(state.products);
+          final visibleProducts = barcodedProducts
+              .where(
+                (product) =>
+                    product.name.toLowerCase().contains(_query) ||
+                    product.barcode.toLowerCase().contains(_query) ||
+                    product.category.toLowerCase().contains(_query),
+              )
+              .toList();
+          final allVisibleSelected =
+              visibleProducts.isNotEmpty &&
+              visibleProducts.every(
+                (product) => _selectedProductIds.contains(product.id),
+              );
           return LayoutBuilder(
             builder: (context, constraints) {
               final maxWidth = constraints.maxWidth
@@ -282,26 +304,26 @@ class _ProductBarcodesPageState extends State<ProductBarcodesPage> {
                                 ),
                               ),
                               IconButton(
-                                tooltip:
-                                    _selectedProductIds.length ==
-                                        _withBarcodes(state.products).length
-                                    ? 'Quitar selección'
-                                    : 'Seleccionar todos',
+                                tooltip: allVisibleSelected
+                                    ? 'Quitar selección visible'
+                                    : 'Seleccionar resultados',
                                 onPressed: () => setState(() {
-                                  final ids = _withBarcodes(
-                                    state.products,
-                                  ).map((product) => product.id);
-                                  if (_selectedProductIds.length ==
-                                      ids.length) {
-                                    _selectedProductIds.clear();
+                                  if (allVisibleSelected) {
+                                    _selectedProductIds.removeAll(
+                                      visibleProducts.map(
+                                        (product) => product.id,
+                                      ),
+                                    );
                                   } else {
-                                    _selectedProductIds
-                                      ..clear()
-                                      ..addAll(ids);
+                                    _selectedProductIds.addAll(
+                                      visibleProducts.map(
+                                        (product) => product.id,
+                                      ),
+                                    );
                                   }
                                 }),
                                 icon: Icon(
-                                  _selectedProductIds.isNotEmpty
+                                  allVisibleSelected
                                       ? Icons.deselect_rounded
                                       : Icons.select_all_rounded,
                                 ),
@@ -309,6 +331,85 @@ class _ProductBarcodesPageState extends State<ProductBarcodesPage> {
                             ],
                           ),
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _searchController,
+                        onChanged: (value) =>
+                            setState(() => _query = value.trim().toLowerCase()),
+                        decoration: InputDecoration(
+                          hintText: 'Buscar por producto, código o categoría',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          suffixIcon: _query.isEmpty
+                              ? null
+                              : IconButton(
+                                  tooltip: 'Limpiar búsqueda',
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _query = '');
+                                  },
+                                  icon: const Icon(Icons.close_rounded),
+                                ),
+                          filled: true,
+                          fillColor: colors.surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: colors.outlineVariant,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: colors.outlineVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _query.isEmpty
+                                  ? '${barcodedProducts.length} productos con código'
+                                  : '${visibleProducts.length} resultados',
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(
+                                    color: colors.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ),
+                          if (visibleProducts.isNotEmpty)
+                            TextButton.icon(
+                              onPressed: () => setState(() {
+                                if (allVisibleSelected) {
+                                  _selectedProductIds.removeAll(
+                                    visibleProducts.map(
+                                      (product) => product.id,
+                                    ),
+                                  );
+                                } else {
+                                  _selectedProductIds.addAll(
+                                    visibleProducts.map(
+                                      (product) => product.id,
+                                    ),
+                                  );
+                                }
+                              }),
+                              icon: Icon(
+                                allVisibleSelected
+                                    ? Icons.deselect_rounded
+                                    : Icons.select_all_rounded,
+                              ),
+                              label: Text(
+                                allVisibleSelected
+                                    ? 'Quitar selección'
+                                    : 'Seleccionar resultados',
+                              ),
+                            ),
+                        ],
                       ),
                       if (_selectedProductIds.isNotEmpty) ...[
                         const SizedBox(height: 12),
@@ -339,7 +440,7 @@ class _ProductBarcodesPageState extends State<ProductBarcodesPage> {
                         ),
                       ],
                       const SizedBox(height: 8),
-                      if (_withBarcodes(state.products).isEmpty)
+                      if (barcodedProducts.isEmpty)
                         const Card(
                           child: Padding(
                             padding: EdgeInsets.all(24),
@@ -349,8 +450,29 @@ class _ProductBarcodesPageState extends State<ProductBarcodesPage> {
                             ),
                           ),
                         )
+                      else if (visibleProducts.isEmpty)
+                        Card(
+                          color: colors.surface,
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.search_off_rounded,
+                                  size: 32,
+                                  color: colors.onSurfaceVariant,
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'No se encontraron códigos coincidentes.',
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
                       else
-                        for (final product in _withBarcodes(state.products))
+                        for (final product in visibleProducts)
                           _BarcodeProductCard(
                             product: product,
                             selected: _selectedProductIds.contains(product.id),

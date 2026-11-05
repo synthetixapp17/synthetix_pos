@@ -15,16 +15,8 @@ class ShopRepositoryImpl implements ShopRepository {
       final shop = box.get(shopKey);
       if (shop != null) {
         return Right(shop);
-      } else {
-        // Return default shop if not found
-        return const Right(Shop(
-            name: 'Dinesh Shop',
-            addressLine1: 'Samrajpet, Mecheri',
-            addressLine2: 'Salem - 636453',
-            phoneNumber: '+917010674588',
-            upiId: 'dineshsowndar@oksbi',
-            footerText: 'Thank you, Visit again!!!'));
       }
+      return const Right(Shop());
     } catch (e) {
       return Left(CacheFailure(e.toString()));
     }

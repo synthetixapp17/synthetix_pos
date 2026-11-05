@@ -125,38 +125,32 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
               const _FormSection(
                 title: 'Identidad del negocio',
                 subtitle:
-                    'Esta información identifica tu tienda en la aplicación y en los recibos.',
+                    'Completa solo los datos que quieras mostrar en tus comprobantes.',
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _name,
                 textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(
-                  labelText: 'Nombre de la tienda',
+                  labelText: 'Nombre comercial (opcional)',
                   prefixIcon: Icon(Icons.storefront_outlined),
                 ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'El nombre de la tienda es obligatorio.'
-                    : null,
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _address1,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(
-                  labelText: 'Dirección',
+                  labelText: 'Dirección principal (opcional)',
                   prefixIcon: Icon(Icons.location_on_outlined),
                 ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'La dirección es obligatoria.'
-                    : null,
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _address2,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(
-                  labelText: 'Complemento de dirección (opcional)',
+                  labelText: 'Referencia o complemento (opcional)',
                   prefixIcon: Icon(Icons.map_outlined),
                 ),
               ),
@@ -164,25 +158,22 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
               const _FormSection(
                 title: 'Contacto y pagos',
                 subtitle:
-                    'Los datos de contacto pueden imprimirse en los comprobantes.',
+                    'Añade solo los medios de contacto y pago que utilices.',
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _phone,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
-                  labelText: 'Teléfono',
+                  labelText: 'Teléfono de contacto (opcional)',
                   prefixIcon: Icon(Icons.phone_outlined),
                 ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'El teléfono es obligatorio.'
-                    : null,
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _upi,
                 decoration: const InputDecoration(
-                  labelText: 'Identificador de pago UPI (opcional)',
+                  labelText: 'Cuenta o alias de pago (opcional)',
                   prefixIcon: Icon(Icons.qr_code_2),
                 ),
               ),
@@ -190,7 +181,7 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
               const _FormSection(
                 title: 'Personalización del recibo',
                 subtitle:
-                    'Añade un mensaje breve para tus clientes al finalizar la compra.',
+                    'El mensaje es opcional; déjalo vacío para no mostrarlo.',
               ),
               const SizedBox(height: 14),
               TextFormField(
@@ -200,8 +191,8 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
                 maxLength: 150,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(
-                  labelText: 'Mensaje final',
-                  hintText: 'Gracias por tu compra.',
+                  labelText: 'Mensaje del recibo (opcional)',
+                  hintText: 'Escribe tu propio mensaje',
                   alignLabelWithHint: true,
                   prefixIcon: Icon(Icons.receipt_long_outlined),
                 ),
