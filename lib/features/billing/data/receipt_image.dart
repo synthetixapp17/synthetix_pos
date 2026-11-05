@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:barcode_widget/barcode_widget.dart' show Barcode;
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -19,10 +20,14 @@ class ReceiptImage {
     required String shopName,
     required String address,
     required String shopPhone,
+    required String rif,
+    required String qrData,
     required String? logoData,
     required String footer,
     required bool showAddress,
     required bool showPhone,
+    required bool showRif,
+    required bool showInvoiceQr,
     required bool showDate,
     required bool showBarcode,
     required bool showUnitPrices,
@@ -35,7 +40,8 @@ class ReceiptImage {
     final logo = logoData == null || logoData.isEmpty
         ? null
         : pw.MemoryImage(base64Decode(logoData));
-    final pageHeight = 520 + sale.lines.length * 68.0;
+    final pageHeight =
+        540 + sale.lines.length * 68.0 + (showInvoiceQr ? 130 : 0);
     document.addPage(
       pw.Page(
         pageFormat: PdfPageFormat(420, pageHeight, marginAll: 0),
@@ -82,6 +88,12 @@ class ReceiptImage {
               if (showPhone && shopPhone.trim().isNotEmpty)
                 pw.Text(
                   shopPhone,
+                  textAlign: pw.TextAlign.center,
+                  style: const pw.TextStyle(color: _muted, fontSize: 9),
+                ),
+              if (showRif && rif.trim().isNotEmpty)
+                pw.Text(
+                  'RIF: ${rif.trim()}',
                   textAlign: pw.TextAlign.center,
                   style: const pw.TextStyle(color: _muted, fontSize: 9),
                 ),
@@ -241,6 +253,24 @@ class ReceiptImage {
                   footer,
                   textAlign: pw.TextAlign.center,
                   style: const pw.TextStyle(color: _muted, fontSize: 9),
+                ),
+              ],
+              if (showInvoiceQr) ...[
+                pw.SizedBox(height: 14),
+                pw.Center(
+                  child: pw.BarcodeWidget(
+                    barcode: Barcode.qrCode(),
+                    data: qrData,
+                    width: 92,
+                    height: 92,
+                    drawText: false,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Text(
+                  'Escanea para consultar esta venta',
+                  textAlign: pw.TextAlign.center,
+                  style: const pw.TextStyle(color: _muted, fontSize: 8),
                 ),
               ],
               pw.SizedBox(height: 12),

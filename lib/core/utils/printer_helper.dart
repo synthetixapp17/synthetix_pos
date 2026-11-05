@@ -170,6 +170,8 @@ class PrinterHelper {
     required String address1,
     required String address2,
     required String phone,
+    String rif = '',
+    String? qrData,
     String? customerName,
     String? logoData,
     required List<Map<String, dynamic>> items, // Name, Qty, Price, Total
@@ -181,6 +183,8 @@ class PrinterHelper {
     double changeAmount = 0,
     bool showAddress = true,
     bool showPhone = true,
+    bool showRif = true,
+    bool showInvoiceQr = true,
     bool showDate = true,
     bool showBarcode = false,
     bool showUnitPrices = true,
@@ -224,6 +228,10 @@ class PrinterHelper {
     }
     if (showPhone && phone.isNotEmpty) {
       bytes += _textToBytes(phone);
+      bytes += EscPos.lineFeed;
+    }
+    if (showRif && rif.trim().isNotEmpty) {
+      bytes += _textToBytes('RIF: ${rif.trim()}');
       bytes += EscPos.lineFeed;
     }
 
@@ -305,6 +313,12 @@ class PrinterHelper {
       );
       bytes += EscPos.lineFeed;
     }
+    if (showInvoiceQr && qrData != null && qrData.isNotEmpty) {
+      bytes += EscPos.lineFeed;
+      bytes += _qrCodeBytes(qrData);
+      bytes += _textToBytes('Consulta esta venta por QR');
+      bytes += EscPos.lineFeed;
+    }
     bytes += EscPos.lineFeed;
 
     // Footer (Center)
@@ -327,6 +341,21 @@ class PrinterHelper {
 
   List<int> _textToBytes(String text) {
     return List.from(text.codeUnits);
+  }
+
+  List<int> _qrCodeBytes(String data) {
+    final qrData = utf8.encode(data);
+    final length = qrData.length + 3;
+    final lengthLow = length & 0xFF;
+    final lengthHigh = (length >> 8) & 0xFF;
+    return [
+      0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00,
+      0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06,
+      0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x30,
+      0x1D, 0x28, 0x6B, lengthLow, lengthHigh, 0x31, 0x50, 0x30,
+      ...qrData,
+      0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30,
+    ];
   }
 
   List<int> _logoRasterBytes(Uint8List data) {

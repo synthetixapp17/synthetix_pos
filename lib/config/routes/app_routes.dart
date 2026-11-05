@@ -79,6 +79,7 @@ final router = GoRouter(
           path: '/reports',
           builder: (context, state) => ReportsPage(
             showToday: state.uri.queryParameters['period'] == 'today',
+            saleId: state.uri.queryParameters['saleId'],
           ),
         ),
         GoRoute(

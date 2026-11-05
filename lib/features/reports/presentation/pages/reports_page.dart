@@ -12,8 +12,9 @@ enum _Grouping { day, week, month }
 
 class ReportsPage extends StatefulWidget {
   final bool showToday;
+  final String? saleId;
 
-  const ReportsPage({super.key, this.showToday = false});
+  const ReportsPage({super.key, this.showToday = false, this.saleId});
 
   @override
   State<ReportsPage> createState() => _ReportsPageState();
@@ -25,21 +26,55 @@ class _ReportsPageState extends State<ReportsPage> {
   _Grouping _grouping = _Grouping.day;
   final _dateFormat = DateFormat('d MMM', 'es');
   final _monthFormat = DateFormat('MMM yy', 'es');
+  final _saleIdController = TextEditingController();
+  String? _saleId;
 
   @override
   void initState() {
     super.initState();
+    _saleId = widget.saleId;
+    _saleIdController.text = widget.saleId ?? '';
     final today = DateTime.now();
     _to = DateTime(today.year, today.month, today.day, 23, 59, 59, 999);
-    final start = widget.showToday
+    final start = widget.saleId != null
+        ? DateTime(1970)
+        : widget.showToday
         ? today
         : today.subtract(const Duration(days: 29));
     _from = DateTime(start.year, start.month, start.day);
     _load();
   }
 
-  void _load() =>
-      context.read<ReportsBloc>().add(LoadReportsEvent(from: _from, to: _to));
+  @override
+  void dispose() {
+    _saleIdController.dispose();
+    super.dispose();
+  }
+
+  void _load() {
+    if (_saleId != null) {
+      final today = DateTime.now();
+      _from = DateTime(1970);
+      _to = DateTime(today.year, today.month, today.day, 23, 59, 59, 999);
+    }
+    context.read<ReportsBloc>().add(LoadReportsEvent(from: _from, to: _to));
+  }
+
+  void _searchSale(String value) {
+    final saleId = value.trim();
+    if (saleId.isEmpty) return;
+    setState(() => _saleId = saleId);
+    _load();
+  }
+
+  SaleRecord? _findSale(List<SaleRecord> sales) {
+    final saleId = _saleId;
+    if (saleId == null) return null;
+    for (final sale in sales) {
+      if (sale.id.toLowerCase() == saleId.toLowerCase()) return sale;
+    }
+    return null;
+  }
 
   void _showMetricDetails({
     required String title,
@@ -155,6 +190,14 @@ class _ReportsPageState extends State<ReportsPage> {
                   dateLabel:
                       '${_dateFormat.format(_from)} – ${_dateFormat.format(_to)}',
                   transactionCount: state.sales.length,
+                ),
+                const SizedBox(height: 16),
+                _SaleLookupCard(
+                  controller: _saleIdController,
+                  saleId: _saleId,
+                  sale: _findSale(state.sales),
+                  isLoading: state.status == ReportsStatus.loading,
+                  onSearch: _searchSale,
                 ),
                 const SizedBox(height: 16),
                 _FilterCard(
@@ -1036,6 +1079,144 @@ class _ReportMetricDetailsSheet extends StatelessWidget {
                       },
                     ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SaleLookupCard extends StatelessWidget {
+  final TextEditingController controller;
+  final String? saleId;
+  final SaleRecord? sale;
+  final bool isLoading;
+  final ValueChanged<String> onSearch;
+
+  const _SaleLookupCard({
+    required this.controller,
+    required this.saleId,
+    required this.sale,
+    required this.isLoading,
+    required this.onSearch,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Buscar venta por folio',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Escanea el QR del ticket o escribe su folio para localizarla.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              textInputAction: TextInputAction.search,
+              onSubmitted: onSearch,
+              decoration: InputDecoration(
+                labelText: 'Folio de la venta',
+                prefixIcon: const Icon(Icons.qr_code_scanner),
+                suffixIcon: IconButton(
+                  tooltip: 'Buscar venta',
+                  onPressed: () => onSearch(controller.text),
+                  icon: const Icon(Icons.search),
+                ),
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            if (isLoading && saleId != null) ...[
+              const SizedBox(height: 14),
+              const LinearProgressIndicator(),
+            ] else if (saleId != null && sale == null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'No se encontró el folio indicado en las ventas guardadas.',
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            ] else if (sale != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: .35,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Venta localizada · ${sale!.id}',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${DateFormat('dd/MM/yyyy HH:mm', 'es').format(sale!.soldAt)}'
+                      ' · ${sale!.customerName ?? 'Venta sin cliente'}'
+                      ' · ${sale!.paymentMethod}',
+                    ),
+                    const Divider(height: 18),
+                    for (final line in sale!.lines)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text('${line.quantity} × ${line.productName}'),
+                            ),
+                            Text(
+                              AppCurrency.format(
+                                line.total,
+                                code: sale!.currencyCode,
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const Divider(height: 18),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'TOTAL',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          AppCurrency.format(
+                            sale!.total,
+                            code: sale!.currencyCode,
+                          ),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 
 import '../../../../core/data/hive_database.dart';
 import '../../../../core/utils/app_currency.dart';
 import '../../../../core/utils/receipt_preferences.dart';
+import '../../../../core/utils/receipt_qr.dart';
 import '../../../shop/domain/entities/shop.dart';
 import '../../../shop/presentation/bloc/shop_bloc.dart';
 
@@ -24,10 +26,13 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
   late bool _showDate;
   late bool _showBarcode;
   late bool _showUnitPrices;
+  late bool _showRif;
+  late bool _showInvoiceQr;
   late final TextEditingController _shopNameController;
   late final TextEditingController _addressController;
   late final TextEditingController _address2Controller;
   late final TextEditingController _phoneController;
+  late final TextEditingController _rifController;
   late final TextEditingController _footerController;
   String? _logoData;
   Shop _shop = const Shop();
@@ -43,10 +48,13 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
     _showDate = ReceiptPreferences.showDate;
     _showBarcode = ReceiptPreferences.showBarcode;
     _showUnitPrices = ReceiptPreferences.showUnitPrices;
+    _showRif = ReceiptPreferences.showRif;
+    _showInvoiceQr = ReceiptPreferences.showInvoiceQr;
     _shopNameController = TextEditingController();
     _addressController = TextEditingController();
     _address2Controller = TextEditingController();
     _phoneController = TextEditingController();
+    _rifController = TextEditingController();
     _footerController = TextEditingController(
       text: ReceiptPreferences.footerText,
     );
@@ -59,6 +67,7 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
     _addressController.dispose();
     _address2Controller.dispose();
     _phoneController.dispose();
+    _rifController.dispose();
     _footerController.dispose();
     super.dispose();
   }
@@ -71,6 +80,7 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
     _addressController.text = shop.addressLine1;
     _address2Controller.text = shop.addressLine2;
     _phoneController.text = shop.phoneNumber;
+    _rifController.text = shop.rif;
     _logoData = shop.logoData;
     if (_footerController.text.isEmpty) {
       _footerController.text = shop.footerText;
@@ -127,6 +137,7 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
       addressLine1: _addressController.text.trim(),
       addressLine2: _address2Controller.text.trim(),
       phoneNumber: _phoneController.text.trim(),
+      rif: _rifController.text.trim(),
       upiId: _shop.upiId,
       footerText: _footerController.text.trim(),
       logoData: _logoData,
@@ -154,6 +165,12 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
             break;
           case ReceiptPreferences.showUnitPricesKey:
             _showUnitPrices = value;
+            break;
+          case ReceiptPreferences.showRifKey:
+            _showRif = value;
+            break;
+          case ReceiptPreferences.showInvoiceQrKey:
+            _showInvoiceQr = value;
             break;
         }
       });
@@ -332,6 +349,17 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
                       ),
                       onChanged: (_) => setState(() {}),
                     ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _rifController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: 'RIF del negocio',
+                        hintText: 'J-12345678-9',
+                        prefixIcon: Icon(Icons.badge_outlined),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
                     const SizedBox(height: 14),
                     SizedBox(
                       width: double.infinity,
@@ -408,6 +436,8 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
                       ),
                     if (_showPhone && _phoneController.text.isNotEmpty)
                       Text(_phoneController.text),
+                    if (_showRif && _rifController.text.isNotEmpty)
+                      Text('RIF: ${_rifController.text}'),
                     if (_showDate) ...[
                       const SizedBox(height: 8),
                       Text(
@@ -494,6 +524,20 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
                         ),
                       ],
                     ),
+                    if (_showInvoiceQr) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: 76,
+                        height: 76,
+                        child: PrettyQrView.data(
+                          data: ReceiptQr.saleUrl('folio-de-ejemplo'),
+                        ),
+                      ),
+                      Text(
+                        'QR de consulta de venta',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     Text(_footer),
                   ],
@@ -514,6 +558,20 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
               value: _showPhone,
               onChanged: (value) =>
                   _save(ReceiptPreferences.showPhoneKey, value),
+            ),
+            _ReceiptOptionTile(
+              title: 'RIF del negocio',
+              subtitle: 'Incluye el RIF guardado en los datos del ticket.',
+              value: _showRif,
+              onChanged: (value) => _save(ReceiptPreferences.showRifKey, value),
+            ),
+            _ReceiptOptionTile(
+              title: 'QR de consulta de la venta',
+              subtitle:
+                  'Añade un QR para abrir esta venta por su folio en reportes.',
+              value: _showInvoiceQr,
+              onChanged: (value) =>
+                  _save(ReceiptPreferences.showInvoiceQrKey, value),
             ),
             _ReceiptOptionTile(
               title: 'Fecha y hora',

@@ -80,6 +80,7 @@ void main() {
           addressLine1: 'Calle 1',
           addressLine2: '',
           phoneNumber: '555123',
+          rif: 'J-12345678-9',
           upiId: '',
           footerText: 'Gracias',
           logoData: 'bG9nbw==',
@@ -177,6 +178,7 @@ void main() {
       expect(contents['ventas'], contains('Efectivo'));
       expect(contents['ventas'], contains('codigo_producto'));
       expect(contents['ventas'], contains('efectivo_recibido'));
+      expect(contents['tienda'], contains('J-12345678-9'));
       expect(
         backup.every(
           (file) => file.bytes.take(3).toList().join(',') == '239,187,191',
@@ -228,6 +230,7 @@ void main() {
       expect(HiveDatabase.salesBox.get('sale-1')?.changeAmount, 10);
       expect(HiveDatabase.creditBox.containsKey('credit-1'), isTrue);
       expect(HiveDatabase.shopBox.get('shop_details')?.logoData, 'bG9nbw==');
+      expect(HiveDatabase.shopBox.get('shop_details')?.rif, 'J-12345678-9');
       expect(HiveDatabase.settingsBox.get('currency_code'), 'USD');
       expect(HiveDatabase.settingsBox.get('low_stock_threshold'), 12);
       expect(HiveDatabase.settingsBox.get('theme_mode'), 'light');
@@ -251,6 +254,18 @@ void main() {
         configurationCsv.bytes,
       );
       expect(configurationPlan.scope, CsvBackupScope.configuration);
+      final legacyConfiguration = utf8.encode(
+        utf8
+            .decode(configurationCsv.bytes)
+            .split(RegExp(r'\r?\n'))
+            .where((line) => !RegExp(r'^"?RIF"?,').hasMatch(line))
+            .join('\n'),
+      );
+      final legacyPlan = importer.parseCsvFile(
+        'configuracion.csv',
+        Uint8List.fromList(legacyConfiguration),
+      );
+      expect(legacyPlan.shop?.rif, '');
       await importer.restore(configurationPlan);
       expect(HiveDatabase.settingsBox.containsKey('stale-setting'), isFalse);
       expect(HiveDatabase.settingsBox.get('currency_code'), 'USD');

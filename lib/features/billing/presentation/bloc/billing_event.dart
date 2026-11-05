@@ -73,6 +73,8 @@ class PrintReceiptEvent extends BillingEvent {
   final String address1;
   final String address2;
   final String phone;
+  final String rif;
+  final String? qrData;
   final String? customerName;
   final String? logoData;
   final String footer;
@@ -82,6 +84,8 @@ class PrintReceiptEvent extends BillingEvent {
   final double changeAmount;
   final bool showAddress;
   final bool showPhone;
+  final bool showRif;
+  final bool showInvoiceQr;
   final bool showDate;
   final bool showBarcode;
   final bool showUnitPrices;
@@ -94,12 +98,16 @@ class PrintReceiptEvent extends BillingEvent {
     required this.footer,
     this.customerName,
     this.logoData,
+    this.rif = '',
+    this.qrData,
     this.currencyCode = 'USD',
     this.paymentMethod = 'Efectivo',
     this.amountTendered = 0,
     this.changeAmount = 0,
     this.showAddress = true,
     this.showPhone = true,
+    this.showRif = true,
+    this.showInvoiceQr = true,
     this.showDate = true,
     this.showBarcode = false,
     this.showUnitPrices = true,
@@ -111,6 +119,8 @@ class PrintReceiptEvent extends BillingEvent {
     address1,
     address2,
     phone,
+    rif,
+    qrData,
     customerName,
     logoData,
     footer,
@@ -120,6 +130,8 @@ class PrintReceiptEvent extends BillingEvent {
     changeAmount,
     showAddress,
     showPhone,
+    showRif,
+    showInvoiceQr,
     showDate,
     showBarcode,
     showUnitPrices,

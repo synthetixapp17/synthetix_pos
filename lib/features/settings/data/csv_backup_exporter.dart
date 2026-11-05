@@ -202,6 +202,7 @@ class CsvBackupExporter {
         ['dirección', model.addressLine1],
         ['complemento_dirección', model.addressLine2],
         ['teléfono', model.phoneNumber],
+        ['RIF', model.rif],
         ['identificador_pago', model.upiId],
         ['mensaje_ticket', model.footerText],
         ['logotipo_base64', model.logoData ?? ''],

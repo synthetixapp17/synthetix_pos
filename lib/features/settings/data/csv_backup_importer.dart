@@ -609,7 +609,7 @@ class CsvBackupImporter {
     }
     final shopValues = <String, String>{};
     final settings = <String, Object?>{};
-    const shopFields = {
+    const requiredShopFields = {
       'nombre_tienda',
       'dirección',
       'complemento_dirección',
@@ -618,6 +618,7 @@ class CsvBackupImporter {
       'mensaje_ticket',
       'logotipo_base64',
     };
+    const shopFields = {...requiredShopFields, 'RIF'};
     for (final row in rows.skip(1)) {
       if (row.length != 2 || row[0].isEmpty) {
         throw const FormatException('Hay una fila inválida en configuración.');
@@ -635,7 +636,7 @@ class CsvBackupImporter {
     }
     ShopModel? shop;
     if (shopValues.isNotEmpty) {
-      final missing = shopFields.where(
+      final missing = requiredShopFields.where(
         (field) => !shopValues.containsKey(field),
       );
       if (missing.isNotEmpty) {
@@ -648,6 +649,7 @@ class CsvBackupImporter {
         addressLine1: shopValues['dirección']!,
         addressLine2: shopValues['complemento_dirección']!,
         phoneNumber: shopValues['teléfono']!,
+        rif: shopValues['RIF'] ?? '',
         upiId: shopValues['identificador_pago']!,
         footerText: shopValues['mensaje_ticket']!,
         logoData: _optional(shopValues['logotipo_base64']),

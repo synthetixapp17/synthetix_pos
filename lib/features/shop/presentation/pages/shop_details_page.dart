@@ -21,6 +21,7 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
   final _address1 = TextEditingController();
   final _address2 = TextEditingController();
   final _phone = TextEditingController();
+  final _rif = TextEditingController();
   final _upi = TextEditingController();
   final _footer = TextEditingController();
   String? _logoData;
@@ -40,6 +41,7 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
     _address1.text = shop.addressLine1;
     _address2.text = shop.addressLine2;
     _phone.text = shop.phoneNumber;
+    _rif.text = shop.rif;
     _upi.text = shop.upiId;
     _footer.text = shop.footerText;
     _logoData = shop.logoData;
@@ -51,6 +53,7 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
     _address1.dispose();
     _address2.dispose();
     _phone.dispose();
+    _rif.dispose();
     _upi.dispose();
     _footer.dispose();
     super.dispose();
@@ -84,6 +87,7 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
           addressLine1: _address1.text.trim(),
           addressLine2: _address2.text.trim(),
           phoneNumber: _phone.text.trim(),
+          rif: _rif.text.trim(),
           upiId: _upi.text.trim(),
           footerText: _footer.text.trim(),
           logoData: _logoData,
@@ -167,6 +171,16 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
                 decoration: const InputDecoration(
                   labelText: 'Teléfono de contacto (opcional)',
                   prefixIcon: Icon(Icons.phone_outlined),
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _rif,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(
+                  labelText: 'RIF del negocio (opcional)',
+                  hintText: 'J-12345678-9',
+                  prefixIcon: Icon(Icons.badge_outlined),
                 ),
               ),
               const SizedBox(height: 14),

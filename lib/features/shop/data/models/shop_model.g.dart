@@ -20,13 +20,14 @@ class ShopModelAdapter extends TypeAdapter<ShopModel> {
       upiId: fields[4] as String,
       footerText: fields[5] as String,
       logoData: fields[6] as String?,
+      rif: fields[7] == null ? '' : fields[7] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, ShopModel obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -40,7 +41,9 @@ class ShopModelAdapter extends TypeAdapter<ShopModel> {
       ..writeByte(5)
       ..write(obj.footerText)
       ..writeByte(6)
-      ..write(obj.logoData);
+      ..write(obj.logoData)
+      ..writeByte(7)
+      ..write(obj.rif);
   }
 
   @override

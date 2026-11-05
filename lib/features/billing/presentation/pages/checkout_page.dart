@@ -14,6 +14,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/utils/app_currency.dart';
 import '../../../../core/utils/payment_methods.dart';
 import '../../../../core/utils/receipt_preferences.dart';
+import '../../../../core/utils/receipt_qr.dart';
 import '../../data/receipt_image.dart';
 import '../../../credit/data/credit_pdf.dart';
 import '../../../credit/data/credit_preferences.dart';
@@ -972,8 +973,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
           shop.addressLine2,
         ].where((line) => line.trim().isNotEmpty).join(', '),
         shopPhone: shop.phoneNumber,
+        rif: shop.rif,
+        qrData: ReceiptQr.saleUrl(sale.id),
         logoData: shop.logoData,
         footer: ReceiptPreferences.footerText ?? shop.footerText,
+        showRif: ReceiptPreferences.showRif,
+        showInvoiceQr: ReceiptPreferences.showInvoiceQr,
         canRegisterCustomer: billingState.customer == null,
       ),
     );
@@ -987,6 +992,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
             address1: shop.addressLine1,
             address2: shop.addressLine2,
             phone: shop.phoneNumber,
+            rif: shop.rif,
+            qrData: ReceiptPreferences.showInvoiceQr
+                ? ReceiptQr.saleUrl(sale.id)
+                : null,
             customerName: billingState.customer?.name,
             logoData: shop.logoData,
             footer: ReceiptPreferences.footerText ?? shop.footerText,
@@ -996,6 +1005,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
             changeAmount: sale.changeAmount,
             showAddress: ReceiptPreferences.showAddress,
             showPhone: ReceiptPreferences.showPhone,
+            showRif: ReceiptPreferences.showRif,
+            showInvoiceQr: ReceiptPreferences.showInvoiceQr,
             showDate: ReceiptPreferences.showDate,
             showBarcode: ReceiptPreferences.showBarcode,
             showUnitPrices: ReceiptPreferences.showUnitPrices,
@@ -1067,10 +1078,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
         shopName: shopName,
         address: address,
         shopPhone: shop.phoneNumber,
+        rif: shop.rif,
+        qrData: ReceiptQr.saleUrl(sale.id),
         logoData: shop.logoData,
         footer: ReceiptPreferences.footerText ?? shop.footerText,
         showAddress: ReceiptPreferences.showAddress,
         showPhone: ReceiptPreferences.showPhone,
+        showRif: ReceiptPreferences.showRif,
+        showInvoiceQr: ReceiptPreferences.showInvoiceQr,
         showDate: ReceiptPreferences.showDate,
         showBarcode: ReceiptPreferences.showBarcode,
         showUnitPrices: ReceiptPreferences.showUnitPrices,
@@ -1540,8 +1555,12 @@ class _ReceiptPreviewDialog extends StatelessWidget {
   final String shopName;
   final String address;
   final String shopPhone;
+  final String rif;
+  final String qrData;
   final String? logoData;
   final String footer;
+  final bool showRif;
+  final bool showInvoiceQr;
   final bool canRegisterCustomer;
 
   const _ReceiptPreviewDialog({
@@ -1549,8 +1568,12 @@ class _ReceiptPreviewDialog extends StatelessWidget {
     required this.shopName,
     required this.address,
     required this.shopPhone,
+    required this.rif,
+    required this.qrData,
     required this.logoData,
     required this.footer,
+    required this.showRif,
+    required this.showInvoiceQr,
     required this.canRegisterCustomer,
   });
 
@@ -1591,6 +1614,8 @@ class _ReceiptPreviewDialog extends StatelessWidget {
                 Text(address, textAlign: TextAlign.center),
               if (ReceiptPreferences.showPhone && shopPhone.isNotEmpty)
                 Text(shopPhone, textAlign: TextAlign.center),
+              if (showRif && rif.trim().isNotEmpty)
+                Text('RIF: ${rif.trim()}', textAlign: TextAlign.center),
               if (sale.customerName != null)
                 Text(
                   'Cliente: ${sale.customerName}',
@@ -1681,6 +1706,22 @@ class _ReceiptPreviewDialog extends StatelessWidget {
               if (footer.trim().isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(footer, textAlign: TextAlign.center),
+              ],
+              if (showInvoiceQr) ...[
+                const SizedBox(height: 12),
+                Center(
+                  child: SizedBox(
+                    width: 96,
+                    height: 96,
+                    child: PrettyQrView.data(data: qrData),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Escanea para consultar esta venta',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
               ],
               const SizedBox(height: 8),
               Text(

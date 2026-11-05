@@ -5,6 +5,7 @@ class Shop extends Equatable {
   final String addressLine1;
   final String addressLine2;
   final String phoneNumber;
+  final String rif;
   final String upiId;
   final String footerText;
   final String? logoData;
@@ -14,6 +15,7 @@ class Shop extends Equatable {
     this.addressLine1 = '',
     this.addressLine2 = '',
     this.phoneNumber = '',
+    this.rif = '',
     this.upiId = '',
     this.footerText = '',
     this.logoData,
@@ -24,6 +26,7 @@ class Shop extends Equatable {
     String? addressLine1,
     String? addressLine2,
     String? phoneNumber,
+    String? rif,
     String? upiId,
     String? footerText,
     String? logoData,
@@ -33,6 +36,7 @@ class Shop extends Equatable {
       addressLine1: addressLine1 ?? this.addressLine1,
       addressLine2: addressLine2 ?? this.addressLine2,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      rif: rif ?? this.rif,
       upiId: upiId ?? this.upiId,
       footerText: footerText ?? this.footerText,
       logoData: logoData ?? this.logoData,
@@ -45,6 +49,7 @@ class Shop extends Equatable {
     addressLine1,
     addressLine2,
     phoneNumber,
+    rif,
     upiId,
     footerText,
     logoData,

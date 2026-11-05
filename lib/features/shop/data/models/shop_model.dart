@@ -26,6 +26,9 @@ class ShopModel extends Shop {
   @HiveField(6)
   @override
   final String? logoData;
+  @HiveField(7, defaultValue: '')
+  @override
+  final String rif;
 
   const ShopModel({
     required this.name,
@@ -34,6 +37,7 @@ class ShopModel extends Shop {
     required this.phoneNumber,
     required this.upiId,
     required this.footerText,
+    this.rif = '',
     this.logoData,
   }) : super(
          name: name,
@@ -41,6 +45,7 @@ class ShopModel extends Shop {
          addressLine2: addressLine2,
          phoneNumber: phoneNumber,
          upiId: upiId,
+         rif: rif,
          footerText: footerText,
          logoData: logoData,
        );
@@ -52,6 +57,7 @@ class ShopModel extends Shop {
       addressLine2: shop.addressLine2,
       phoneNumber: shop.phoneNumber,
       upiId: shop.upiId,
+      rif: shop.rif,
       footerText: shop.footerText,
       logoData: shop.logoData,
     );
