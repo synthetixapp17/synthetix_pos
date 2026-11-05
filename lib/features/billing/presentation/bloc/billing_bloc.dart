@@ -201,6 +201,20 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       );
       return;
     }
+    final isCashPayment =
+        !event.isCreditSale && event.paymentMethod.toLowerCase() == 'efectivo';
+    if (isCashPayment &&
+        (!event.amountTendered.isFinite ||
+            event.amountTendered + 0.000001 < state.totalAmount)) {
+      emit(
+        state.copyWith(
+          error:
+              'El efectivo recibido debe ser igual o mayor al total de la venta.',
+        ),
+      );
+      return;
+    }
+    final amountTendered = isCashPayment ? event.amountTendered : 0.0;
 
     emit(state.copyWith(isSavingSale: true, clearError: true));
     final sale = SaleRecord(
@@ -211,6 +225,10 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       customerName: state.customer?.name,
       currencyCode: state.cartItems.first.product.currencyCode,
       paymentMethod: event.paymentMethod,
+      amountTendered: amountTendered,
+      changeAmount: (amountTendered - state.totalAmount)
+          .clamp(0.0, double.infinity)
+          .toDouble(),
       lines: state.cartItems
           .map(
             (item) => SaleLine(
@@ -273,6 +291,8 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       customerName: event.customer.name,
       currencyCode: sale.currencyCode,
       paymentMethod: sale.paymentMethod,
+      amountTendered: sale.amountTendered,
+      changeAmount: sale.changeAmount,
       lines: sale.lines,
     );
     final result = await recordSaleUseCase!(updatedSale);
@@ -353,6 +373,8 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
         footer: event.footer,
         currencyCode: event.currencyCode,
         paymentMethod: event.paymentMethod,
+        amountTendered: event.amountTendered,
+        changeAmount: event.changeAmount,
         showAddress: event.showAddress,
         showPhone: event.showPhone,
         showDate: event.showDate,

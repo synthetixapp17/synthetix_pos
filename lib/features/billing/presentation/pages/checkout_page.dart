@@ -8,13 +8,13 @@ import 'package:go_router/go_router.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/utils/app_currency.dart';
 import '../../../../core/utils/payment_methods.dart';
 import '../../../../core/utils/receipt_preferences.dart';
+import '../../data/receipt_image.dart';
 import '../../../credit/data/credit_pdf.dart';
 import '../../../credit/data/credit_preferences.dart';
 import '../../../credit/domain/entities/credit_schedule.dart';
@@ -41,6 +41,7 @@ class CheckoutPage extends StatefulWidget {
 
 class _CheckoutPageState extends State<CheckoutPage> {
   final _initialPaymentController = TextEditingController();
+  final _cashReceivedController = TextEditingController();
   final _installmentsController = TextEditingController(text: '1');
   final _daysBetweenPaymentsController = TextEditingController(text: '30');
   final _creditRateController = TextEditingController(text: '0');
@@ -59,6 +60,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   @override
   void dispose() {
     _initialPaymentController.dispose();
+    _cashReceivedController.dispose();
     _installmentsController.dispose();
     _daysBetweenPaymentsController.dispose();
     _creditRateController.dispose();
@@ -147,6 +149,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 final parsedDownPayment = double.tryParse(
                   _initialPaymentController.text.trim().replaceAll(',', '.'),
                 );
+                final parsedCashReceived = double.tryParse(
+                  _cashReceivedController.text.trim().replaceAll(',', '.'),
+                );
+                final cashReceivedAmount =
+                    parsedCashReceived != null && parsedCashReceived.isFinite
+                    ? parsedCashReceived
+                    : 0.0;
+                final changeAmount =
+                    (cashReceivedAmount - billingState.totalAmount)
+                        .clamp(0.0, double.infinity)
+                        .toDouble();
                 final downPaymentAmount =
                     parsedDownPayment != null && parsedDownPayment.isFinite
                     ? parsedDownPayment
@@ -297,7 +310,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                   ),
                                 ),
                               ),
-                            if (!billingState.saleRecorded && !_isCreditSale) ...[
+                            if (!billingState.saleRecorded &&
+                                !_isCreditSale) ...[
                               const SizedBox(height: 12),
                               Card(
                                 child: Padding(
@@ -325,6 +339,55 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                   ),
                                 ),
                               ),
+                              if (_paymentMethod.toLowerCase() ==
+                                  'efectivo') ...[
+                                const SizedBox(height: 12),
+                                Card(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(14),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        TextField(
+                                          controller: _cashReceivedController,
+                                          keyboardType:
+                                              const TextInputType.numberWithOptions(
+                                                decimal: true,
+                                              ),
+                                          decoration: InputDecoration(
+                                            labelText: 'Efectivo recibido',
+                                            prefixIcon: const Icon(
+                                              Icons.payments_outlined,
+                                            ),
+                                            hintText:
+                                                AppCurrency.formatConfigured(
+                                                  billingState.totalAmount,
+                                                ),
+                                          ),
+                                          onChanged: (_) => setState(() {}),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text('Vuelto'),
+                                            Text(
+                                              AppCurrency.formatConfigured(
+                                                changeAmount,
+                                              ),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                             if (QuotationPreferences.enabled &&
                                 !billingState.saleRecorded) ...[
@@ -361,8 +424,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                 isCreditSale: _isCreditSale,
                                 initialPaymentController:
                                     _initialPaymentController,
-                                installmentsController:
-                                    _installmentsController,
+                                installmentsController: _installmentsController,
                                 daysBetweenPaymentsController:
                                     _daysBetweenPaymentsController,
                                 interestRateController: _creditRateController,
@@ -370,8 +432,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                 currencyCode: currencyCode,
                                 interestRate: _creditInterestRate,
                                 installmentCount: _creditInstallments,
-                                daysBetweenPayments:
-                                    _creditDaysBetweenPayments,
+                                daysBetweenPayments: _creditDaysBetweenPayments,
                                 initialPaymentMethod:
                                     _creditInitialPaymentMethod,
                                 onInitialPaymentMethodChanged: (value) =>
@@ -389,11 +450,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       () => _creditDaysBetweenPayments =
                                           int.tryParse(value) ?? 0,
                                     ),
-                                onInitialPaymentChanged: (_) =>
-                                    setState(() {}),
+                                onInitialPaymentChanged: (_) => setState(() {}),
                                 onInterestRateChanged: (value) => setState(
-                                  () => _creditInterestRate =
-                                      _parseCreditRate(value),
+                                  () => _creditInterestRate = _parseCreditRate(
+                                    value,
+                                  ),
                                 ),
                               ),
                             ],
@@ -432,19 +493,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
                               children: [
                                 Text(
                                   'Total de la venta',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
                                 Text(
                                   AppCurrency.formatConfigured(
                                     billingState.totalAmount,
                                   ),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
+                                  style: Theme.of(context).textTheme.titleLarge
                                       ?.copyWith(
                                         fontWeight: FontWeight.w900,
                                         color: Theme.of(
@@ -465,9 +521,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                     ? null
                                     : () {
                                         if (billingState.saleRecorded) {
-                                          final saleId = billingState
-                                              .completedSale
-                                              ?.id;
+                                          final saleId =
+                                              billingState.completedSale?.id;
                                           if (_isCreditSale &&
                                               saleId != _creditSavedSaleId) {
                                             unawaited(
@@ -485,18 +540,30 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                             );
                                           }
                                         } else if (_validateCreditSale(
-                                          billingState,
-                                        )) {
+                                              billingState,
+                                            ) &&
+                                            _validateCashPayment(
+                                              billingState,
+                                            )) {
                                           context.read<BillingBloc>().add(
                                             CompleteSaleEvent(
                                               paymentMethod: _isCreditSale
                                                   ? _creditInitialPaymentMethod
                                                   : _paymentMethod,
+                                              isCreditSale: _isCreditSale,
+                                              amountTendered:
+                                                  !_isCreditSale &&
+                                                      _paymentMethod
+                                                              .toLowerCase() ==
+                                                          'efectivo'
+                                                  ? cashReceivedAmount
+                                                  : 0,
                                             ),
                                           );
                                         }
                                       },
-                                icon: _isRecordingCredit ||
+                                icon:
+                                    _isRecordingCredit ||
                                         billingState.isSavingSale ||
                                         billingState.isPrinting
                                     ? const SizedBox(
@@ -605,6 +672,28 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _creditInstallments = installments;
     _creditInterestRate = interestRate;
     _creditDaysBetweenPayments = daysBetweenPayments;
+    return true;
+  }
+
+  bool _validateCashPayment(BillingState billingState) {
+    if (_isCreditSale || _paymentMethod.toLowerCase() != 'efectivo') {
+      return true;
+    }
+    final amount = double.tryParse(
+      _cashReceivedController.text.trim().replaceAll(',', '.'),
+    );
+    if (amount == null ||
+        !amount.isFinite ||
+        amount + 0.000001 < billingState.totalAmount) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Ingresa el efectivo recibido. Debe ser igual o mayor al total.',
+          ),
+        ),
+      );
+      return false;
+    }
     return true;
   }
 
@@ -885,6 +974,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         shopPhone: shop.phoneNumber,
         logoData: shop.logoData,
         footer: ReceiptPreferences.footerText ?? shop.footerText,
+        canRegisterCustomer: billingState.customer == null,
       ),
     );
     if (!context.mounted || action == null) return;
@@ -902,6 +992,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
             footer: ReceiptPreferences.footerText ?? shop.footerText,
             currencyCode: sale.currencyCode,
             paymentMethod: sale.paymentMethod,
+            amountTendered: sale.amountTendered,
+            changeAmount: sale.changeAmount,
             showAddress: ReceiptPreferences.showAddress,
             showPhone: ReceiptPreferences.showPhone,
             showDate: ReceiptPreferences.showDate,
@@ -910,128 +1002,44 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ),
         );
       case _ReceiptAction.whatsapp:
-        final recipient = await _requestWhatsappRecipient(
-          context,
-          initialPhone: billingState.customer?.phone ?? '',
-          allowRegistration: billingState.customer == null,
+        await _shareWhatsappReceipt(context, sale, shop);
+      case _ReceiptAction.registerCustomer:
+        final customer = await context.push<Customer>('/customers/new?quick=1');
+        if (!context.mounted || customer == null) return;
+        final billingBloc = context.read<BillingBloc>();
+        final update = billingBloc.stream.firstWhere(
+          (state) =>
+              state.completedSale?.customerId == customer.id ||
+              state.error != null,
         );
-        if (!context.mounted || recipient == null) return;
-
-        var phone = recipient.phone;
-        if (recipient.registerCustomer) {
-          final customer = await context.push<Customer>(
-            '/customers/new?quick=1&phone=${Uri.encodeQueryComponent(recipient.phone)}',
-          );
-          if (!context.mounted || customer == null) return;
-          final billingBloc = context.read<BillingBloc>();
-          final update = billingBloc.stream.firstWhere(
-            (state) =>
-                state.completedSale?.customerId == customer.id ||
-                state.error != null,
-          );
-          billingBloc.add(UpdateSaleCustomerEvent(customer));
-          final updatedState = await update;
-          if (updatedState.completedSale?.customerId != customer.id) {
-            if (context.mounted && updatedState.error != null) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(updatedState.error!)));
-            }
-            return;
+        billingBloc.add(UpdateSaleCustomerEvent(customer));
+        final updatedState = await update;
+        if (updatedState.completedSale?.customerId != customer.id) {
+          if (context.mounted && updatedState.error != null) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(updatedState.error!)));
           }
-          phone = customer.phone;
+          return;
         }
         if (!context.mounted) return;
-        await _sendWhatsappReceipt(context, sale, phone, shopName);
+        await _shareWhatsappReceipt(context, updatedState.completedSale!, shop);
       case _ReceiptAction.noReceipt:
         context.read<BillingBloc>().add(ClearCartEvent());
         context.go('/');
     }
   }
 
-  Future<_WhatsappRecipient?> _requestWhatsappRecipient(
-    BuildContext context, {
-    required String initialPhone,
-    required bool allowRegistration,
-  }) async {
-    final formKey = GlobalKey<FormState>();
-    final phoneController = TextEditingController(text: initialPhone);
-    try {
-      return await showDialog<_WhatsappRecipient>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Enviar por WhatsApp'),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Número de WhatsApp',
-                hintText: 'Código de país + número',
-                prefixIcon: Icon(Icons.phone_outlined),
-              ),
-              validator: (value) {
-                final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
-                return digits.length >= 8
-                    ? null
-                    : 'Escribe un número válido con código de país.';
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar'),
-            ),
-            if (allowRegistration)
-              OutlinedButton(
-                onPressed: () {
-                  if (!formKey.currentState!.validate()) return;
-                  Navigator.pop(
-                    dialogContext,
-                    _WhatsappRecipient(
-                      phone: phoneController.text.trim(),
-                      registerCustomer: true,
-                    ),
-                  );
-                },
-                child: const Text('Registrar cliente'),
-              ),
-            FilledButton(
-              onPressed: () {
-                if (!formKey.currentState!.validate()) return;
-                Navigator.pop(
-                  dialogContext,
-                  _WhatsappRecipient(
-                    phone: phoneController.text.trim(),
-                    registerCustomer: false,
-                  ),
-                );
-              },
-              child: const Text('Continuar'),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      phoneController.dispose();
-    }
-  }
-
-  Future<void> _sendWhatsappReceipt(
+  Future<void> _shareWhatsappReceipt(
     BuildContext context,
     SaleRecord sale,
-    String phone,
-    String shopName,
+    Shop shop,
   ) async {
-    final digits = phone.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 8) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('El número de WhatsApp no es válido.')),
-      );
-      return;
-    }
+    final shopName = shop.name.isEmpty ? 'MI TIENDA' : shop.name;
+    final address = [
+      shop.addressLine1,
+      shop.addressLine2,
+    ].where((line) => line.trim().isNotEmpty).join(', ');
     final message = StringBuffer()
       ..writeln(shopName)
       ..writeln('Comprobante de compra')
@@ -1053,45 +1061,51 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ..write(
         'TOTAL: ${AppCurrency.format(sale.total, code: sale.currencyCode)}',
       );
-
-    final uri = Uri.https('wa.me', '/$digits', {'text': message.toString()});
     try {
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final image = await ReceiptImage.build(
+        sale: sale,
+        shopName: shopName,
+        address: address,
+        shopPhone: shop.phoneNumber,
+        logoData: shop.logoData,
+        footer: ReceiptPreferences.footerText ?? shop.footerText,
+        showAddress: ReceiptPreferences.showAddress,
+        showPhone: ReceiptPreferences.showPhone,
+        showDate: ReceiptPreferences.showDate,
+        showBarcode: ReceiptPreferences.showBarcode,
+        showUnitPrices: ReceiptPreferences.showUnitPrices,
+      );
+      final filename =
+          'ticket-${sale.id.substring(0, sale.id.length > 8 ? 8 : sale.id.length)}.png';
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          title: 'Ticket de compra',
+          text: message.toString(),
+          files: [XFile.fromData(image, name: filename, mimeType: 'image/png')],
+          fileNameOverrides: [filename],
+        ),
+      );
       if (!context.mounted) return;
-      if (!opened) {
-        await _shareReceipt(context, message.toString());
-      } else {
+      if (result.status == ShareResultStatus.success) {
         context.read<BillingBloc>().add(ClearCartEvent());
         context.go('/');
+      } else if (result.status == ShareResultStatus.dismissed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se compartió el ticket. Puedes volver a intentarlo.',
+            ),
+          ),
+        );
+      } else {
+        throw StateError('El sistema no pudo abrir el menú para compartir.');
       }
     } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('No se pudo abrir WhatsApp: $error. Usa compartir.'),
-          action: SnackBarAction(
-            label: 'Compartir',
-            onPressed: () {
-              unawaited(_shareReceipt(context, message.toString()));
-            },
-          ),
+          content: Text('No se pudo preparar el ticket para compartir: $error'),
         ),
-      );
-    }
-  }
-
-  Future<void> _shareReceipt(BuildContext context, String message) async {
-    try {
-      await SharePlus.instance.share(
-        ShareParams(text: message, subject: 'Comprobante de compra'),
-      );
-      if (!context.mounted) return;
-      context.read<BillingBloc>().add(ClearCartEvent());
-      context.go('/');
-    } catch (error) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo compartir el comprobante: $error')),
       );
     }
   }
@@ -1138,7 +1152,7 @@ double _parseCreditRate(String value) {
   return rate != null && rate.isFinite && rate >= 0 ? rate : 0;
 }
 
-enum _ReceiptAction { print, whatsapp, noReceipt }
+enum _ReceiptAction { print, whatsapp, registerCustomer, noReceipt }
 
 enum _CreditSavedAction { close, view, share, print }
 
@@ -1521,16 +1535,6 @@ class _CreditSummaryLine extends StatelessWidget {
   );
 }
 
-class _WhatsappRecipient {
-  final String phone;
-  final bool registerCustomer;
-
-  const _WhatsappRecipient({
-    required this.phone,
-    required this.registerCustomer,
-  });
-}
-
 class _ReceiptPreviewDialog extends StatelessWidget {
   final SaleRecord sale;
   final String shopName;
@@ -1538,6 +1542,7 @@ class _ReceiptPreviewDialog extends StatelessWidget {
   final String shopPhone;
   final String? logoData;
   final String footer;
+  final bool canRegisterCustomer;
 
   const _ReceiptPreviewDialog({
     required this.sale,
@@ -1546,6 +1551,7 @@ class _ReceiptPreviewDialog extends StatelessWidget {
     required this.shopPhone,
     required this.logoData,
     required this.footer,
+    required this.canRegisterCustomer,
   });
 
   @override
@@ -1596,6 +1602,21 @@ class _ReceiptPreviewDialog extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              if (sale.paymentMethod.toLowerCase() == 'efectivo' &&
+                  sale.amountTendered > 0) ...[
+                Text(
+                  'Efectivo recibido: ${AppCurrency.format(sale.amountTendered, code: sale.currencyCode)}',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                Text(
+                  'Vuelto: ${AppCurrency.format(sale.changeAmount, code: sale.currencyCode)}',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
               if (ReceiptPreferences.showDate)
                 Text(
                   DateFormat('dd/MM/yyyy HH:mm', 'es').format(sale.soldAt),
@@ -1673,6 +1694,13 @@ class _ReceiptPreviewDialog extends StatelessWidget {
       ),
     ),
     actions: [
+      if (canRegisterCustomer)
+        TextButton.icon(
+          onPressed: () =>
+              Navigator.pop(context, _ReceiptAction.registerCustomer),
+          icon: const Icon(Icons.person_add_alt_1_outlined),
+          label: const Text('Registrar cliente'),
+        ),
       TextButton(
         onPressed: () => Navigator.pop(context, _ReceiptAction.noReceipt),
         child: const Text('Sin factura'),

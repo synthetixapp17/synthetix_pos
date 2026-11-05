@@ -177,6 +177,8 @@ class PrinterHelper {
     required String footer,
     String currencyCode = 'USD',
     String paymentMethod = 'Efectivo',
+    double amountTendered = 0,
+    double changeAmount = 0,
     bool showAddress = true,
     bool showPhone = true,
     bool showDate = true,
@@ -293,6 +295,16 @@ class PrinterHelper {
     );
     bytes += EscPos.lineFeed;
     bytes += EscPos.boldOff;
+    if (paymentMethod.toLowerCase() == 'efectivo' && amountTendered > 0) {
+      bytes += _textToBytes(
+        'Recibido: ${AppCurrency.format(amountTendered, code: currencyCode)}',
+      );
+      bytes += EscPos.lineFeed;
+      bytes += _textToBytes(
+        'Vuelto: ${AppCurrency.format(changeAmount, code: currencyCode)}',
+      );
+      bytes += EscPos.lineFeed;
+    }
     bytes += EscPos.lineFeed;
 
     // Footer (Center)

@@ -58,6 +58,8 @@ class SaleRecord extends Equatable {
   final String? customerName;
   final String currencyCode;
   final String paymentMethod;
+  final double amountTendered;
+  final double changeAmount;
   final List<SaleLine> lines;
 
   const SaleRecord({
@@ -69,6 +71,8 @@ class SaleRecord extends Equatable {
     this.customerName,
     this.currencyCode = 'USD',
     this.paymentMethod = 'Efectivo',
+    this.amountTendered = 0,
+    this.changeAmount = 0,
   });
 
   String get linesJson =>
@@ -83,6 +87,8 @@ class SaleRecord extends Equatable {
     customerName,
     currencyCode,
     paymentMethod,
+    amountTendered,
+    changeAmount,
     lines,
   ];
 }

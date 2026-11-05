@@ -459,6 +459,11 @@ class CsvBackupImporter {
       final customerId = _optional(row['cliente_id']);
       final customerName = _optional(row['cliente']);
       final paymentMethod = _optional(row['forma_pago']) ?? 'Efectivo';
+      final amountTendered = _optionalDouble(
+        row['efectivo_recibido'],
+        'efectivo_recibido',
+      );
+      final changeAmount = _optionalDouble(row['vuelto'], 'vuelto');
       final sale = sales.putIfAbsent(
         id,
         () => _SaleRow(
@@ -469,6 +474,8 @@ class CsvBackupImporter {
           customerId: customerId,
           customerName: customerName,
           paymentMethod: paymentMethod,
+          amountTendered: amountTendered,
+          changeAmount: changeAmount,
         ),
       );
       if (!sale.matches(
@@ -478,6 +485,8 @@ class CsvBackupImporter {
         customerId: customerId,
         customerName: customerName,
         paymentMethod: paymentMethod,
+        amountTendered: amountTendered,
+        changeAmount: changeAmount,
       )) {
         throw FormatException('Datos inconsistentes en la venta $id.');
       }
@@ -505,6 +514,8 @@ class CsvBackupImporter {
           customerName: sale.customerName,
           currencyCode: sale.currency,
           paymentMethod: sale.paymentMethod,
+          amountTendered: sale.amountTendered,
+          changeAmount: sale.changeAmount,
           linesJson: jsonEncode([
             for (final line in sale.lines)
               {
@@ -845,6 +856,15 @@ class CsvBackupImporter {
     return value;
   }
 
+  double _optionalDouble(String? source, String key) {
+    if (source == null || source.trim().isEmpty) return 0;
+    final value = double.tryParse(source.trim());
+    if (value == null || !value.isFinite) {
+      throw FormatException('Número inválido "$key" en el CSV de ventas.');
+    }
+    return value;
+  }
+
   int _int(Map<String, String> row, String key, String label) {
     final value = int.tryParse(_required(row, key, label));
     if (value == null) {
@@ -907,6 +927,8 @@ class _SaleRow {
   final String? customerId;
   final String? customerName;
   final String paymentMethod;
+  final double amountTendered;
+  final double changeAmount;
   final List<_SaleLineRow> lines = [];
 
   _SaleRow({
@@ -917,6 +939,8 @@ class _SaleRow {
     required this.customerId,
     required this.customerName,
     required this.paymentMethod,
+    required this.amountTendered,
+    required this.changeAmount,
   });
 
   bool matches({
@@ -926,13 +950,17 @@ class _SaleRow {
     required String? customerId,
     required String? customerName,
     required String paymentMethod,
+    required double amountTendered,
+    required double changeAmount,
   }) =>
       this.date == date &&
       this.total == total &&
       this.currency == currency &&
       this.customerId == customerId &&
       this.customerName == customerName &&
-      this.paymentMethod == paymentMethod;
+      this.paymentMethod == paymentMethod &&
+      this.amountTendered == amountTendered &&
+      this.changeAmount == changeAmount;
 }
 
 class _SaleLineRow {

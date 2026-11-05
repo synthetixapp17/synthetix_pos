@@ -46,11 +46,17 @@ class SelectCustomerEvent extends BillingEvent {
 
 class CompleteSaleEvent extends BillingEvent {
   final String paymentMethod;
+  final double amountTendered;
+  final bool isCreditSale;
 
-  const CompleteSaleEvent({this.paymentMethod = 'Efectivo'});
+  const CompleteSaleEvent({
+    this.paymentMethod = 'Efectivo',
+    this.amountTendered = 0,
+    this.isCreditSale = false,
+  });
 
   @override
-  List<Object> get props => [paymentMethod];
+  List<Object> get props => [paymentMethod, amountTendered, isCreditSale];
 }
 
 class UpdateSaleCustomerEvent extends BillingEvent {
@@ -72,6 +78,8 @@ class PrintReceiptEvent extends BillingEvent {
   final String footer;
   final String currencyCode;
   final String paymentMethod;
+  final double amountTendered;
+  final double changeAmount;
   final bool showAddress;
   final bool showPhone;
   final bool showDate;
@@ -88,6 +96,8 @@ class PrintReceiptEvent extends BillingEvent {
     this.logoData,
     this.currencyCode = 'USD',
     this.paymentMethod = 'Efectivo',
+    this.amountTendered = 0,
+    this.changeAmount = 0,
     this.showAddress = true,
     this.showPhone = true,
     this.showDate = true,
@@ -106,6 +116,8 @@ class PrintReceiptEvent extends BillingEvent {
     footer,
     currencyCode,
     paymentMethod,
+    amountTendered,
+    changeAmount,
     showAddress,
     showPhone,
     showDate,

@@ -92,6 +92,8 @@ class CsvBackupExporter {
         'precio_unitario',
         'total_linea',
         'forma_pago',
+        'efectivo_recibido',
+        'vuelto',
       ],
     ];
     for (final model in HiveDatabase.salesBox.values) {
@@ -112,6 +114,8 @@ class CsvBackupExporter {
           '',
           '',
           sale.paymentMethod,
+          sale.amountTendered,
+          sale.changeAmount,
         ]);
         continue;
       }
@@ -131,6 +135,8 @@ class CsvBackupExporter {
           line.unitPrice,
           line.total,
           sale.paymentMethod,
+          sale.amountTendered,
+          sale.changeAmount,
         ]);
       }
     }

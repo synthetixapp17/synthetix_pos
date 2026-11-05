@@ -94,7 +94,9 @@ void main() {
             total: 50,
             customerId: 'customer-1',
             customerName: 'Ana',
-            paymentMethod: 'Tarjeta',
+            paymentMethod: 'Efectivo',
+            amountTendered: 60,
+            changeAmount: 10,
             lines: const [
               SaleLine(
                 productId: 'product-1',
@@ -172,8 +174,9 @@ void main() {
       expect(contents['creditos'], contains('Tarjeta'));
       expect(contents['creditos'], contains('Café'));
       expect(contents['creditos'], contains('comprobante_pdf_base64'));
-      expect(contents['ventas'], contains('Tarjeta'));
+      expect(contents['ventas'], contains('Efectivo'));
       expect(contents['ventas'], contains('codigo_producto'));
+      expect(contents['ventas'], contains('efectivo_recibido'));
       expect(
         backup.every(
           (file) => file.bytes.take(3).toList().join(',') == '239,187,191',
@@ -220,7 +223,9 @@ void main() {
         HiveDatabase.customerBox.get('customer-1')?.identityNumber,
         'ID-123',
       );
-      expect(HiveDatabase.salesBox.get('sale-1')?.paymentMethod, 'Tarjeta');
+      expect(HiveDatabase.salesBox.get('sale-1')?.paymentMethod, 'Efectivo');
+      expect(HiveDatabase.salesBox.get('sale-1')?.amountTendered, 60);
+      expect(HiveDatabase.salesBox.get('sale-1')?.changeAmount, 10);
       expect(HiveDatabase.creditBox.containsKey('credit-1'), isTrue);
       expect(HiveDatabase.shopBox.get('shop_details')?.logoData, 'bG9nbw==');
       expect(HiveDatabase.settingsBox.get('currency_code'), 'USD');

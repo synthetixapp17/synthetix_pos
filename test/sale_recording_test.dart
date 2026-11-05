@@ -76,10 +76,84 @@ void main() {
       decodeSaleLines(completed.completedSale!.linesJson).single.barcode,
       '12345678',
     );
+    final persistedSale = SaleModel.fromEntity(completed.completedSale!);
+    final restoredSale = persistedSale.toEntity();
+    expect(restoredSale.amountTendered, 0);
+    expect(restoredSale.changeAmount, 0);
 
     bloc.add(CompleteSaleEvent());
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(reportsRepository.sales, hasLength(1));
+  });
+
+  test('cash sale stores the received amount and calculated change', () async {
+    final reportsRepository = _FakeReportsRepository();
+    final bloc = BillingBloc(
+      getProductByBarcodeUseCase: GetProductByBarcodeUseCase(
+        _FakeProductRepository(),
+      ),
+      recordSaleUseCase: RecordSaleUseCase(reportsRepository),
+      playCartAddSound: () async {},
+    );
+    addTearDown(bloc.close);
+
+    const product = Product(
+      id: 'cash-product',
+      name: 'Producto',
+      barcode: '12345678',
+      price: 4.5,
+      stock: 5,
+      currencyCode: 'USD',
+    );
+    bloc.add(const AddProductToCartEvent(product));
+    await bloc.stream.firstWhere((state) => state.cartItems.isNotEmpty);
+
+    bloc.add(
+      const CompleteSaleEvent(paymentMethod: 'Efectivo', amountTendered: 10),
+    );
+    final completed = await bloc.stream.firstWhere(
+      (state) => state.saleRecorded,
+    );
+    final sale = completed.completedSale!;
+
+    expect(sale.amountTendered, 10);
+    expect(sale.changeAmount, 5.5);
+    final restoredSale = SaleModel.fromEntity(sale).toEntity();
+    expect(restoredSale.amountTendered, 10);
+    expect(restoredSale.changeAmount, 5.5);
+  });
+
+  test('cash sale rejects a received amount below the total', () async {
+    final reportsRepository = _FakeReportsRepository();
+    final bloc = BillingBloc(
+      getProductByBarcodeUseCase: GetProductByBarcodeUseCase(
+        _FakeProductRepository(),
+      ),
+      recordSaleUseCase: RecordSaleUseCase(reportsRepository),
+      playCartAddSound: () async {},
+    );
+    addTearDown(bloc.close);
+
+    const product = Product(
+      id: 'underpaid-product',
+      name: 'Producto',
+      barcode: '12345678',
+      price: 4.5,
+      stock: 5,
+    );
+    bloc.add(const AddProductToCartEvent(product));
+    await bloc.stream.firstWhere((state) => state.cartItems.isNotEmpty);
+
+    bloc.add(
+      const CompleteSaleEvent(paymentMethod: 'Efectivo', amountTendered: 4),
+    );
+    final rejected = await bloc.stream.firstWhere(
+      (state) => state.error != null,
+    );
+
+    expect(rejected.saleRecorded, isFalse);
+    expect(reportsRepository.sales, isEmpty);
+    expect(rejected.error, contains('igual o mayor'));
   });
 
   test('plays the cart sound for each successful product addition', () async {
