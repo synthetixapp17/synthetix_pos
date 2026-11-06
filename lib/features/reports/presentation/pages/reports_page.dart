@@ -1,9 +1,14 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:zxing2/zxing2.dart' show NotFoundException;
 
 import '../../../../core/utils/app_currency.dart';
+import '../../../../core/utils/receipt_qr.dart';
+import '../../../../core/utils/receipt_qr_image_decoder.dart';
 import '../../../../core/widgets/metric_chart_card.dart';
 import '../../domain/entities/sale_record.dart';
 import '../bloc/reports_bloc.dart';
@@ -61,10 +66,53 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   void _searchSale(String value) {
-    final saleId = value.trim();
-    if (saleId.isEmpty) return;
+    final saleId = ReceiptQr.saleIdFromData(value);
+    if (saleId == null || saleId.isEmpty) return;
+    _saleIdController.text = saleId;
     setState(() => _saleId = saleId);
     _load();
+  }
+
+  Future<void> _scanSaleQr() async {
+    final data = await context.push<String>('/scan-code');
+    if (!mounted || data == null) return;
+    _searchScannedQr(data);
+  }
+
+  Future<void> _pickSaleQrImage() async {
+    try {
+      final image = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2000,
+        maxHeight: 2000,
+      );
+      if (image == null || !mounted) return;
+      final data = ReceiptQrImageDecoder.decode(await image.readAsBytes());
+      if (!mounted) return;
+      _searchScannedQr(data);
+    } on NotFoundException {
+      _showQrError('No se encontró un código QR legible en la imagen.');
+    } on FormatException catch (error) {
+      _showQrError('No se pudo leer la imagen: ${error.message}');
+    } catch (error) {
+      _showQrError('No se pudo leer el QR de la imagen: $error');
+    }
+  }
+
+  void _searchScannedQr(String data) {
+    final saleId = ReceiptQr.saleIdFromData(data);
+    if (saleId == null || saleId.isEmpty) {
+      _showQrError('El QR no contiene un folio de venta válido.');
+      return;
+    }
+    _searchSale(saleId);
+  }
+
+  void _showQrError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   SaleRecord? _findSale(List<SaleRecord> sales) {
@@ -198,6 +246,8 @@ class _ReportsPageState extends State<ReportsPage> {
                   sale: _findSale(state.sales),
                   isLoading: state.status == ReportsStatus.loading,
                   onSearch: _searchSale,
+                  onScan: _scanSaleQr,
+                  onPickImage: _pickSaleQrImage,
                 ),
                 const SizedBox(height: 16),
                 _FilterCard(
@@ -1092,6 +1142,8 @@ class _SaleLookupCard extends StatelessWidget {
   final SaleRecord? sale;
   final bool isLoading;
   final ValueChanged<String> onSearch;
+  final VoidCallback onScan;
+  final VoidCallback onPickImage;
 
   const _SaleLookupCard({
     required this.controller,
@@ -1099,6 +1151,8 @@ class _SaleLookupCard extends StatelessWidget {
     required this.sale,
     required this.isLoading,
     required this.onSearch,
+    required this.onScan,
+    required this.onPickImage,
   });
 
   @override
@@ -1118,7 +1172,8 @@ class _SaleLookupCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Escribe el folio para buscar una venta guardada en este dispositivo.',
+              'Escanea el QR del recibo o selecciónalo desde una foto. '
+              'La búsqueda se realiza en este dispositivo.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -1129,10 +1184,25 @@ class _SaleLookupCard extends StatelessWidget {
               decoration: InputDecoration(
                 labelText: 'Folio de la venta',
                 prefixIcon: const Icon(Icons.qr_code_scanner),
-                suffixIcon: IconButton(
-                  tooltip: 'Buscar venta',
-                  onPressed: () => onSearch(controller.text),
-                  icon: const Icon(Icons.search),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Escanear QR',
+                      onPressed: onScan,
+                      icon: const Icon(Icons.qr_code_scanner),
+                    ),
+                    IconButton(
+                      tooltip: 'Leer QR desde una foto',
+                      onPressed: onPickImage,
+                      icon: const Icon(Icons.image_search_outlined),
+                    ),
+                    IconButton(
+                      tooltip: 'Buscar venta',
+                      onPressed: () => onSearch(controller.text),
+                      icon: const Icon(Icons.search),
+                    ),
+                  ],
                 ),
                 border: const OutlineInputBorder(),
               ),
@@ -1179,7 +1249,9 @@ class _SaleLookupCard extends StatelessWidget {
                         child: Row(
                           children: [
                             Expanded(
-                              child: Text('${line.quantity} × ${line.productName}'),
+                              child: Text(
+                                '${line.quantity} × ${line.productName}',
+                              ),
                             ),
                             Text(
                               AppCurrency.format(

@@ -57,6 +57,7 @@ dependencies:
   printing: ^5.15.1
   archive: ^4.6.0
   file_picker: ^13.3.1
+  zxing2: ^0.2.4
 
 dev_dependencies:
   flutter_test:

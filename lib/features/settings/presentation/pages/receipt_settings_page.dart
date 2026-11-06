@@ -530,11 +530,11 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
                         width: 76,
                         height: 76,
                         child: PrettyQrView.data(
-                          data: ReceiptQr.privateReceiptData,
+                          data: ReceiptQr.saleQrData('folio-de-ejemplo'),
                         ),
                       ),
                       Text(
-                        'QR privado sin enlace ni datos de venta',
+                        'QR privado para consultar el folio en este dispositivo',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
