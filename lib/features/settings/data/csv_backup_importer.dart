@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:hive/hive.dart';
 
 import '../../../core/data/hive_database.dart';
+import '../../../core/data/models/app_settings.dart';
 import '../../credit/domain/entities/credit_record.dart';
 import '../../customer/data/models/customer_model.dart';
 import '../../product/data/models/product_model.dart';
@@ -455,6 +456,12 @@ class CsvBackupImporter {
       final id = _required(row, 'venta_id', 'ventas');
       final date = _date(_required(row, 'fecha', 'ventas'), 'ventas');
       final total = _double(row, 'total_venta', 'ventas');
+      final totalInCurrency = row['total_en_moneda']?.trim().isNotEmpty == true
+          ? _double(row, 'total_en_moneda', 'ventas')
+          : total;
+      final exchangeRate = row['tasa_cambio']?.trim().isNotEmpty == true
+          ? _double(row, 'tasa_cambio', 'ventas')
+          : 1.0;
       final currency = _required(row, 'moneda', 'ventas');
       final customerId = _optional(row['cliente_id']);
       final customerName = _optional(row['cliente']);
@@ -470,6 +477,8 @@ class CsvBackupImporter {
           id: id,
           date: date,
           total: total,
+          totalInCurrency: totalInCurrency,
+          exchangeRate: exchangeRate,
           currency: currency,
           customerId: customerId,
           customerName: customerName,
@@ -481,6 +490,8 @@ class CsvBackupImporter {
       if (!sale.matches(
         date: date,
         total: total,
+        totalInCurrency: totalInCurrency,
+        exchangeRate: exchangeRate,
         currency: currency,
         customerId: customerId,
         customerName: customerName,
@@ -510,6 +521,8 @@ class CsvBackupImporter {
           id: sale.id,
           soldAt: sale.date,
           total: sale.total,
+          totalInCurrency: sale.totalInCurrency,
+          exchangeRate: sale.exchangeRate,
           customerId: sale.customerId,
           customerName: sale.customerName,
           currencyCode: sale.currency,
@@ -628,7 +641,10 @@ class CsvBackupImporter {
         shopValues[key] = row[1];
       } else {
         try {
-          settings[key] = jsonDecode(row[1]) as Object?;
+          final decoded = jsonDecode(row[1]);
+          settings[key] = key == 'app_settings'
+              ? _parseAppSettings(decoded)
+              : decoded as Object?;
         } on FormatException catch (error) {
           throw FormatException('Configuración inválida para "$key": $error');
         }
@@ -656,6 +672,45 @@ class CsvBackupImporter {
       );
     }
     return (shop, settings);
+  }
+
+  AppSettings _parseAppSettings(Object? value) {
+    if (value is! Map || value['currencies'] is! List) {
+      throw const FormatException('La configuración de monedas no es válida.');
+    }
+    final currencies = <CurrencyConfig>[];
+    for (final item in value['currencies'] as List) {
+      if (item is! Map ||
+          item['code'] is! String ||
+          item['symbol'] is! String ||
+          item['isBase'] is! bool ||
+          item['rate'] is! num) {
+        throw const FormatException(
+          'Hay una moneda inválida en la configuración.',
+        );
+      }
+      currencies.add(
+        CurrencyConfig(
+          code: item['code'] as String,
+          symbol: item['symbol'] as String,
+          isBase: item['isBase'] as bool,
+          rate: (item['rate'] as num).toDouble(),
+        ),
+      );
+    }
+    if (currencies.isEmpty ||
+        currencies.where((currency) => currency.isBase).length != 1 ||
+        currencies.any(
+          (currency) =>
+              !currency.rate.isFinite ||
+              currency.rate <= 0 ||
+              (currency.isBase && currency.rate != 1),
+        ) ||
+        currencies.map((currency) => currency.code).toSet().length !=
+            currencies.length) {
+      throw const FormatException('Las tasas de moneda no son válidas.');
+    }
+    return AppSettings(currencies: currencies);
   }
 
   String? _fileType(String name) {
@@ -925,6 +980,8 @@ class _SaleRow {
   final String id;
   final DateTime date;
   final double total;
+  final double totalInCurrency;
+  final double exchangeRate;
   final String currency;
   final String? customerId;
   final String? customerName;
@@ -937,6 +994,8 @@ class _SaleRow {
     required this.id,
     required this.date,
     required this.total,
+    required this.totalInCurrency,
+    required this.exchangeRate,
     required this.currency,
     required this.customerId,
     required this.customerName,
@@ -948,6 +1007,8 @@ class _SaleRow {
   bool matches({
     required DateTime date,
     required double total,
+    required double totalInCurrency,
+    required double exchangeRate,
     required String currency,
     required String? customerId,
     required String? customerName,
@@ -957,6 +1018,8 @@ class _SaleRow {
   }) =>
       this.date == date &&
       this.total == total &&
+      this.totalInCurrency == totalInCurrency &&
+      this.exchangeRate == exchangeRate &&
       this.currency == currency &&
       this.customerId == customerId &&
       this.customerName == customerName &&

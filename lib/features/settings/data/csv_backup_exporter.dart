@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 
 import '../../../core/data/hive_database.dart';
+import '../../../core/data/models/app_settings.dart';
 import '../../../core/utils/product_categories.dart';
 import '../../credit/data/credit_repository.dart';
 
@@ -83,6 +84,8 @@ class CsvBackupExporter {
         'cliente_id',
         'cliente',
         'total_venta',
+        'total_en_moneda',
+        'tasa_cambio',
         'moneda',
         'producto_id',
         'producto',
@@ -105,6 +108,8 @@ class CsvBackupExporter {
           sale.customerId ?? '',
           sale.customerName ?? '',
           sale.total,
+          sale.totalInCurrency,
+          sale.exchangeRate,
           sale.currencyCode,
           '',
           '',
@@ -126,6 +131,8 @@ class CsvBackupExporter {
           sale.customerId ?? '',
           sale.customerName ?? '',
           sale.total,
+          sale.totalInCurrency,
+          sale.exchangeRate,
           sale.currencyCode,
           line.productId,
           line.productName,
@@ -209,7 +216,21 @@ class CsvBackupExporter {
       ]);
     }
     for (final key in HiveDatabase.settingsBox.keys) {
-      shop.add([key.toString(), jsonEncode(HiveDatabase.settingsBox.get(key))]);
+      final value = HiveDatabase.settingsBox.get(key);
+      final jsonValue = value is AppSettings
+          ? {
+              'currencies': [
+                for (final currency in value.currencies)
+                  {
+                    'code': currency.code,
+                    'symbol': currency.symbol,
+                    'isBase': currency.isBase,
+                    'rate': currency.rate,
+                  },
+              ],
+            }
+          : value;
+      shop.add([key.toString(), jsonEncode(jsonValue)]);
     }
 
     return [

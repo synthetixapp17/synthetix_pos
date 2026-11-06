@@ -57,6 +57,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   bool _isCreditSale = false;
   bool _isRecordingCredit = false;
   bool _isCreatingQuotation = false;
+  String _checkoutCurrencyCode = AppCurrency.currentCode;
 
   @override
   void dispose() {
@@ -144,9 +145,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
               builder: (context, shopState) {
                 String upiId = '';
                 String shopName = 'Tienda';
-                final currencyCode = billingState.cartItems.isEmpty
-                    ? AppCurrency.currentCode
-                    : billingState.cartItems.first.product.currencyCode;
+                final configuredCurrencies = AppCurrency.configuredCurrencies;
+                final currencyCode = configuredCurrencies.any(
+                  (currency) => currency.code == _checkoutCurrencyCode,
+                )
+                    ? _checkoutCurrencyCode
+                    : AppCurrency.baseCurrency.code;
+                final exchangeRate = AppCurrency.rateFor(currencyCode);
+                final totalInCurrency =
+                    billingState.totalAmount * exchangeRate;
                 final parsedDownPayment = double.tryParse(
                   _initialPaymentController.text.trim().replaceAll(',', '.'),
                 );
@@ -158,7 +165,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     ? parsedCashReceived
                     : 0.0;
                 final changeAmount =
-                    (cashReceivedAmount - billingState.totalAmount)
+                    (cashReceivedAmount - totalInCurrency)
                         .clamp(0.0, double.infinity)
                         .toDouble();
                 final downPaymentAmount =
@@ -166,8 +173,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     ? parsedDownPayment
                     : 0;
                 final upiPaymentAmount = _isCreditSale
-                    ? downPaymentAmount.clamp(0, billingState.totalAmount)
-                    : billingState.totalAmount;
+                    ? downPaymentAmount.clamp(0, totalInCurrency)
+                    : totalInCurrency;
 
                 if (shopState is ShopLoaded) {
                   upiId = shopState.shop.upiId;
@@ -263,15 +270,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                             TextAlign.left,
                                           ),
                                           _buildDataCell(
-                                            AppCurrency.formatConfigured(
-                                              item.product.price,
+                                            AppCurrency.format(
+                                              item.product.price * exchangeRate,
+                                              code: currencyCode,
                                             ),
                                             TextAlign.right,
                                             isSubtitle: true,
                                           ),
                                           _buildDataCell(
-                                            AppCurrency.formatConfigured(
-                                              item.total,
+                                            AppCurrency.format(
+                                              item.total * exchangeRate,
+                                              code: currencyCode,
                                             ),
                                             TextAlign.right,
                                             isBold: true,
@@ -311,6 +320,42 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                   ),
                                 ),
                               ),
+                            if (!billingState.saleRecorded &&
+                                configuredCurrencies.length > 1) ...[
+                              const SizedBox(height: 12),
+                              Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(14),
+                                  child: DropdownButtonFormField<String>(
+                                    key: ValueKey(currencyCode),
+                                    initialValue: currencyCode,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Moneda de cobro',
+                                      prefixIcon: Icon(
+                                        Icons.currency_exchange_outlined,
+                                      ),
+                                    ),
+                                    items: [
+                                      for (final currency
+                                          in configuredCurrencies)
+                                        DropdownMenuItem(
+                                          value: currency.code,
+                                          child: Text(
+                                            '${currency.code} - ${currency.symbol}',
+                                          ),
+                                        ),
+                                    ],
+                                    onChanged: (value) {
+                                      if (value != null) {
+                                        setState(
+                                          () => _checkoutCurrencyCode = value,
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
                             if (!billingState.saleRecorded &&
                                 !_isCreditSale) ...[
                               const SizedBox(height: 12),
@@ -362,8 +407,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                               Icons.payments_outlined,
                                             ),
                                             hintText:
-                                                AppCurrency.formatConfigured(
-                                                  billingState.totalAmount,
+                                                AppCurrency.format(
+                                                  totalInCurrency,
+                                                  code: currencyCode,
                                                 ),
                                           ),
                                           onChanged: (_) => setState(() {}),
@@ -375,8 +421,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                           children: [
                                             const Text('Vuelto'),
                                             Text(
-                                              AppCurrency.formatConfigured(
+                                              AppCurrency.format(
                                                 changeAmount,
+                                                code: currencyCode,
                                               ),
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.w800,
@@ -401,6 +448,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       : () => _createQuotation(
                                           billingState,
                                           shopName,
+                                          currencyCode,
+                                          exchangeRate,
                                         ),
                                   icon: _isCreatingQuotation
                                       ? const SizedBox(
@@ -429,7 +478,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                 daysBetweenPaymentsController:
                                     _daysBetweenPaymentsController,
                                 interestRateController: _creditRateController,
-                                total: billingState.totalAmount,
+                                total: totalInCurrency,
                                 currencyCode: currencyCode,
                                 interestRate: _creditInterestRate,
                                 installmentCount: _creditInstallments,
@@ -498,8 +547,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
                                 Text(
-                                  AppCurrency.formatConfigured(
-                                    billingState.totalAmount,
+                                  AppCurrency.format(
+                                    totalInCurrency,
+                                    code: currencyCode,
                                   ),
                                   style: Theme.of(context).textTheme.titleLarge
                                       ?.copyWith(
@@ -542,9 +592,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                           }
                                         } else if (_validateCreditSale(
                                               billingState,
+                                              totalInCurrency,
                                             ) &&
                                             _validateCashPayment(
-                                              billingState,
+                                              totalInCurrency,
                                             )) {
                                           context.read<BillingBloc>().add(
                                             CompleteSaleEvent(
@@ -559,6 +610,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                                           'efectivo'
                                                   ? cashReceivedAmount
                                                   : 0,
+                                              currencyCode: currencyCode,
+                                              exchangeRate: exchangeRate,
                                             ),
                                           );
                                         }
@@ -612,7 +665,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  bool _validateCreditSale(BillingState billingState) {
+  bool _validateCreditSale(
+    BillingState billingState,
+    double totalInCurrency,
+  ) {
     if (!_isCreditSale) return true;
     if (billingState.customer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -631,7 +687,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     if (initialPayment == null ||
         !initialPayment.isFinite ||
         initialPayment < 0 ||
-        initialPayment > billingState.totalAmount) {
+        initialPayment > totalInCurrency) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -657,8 +713,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
         daysBetweenPayments == null ||
         daysBetweenPayments < 1 ||
         daysBetweenPayments > 3650 ||
-        !(billingState.totalAmount - initialPayment).isFinite ||
-        !((billingState.totalAmount - initialPayment) * interestRate / 100)
+        !(totalInCurrency - initialPayment).isFinite ||
+        !((totalInCurrency - initialPayment) * interestRate / 100)
             .isFinite) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -676,7 +732,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return true;
   }
 
-  bool _validateCashPayment(BillingState billingState) {
+  bool _validateCashPayment(double totalInCurrency) {
     if (_isCreditSale || _paymentMethod.toLowerCase() != 'efectivo') {
       return true;
     }
@@ -685,7 +741,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
     if (amount == null ||
         !amount.isFinite ||
-        amount + 0.000001 < billingState.totalAmount) {
+        amount + 0.000001 < totalInCurrency) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -889,6 +945,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Future<void> _createQuotation(
     BillingState billingState,
     String shopName,
+    String currencyCode,
+    double exchangeRate,
   ) async {
     if (_isCreatingQuotation || billingState.cartItems.isEmpty) return;
     setState(() => _isCreatingQuotation = true);
@@ -899,14 +957,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
         createdAt: DateTime.now(),
         customerName: billingState.customer?.name ?? '',
         shopName: shopName,
-        currencyCode: billingState.cartItems.first.product.currencyCode,
+        currencyCode: currencyCode,
         lines: billingState.cartItems
             .map(
               (item) => QuotationLine(
                 productName: item.product.name,
                 barcode: item.product.barcode,
                 quantity: item.quantity,
-                unitPrice: item.product.price,
+                unitPrice: item.product.price * exchangeRate,
               ),
             )
             .toList(),
@@ -1000,6 +1058,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             logoData: shop.logoData,
             footer: ReceiptPreferences.footerText ?? shop.footerText,
             currencyCode: sale.currencyCode,
+            exchangeRate: sale.exchangeRate,
             paymentMethod: sale.paymentMethod,
             amountTendered: sale.amountTendered,
             changeAmount: sale.changeAmount,

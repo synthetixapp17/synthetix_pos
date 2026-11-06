@@ -1,4 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import 'models/app_settings.dart';
 import '../../features/product/data/models/product_model.dart';
 import '../../features/shop/data/models/shop_model.dart';
 import '../../features/customer/data/models/customer_model.dart';
@@ -20,6 +21,8 @@ class HiveDatabase {
     Hive.registerAdapter(ShopModelAdapter());
     Hive.registerAdapter(CustomerModelAdapter());
     Hive.registerAdapter(SaleModelAdapter());
+    Hive.registerAdapter(CurrencyConfigAdapter());
+    Hive.registerAdapter(AppSettingsAdapter());
 
     // Open Boxes
     await Hive.openBox<ProductModel>(productBoxName);

@@ -201,11 +201,24 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       );
       return;
     }
+    if (!event.exchangeRate.isFinite || event.exchangeRate <= 0) {
+      emit(
+        state.copyWith(error: 'La tasa de cambio configurada no es válida.'),
+      );
+      return;
+    }
+    final saleTotal = state.totalAmount * event.exchangeRate;
+    if (!saleTotal.isFinite) {
+      emit(
+        state.copyWith(error: 'El total convertido de la venta no es válido.'),
+      );
+      return;
+    }
     final isCashPayment =
         !event.isCreditSale && event.paymentMethod.toLowerCase() == 'efectivo';
     if (isCashPayment &&
         (!event.amountTendered.isFinite ||
-            event.amountTendered + 0.000001 < state.totalAmount)) {
+            event.amountTendered + 0.000001 < saleTotal)) {
       emit(
         state.copyWith(
           error:
@@ -220,13 +233,16 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     final sale = SaleRecord(
       id: const Uuid().v4(),
       soldAt: DateTime.now(),
-      total: state.totalAmount,
+      total: saleTotal,
+      totalInCurrency: saleTotal,
+      exchangeRate: event.exchangeRate,
       customerId: state.customer?.id,
       customerName: state.customer?.name,
-      currencyCode: state.cartItems.first.product.currencyCode,
+      currencyCode:
+          event.currencyCode ?? state.cartItems.first.product.currencyCode,
       paymentMethod: event.paymentMethod,
       amountTendered: amountTendered,
-      changeAmount: (amountTendered - state.totalAmount)
+      changeAmount: (amountTendered - saleTotal)
           .clamp(0.0, double.infinity)
           .toDouble(),
       lines: state.cartItems
@@ -235,7 +251,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
               productId: item.product.id,
               productName: item.product.name,
               quantity: item.quantity,
-              unitPrice: item.product.price,
+              unitPrice: item.product.price * event.exchangeRate,
               category: item.product.category,
               barcode: item.product.barcode,
             ),
@@ -287,6 +303,8 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       id: sale.id,
       soldAt: sale.soldAt,
       total: sale.total,
+      totalInCurrency: sale.totalInCurrency,
+      exchangeRate: sale.exchangeRate,
       customerId: event.customer.id,
       customerName: event.customer.name,
       currencyCode: sale.currencyCode,
@@ -354,8 +372,8 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
             (item) => {
               'name': item.product.name,
               'qty': item.quantity,
-              'price': item.product.price,
-              'total': item.total,
+              'price': item.product.price * event.exchangeRate,
+              'total': item.total * event.exchangeRate,
               'barcode': item.product.barcode,
             },
           )
@@ -371,7 +389,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
         customerName: event.customerName,
         logoData: event.logoData,
         items: items,
-        total: state.totalAmount,
+        total: state.totalAmount * event.exchangeRate,
         footer: event.footer,
         currencyCode: event.currencyCode,
         paymentMethod: event.paymentMethod,

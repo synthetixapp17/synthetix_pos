@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:app_settings/app_settings.dart';
+import 'package:app_settings/app_settings.dart' as app_settings;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/data/hive_database.dart';
+import '../../../../core/data/models/app_settings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/utils/app_currency.dart';
@@ -377,6 +378,7 @@ class _SettingsPageState extends State<SettingsPage> {
       await importer.restore(plan);
       await AppThemeController.loadSavedMode();
       AppCurrency.loadSavedCurrency();
+      await AppCurrency.ensureSettings();
       billingBloc.add(ClearCartEvent());
       customerBloc.add(const LoadCustomersEvent());
       dashboardBloc.add(
@@ -544,9 +546,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   key: ValueKey(_currencyDropdownVersion),
                   initialValue: _currencyCode,
                   decoration: const InputDecoration(
-                    labelText: 'Moneda predeterminada',
+                    labelText: 'Moneda base del catálogo',
                     helperText:
-                        'Se aplica a los productos existentes sin convertir precios. Los importes históricos mantienen su valor y usan el símbolo seleccionado.',
+                        'Los precios de catálogo se interpretan en esta moneda. Cambiarla no convierte los precios históricos.',
                     prefixIcon: Icon(Icons.currency_exchange),
                   ),
                   items: AppCurrency.options
@@ -562,6 +564,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   onChanged: _saveCurrency,
                 ),
               ),
+              const _SettingsDivider(),
+              _CurrencyRatesSection(key: ValueKey(_currencyDropdownVersion)),
               const _SettingsDivider(),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
@@ -916,8 +920,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     icon: Icons.bluetooth,
                     title: 'Ajustes de Bluetooth',
                     subtitle: 'Vincula la impresora desde el dispositivo',
-                    onTap: () => AppSettings.openAppSettings(
-                      type: AppSettingsType.bluetooth,
+                    onTap: () => app_settings.AppSettings.openAppSettings(
+                      type: app_settings.AppSettingsType.bluetooth,
                     ),
                   ),
                 ],
@@ -1028,6 +1032,203 @@ class _SettingsPageState extends State<SettingsPage> {
     };
     return names[color.toARGB32()] ?? 'personalizado';
   }
+}
+
+class _CurrencyRatesSection extends StatefulWidget {
+  const _CurrencyRatesSection({super.key});
+
+  @override
+  State<_CurrencyRatesSection> createState() => _CurrencyRatesSectionState();
+}
+
+class _CurrencyRatesSectionState extends State<_CurrencyRatesSection> {
+  late List<CurrencyConfig> _currencies;
+  final Map<String, TextEditingController> _rateControllers = {};
+  bool _isAdding = false;
+  String? _savingCode;
+
+  @override
+  void initState() {
+    super.initState();
+    _currencies = AppCurrency.configuredCurrencies;
+    _syncControllers();
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _rateControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _syncControllers() {
+    for (final currency in _currencies) {
+      _rateControllers.putIfAbsent(
+        currency.code,
+        () => TextEditingController(text: currency.rate.toString()),
+      );
+      _rateControllers[currency.code]!.text = currency.rate.toString();
+    }
+  }
+
+  Future<void> _addCurrency() async {
+    final available = AppCurrency.options
+        .where(
+          (option) =>
+              !_currencies.any((currency) => currency.code == option.code),
+        )
+        .toList();
+    if (available.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ya están agregadas todas las monedas.')),
+      );
+      return;
+    }
+    final code = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final option in available)
+              ListTile(
+                leading: const Icon(Icons.currency_exchange_outlined),
+                title: Text('${option.code} - ${option.symbol}'),
+                subtitle: Text(option.name),
+                onTap: () => Navigator.pop(context, option.code),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (code == null || !mounted) return;
+    setState(() => _isAdding = true);
+    try {
+      await AppCurrency.addCurrency(code);
+      if (!mounted) return;
+      setState(() {
+        _currencies = AppCurrency.configuredCurrencies;
+        _syncControllers();
+        _isAdding = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isAdding = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo agregar la moneda: $error')),
+      );
+    }
+  }
+
+  Future<void> _saveRate(CurrencyConfig currency) async {
+    final rate = double.tryParse(
+      _rateControllers[currency.code]!.text.trim().replaceAll(',', '.'),
+    );
+    if (rate == null || !rate.isFinite || rate <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ingresa una tasa válida mayor que cero.'),
+        ),
+      );
+      return;
+    }
+    setState(() => _savingCode = currency.code);
+    try {
+      await AppCurrency.saveCurrencies([
+        for (final configured in _currencies)
+          configured.code == currency.code
+              ? configured.copyWith(rate: rate)
+              : configured,
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _currencies = AppCurrency.configuredCurrencies;
+        _syncControllers();
+        _savingCode = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Tasa de ${currency.code} guardada: '
+            '${rate.toString()} ${currency.code} por cada '
+            '${AppCurrency.baseCurrency.code}.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _savingCode = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo guardar la tasa: $error')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Tasas de cambio', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 4),
+        Text(
+          'Indica cuántas unidades de cada moneda equivalen a 1 '
+          '${AppCurrency.baseCurrency.code}. Las tasas se guardan en este dispositivo.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        for (final currency in _currencies) ...[
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _rateControllers[currency.code],
+                  enabled: !currency.isBase,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: '${currency.code} - ${currency.symbol}',
+                    helperText: currency.isBase ? 'Moneda base' : null,
+                    prefixIcon: const Icon(Icons.currency_exchange_outlined),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: currency.isBase || _savingCode != null
+                    ? null
+                    : () => _saveRate(currency),
+                child: _savingCode == currency.code
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Guardar'),
+              ),
+            ],
+          ),
+          if (currency != _currencies.last) const SizedBox(height: 12),
+        ],
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: _isAdding ? null : _addCurrency,
+          icon: _isAdding
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.add),
+          label: const Text('Agregar moneda'),
+        ),
+      ],
+    ),
+  );
 }
 
 class _BusinessProfileCard extends StatelessWidget {

@@ -154,7 +154,19 @@ class _ReportsPageState extends State<ReportsPage> {
     AppCurrencyScope.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(title: const Text('Reportes de ventas')),
+      appBar: AppBar(
+        title: const Text('Reportes de ventas'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton.filledTonal(
+              tooltip: 'Escanear QR de factura',
+              onPressed: _scanSaleQr,
+              icon: const Icon(Icons.qr_code_scanner_rounded),
+            ),
+          ),
+        ],
+      ),
       body: BlocConsumer<ReportsBloc, ReportsState>(
         listener: (context, state) {
           if (state.status == ReportsStatus.failure && state.message != null) {

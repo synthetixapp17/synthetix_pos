@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:billing_app/core/data/hive_database.dart';
+import 'package:billing_app/core/data/models/app_settings.dart';
 import 'package:billing_app/features/customer/data/models/customer_model.dart';
 import 'package:billing_app/features/credit/domain/entities/credit_record.dart';
 import 'package:billing_app/features/product/data/models/product_model.dart';
@@ -22,6 +23,8 @@ void main() {
     Hive.registerAdapter(ShopModelAdapter());
     Hive.registerAdapter(CustomerModelAdapter());
     Hive.registerAdapter(SaleModelAdapter());
+    Hive.registerAdapter(CurrencyConfigAdapter());
+    Hive.registerAdapter(AppSettingsAdapter());
   });
 
   setUp(() async {
@@ -56,6 +59,12 @@ void main() {
         'theme_mode': 'light',
         'primary_color': 0xFF1565C0,
         'printer_mac': '00:11:22:33:44:55',
+        'app_settings': AppSettings(
+          currencies: const [
+            CurrencyConfig(code: 'USD', symbol: r'$', isBase: true, rate: 1),
+            CurrencyConfig(code: 'VES', symbol: 'Bs.', isBase: false, rate: 40),
+          ],
+        ),
         'quotation_history': jsonEncode([
           {'id': 'quotation-1', 'title': 'Cotización de prueba'},
         ]),
@@ -92,12 +101,15 @@ void main() {
           SaleRecord(
             id: 'sale-1',
             soldAt: DateTime(2026, 11, 1),
-            total: 50,
+            total: 200,
+            totalInCurrency: 200,
+            exchangeRate: 40,
             customerId: 'customer-1',
             customerName: 'Ana',
+            currencyCode: 'VES',
             paymentMethod: 'Efectivo',
-            amountTendered: 60,
-            changeAmount: 10,
+            amountTendered: 220,
+            changeAmount: 20,
             lines: const [
               SaleLine(
                 productId: 'product-1',
@@ -105,7 +117,7 @@ void main() {
                 category: 'Bebidas',
                 barcode: '123',
                 quantity: 2,
-                unitPrice: 25,
+                unitPrice: 100,
               ),
             ],
           ),
@@ -178,6 +190,9 @@ void main() {
       expect(contents['ventas'], contains('Efectivo'));
       expect(contents['ventas'], contains('codigo_producto'));
       expect(contents['ventas'], contains('efectivo_recibido'));
+      expect(contents['ventas'], contains('total_en_moneda'));
+      expect(contents['ventas'], contains('tasa_cambio'));
+      expect(contents['ventas'], contains('"200.0","200.0","40.0","VES"'));
       expect(contents['tienda'], contains('J-12345678-9'));
       expect(
         backup.every(
@@ -226,12 +241,21 @@ void main() {
         'ID-123',
       );
       expect(HiveDatabase.salesBox.get('sale-1')?.paymentMethod, 'Efectivo');
-      expect(HiveDatabase.salesBox.get('sale-1')?.amountTendered, 60);
-      expect(HiveDatabase.salesBox.get('sale-1')?.changeAmount, 10);
+      expect(HiveDatabase.salesBox.get('sale-1')?.totalInCurrency, 200);
+      expect(HiveDatabase.salesBox.get('sale-1')?.exchangeRate, 40);
+      expect(HiveDatabase.salesBox.get('sale-1')?.currencyCode, 'VES');
+      expect(HiveDatabase.salesBox.get('sale-1')?.amountTendered, 220);
+      expect(HiveDatabase.salesBox.get('sale-1')?.changeAmount, 20);
       expect(HiveDatabase.creditBox.containsKey('credit-1'), isTrue);
       expect(HiveDatabase.shopBox.get('shop_details')?.logoData, 'bG9nbw==');
       expect(HiveDatabase.shopBox.get('shop_details')?.rif, 'J-12345678-9');
       expect(HiveDatabase.settingsBox.get('currency_code'), 'USD');
+      expect(
+        (HiveDatabase.settingsBox.get('app_settings') as AppSettings).currencies
+            .singleWhere((currency) => currency.code == 'VES')
+            .rate,
+        40,
+      );
       expect(HiveDatabase.settingsBox.get('low_stock_threshold'), 12);
       expect(HiveDatabase.settingsBox.get('theme_mode'), 'light');
       expect(HiveDatabase.settingsBox.get('primary_color'), 0xFF1565C0);

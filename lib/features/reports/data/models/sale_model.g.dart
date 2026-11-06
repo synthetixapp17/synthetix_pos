@@ -2,6 +2,10 @@
 
 part of 'sale_model.dart';
 
+// **************************************************************************
+// TypeAdapterGenerator
+// **************************************************************************
+
 class SaleModelAdapter extends TypeAdapter<SaleModel> {
   @override
   final int typeId = 3;
@@ -21,6 +25,8 @@ class SaleModelAdapter extends TypeAdapter<SaleModel> {
       paymentMethod: fields[7] == null ? 'Efectivo' : fields[7] as String,
       amountTendered: fields[8] == null ? 0.0 : fields[8] as double,
       changeAmount: fields[9] == null ? 0.0 : fields[9] as double,
+      totalInCurrency: fields[10] == null ? 0.0 : fields[10] as double,
+      exchangeRate: fields[11] == null ? 1.0 : fields[11] as double,
       customerId: fields[3] as String?,
       customerName: fields[4] as String?,
     );
@@ -29,7 +35,7 @@ class SaleModelAdapter extends TypeAdapter<SaleModel> {
   @override
   void write(BinaryWriter writer, SaleModel obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -49,7 +55,11 @@ class SaleModelAdapter extends TypeAdapter<SaleModel> {
       ..writeByte(8)
       ..write(obj.amountTendered)
       ..writeByte(9)
-      ..write(obj.changeAmount);
+      ..write(obj.changeAmount)
+      ..writeByte(10)
+      ..write(obj.totalInCurrency)
+      ..writeByte(11)
+      ..write(obj.exchangeRate);
   }
 
   @override

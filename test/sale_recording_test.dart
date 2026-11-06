@@ -123,6 +123,55 @@ void main() {
     expect(restoredSale.changeAmount, 5.5);
   });
 
+  test(
+    'sale stores converted total, currency, rate, and line prices',
+    () async {
+      final reportsRepository = _FakeReportsRepository();
+      final bloc = BillingBloc(
+        getProductByBarcodeUseCase: GetProductByBarcodeUseCase(
+          _FakeProductRepository(),
+        ),
+        recordSaleUseCase: RecordSaleUseCase(reportsRepository),
+        playCartAddSound: () async {},
+      );
+      addTearDown(bloc.close);
+
+      const product = Product(
+        id: 'converted-product',
+        name: 'Producto',
+        barcode: '12345678',
+        price: 4.5,
+        stock: 5,
+        currencyCode: 'USD',
+      );
+      bloc.add(const AddProductToCartEvent(product));
+      await bloc.stream.firstWhere((state) => state.cartItems.isNotEmpty);
+
+      bloc.add(
+        const CompleteSaleEvent(
+          paymentMethod: 'Efectivo',
+          amountTendered: 200,
+          currencyCode: 'VES',
+          exchangeRate: 40,
+        ),
+      );
+      final completed = await bloc.stream.firstWhere(
+        (state) => state.saleRecorded,
+      );
+      final persistedSale = SaleModel.fromEntity(
+        completed.completedSale!,
+      ).toEntity();
+
+      expect(persistedSale.currencyCode, 'VES');
+      expect(persistedSale.total, 180);
+      expect(persistedSale.totalInCurrency, 180);
+      expect(persistedSale.exchangeRate, 40);
+      expect(persistedSale.amountTendered, 200);
+      expect(persistedSale.changeAmount, 20);
+      expect(persistedSale.lines.single.unitPrice, 180);
+    },
+  );
+
   test('cash sale rejects a received amount below the total', () async {
     final reportsRepository = _FakeReportsRepository();
     final bloc = BillingBloc(

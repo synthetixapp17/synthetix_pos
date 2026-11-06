@@ -54,6 +54,8 @@ class SaleRecord extends Equatable {
   final String id;
   final DateTime soldAt;
   final double total;
+  final double totalInCurrency;
+  final double exchangeRate;
   final String? customerId;
   final String? customerName;
   final String currencyCode;
@@ -66,6 +68,8 @@ class SaleRecord extends Equatable {
     required this.id,
     required this.soldAt,
     required this.total,
+    double? totalInCurrency,
+    this.exchangeRate = 1,
     required this.lines,
     this.customerId,
     this.customerName,
@@ -73,7 +77,7 @@ class SaleRecord extends Equatable {
     this.paymentMethod = 'Efectivo',
     this.amountTendered = 0,
     this.changeAmount = 0,
-  });
+  }) : totalInCurrency = totalInCurrency ?? total;
 
   String get linesJson =>
       jsonEncode(lines.map((line) => line.toJson()).toList());
@@ -83,6 +87,8 @@ class SaleRecord extends Equatable {
     id,
     soldAt,
     total,
+    totalInCurrency,
+    exchangeRate,
     customerId,
     customerName,
     currencyCode,
