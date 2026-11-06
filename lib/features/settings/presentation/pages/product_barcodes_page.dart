@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../../../core/data/hive_database.dart';
+import '../../../../core/utils/app_currency.dart';
 import '../../../../core/utils/printer_helper.dart';
 import '../../../product/domain/entities/product.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
@@ -91,6 +92,15 @@ class _ProductBarcodesPageState extends State<ProductBarcodesPage> {
                           maxLines: 1,
                           style: pw.TextStyle(
                             fontSize: 11,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          'Precio: ${AppCurrency.format(product.price)}',
+                          textAlign: pw.TextAlign.center,
+                          style: pw.TextStyle(
+                            fontSize: 12,
                             fontWeight: pw.FontWeight.bold,
                           ),
                         ),
@@ -180,6 +190,7 @@ class _ProductBarcodesPageState extends State<ProductBarcodesPage> {
         await printer.printBarcodeLabel(
           productName: product.name,
           barcode: product.barcode,
+          price: product.price,
         );
         printedCount++;
       }
@@ -564,6 +575,14 @@ class _BarcodeProductCard extends StatelessWidget {
                             fontSize: 13,
                           ),
                         ),
+                      Text(
+                        'Precio: ${AppCurrency.format(product.price)}',
+                        style: TextStyle(
+                          color: colors.primary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ],
                   ),
                 ),

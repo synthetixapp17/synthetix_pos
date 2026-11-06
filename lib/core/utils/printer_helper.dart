@@ -114,6 +114,7 @@ class PrinterHelper {
   Future<void> printBarcodeLabel({
     required String productName,
     required String barcode,
+    required double price,
   }) async {
     if (!await checkConnection()) {
       throw const PrinterException(
@@ -135,6 +136,11 @@ class PrinterHelper {
       ...EscPos.boldOn,
       ..._textToBytes(productName),
       ...EscPos.lineFeed,
+      ...EscPos.textLarge,
+      ...EscPos.boldOn,
+      ..._textToBytes('Precio: ${AppCurrency.format(price)}'),
+      ...EscPos.lineFeed,
+      ...EscPos.textNormal,
       ...EscPos.boldOff,
       0x1D,
       0x48,

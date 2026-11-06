@@ -1118,7 +1118,7 @@ class _SaleLookupCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Escanea el QR del ticket o escribe su folio para localizarla.',
+              'Escribe el folio para buscar una venta guardada en este dispositivo.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 12),

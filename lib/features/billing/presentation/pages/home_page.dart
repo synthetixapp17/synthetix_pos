@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../billing/presentation/bloc/billing_bloc.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/app_currency.dart';
+import '../../../../core/utils/receipt_qr.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../domain/entities/cart_item.dart';
 
@@ -52,6 +53,29 @@ class _HomePageState extends State<HomePage> {
         }
 
         _lastScanTimes[rawValue] = now;
+
+        if (rawValue == ReceiptQr.privateReceiptData) {
+          if (mounted) {
+            await showDialog<void>(
+              context: context,
+              builder: (context) => AlertDialog(
+                icon: const Icon(Icons.lock_outline, size: 40),
+                title: const Text('Recibo privado'),
+                content: const Text(
+                  'No hay información pública en este código. '
+                  'La venta solo está disponible en el dispositivo donde se guardó.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Entendido'),
+                  ),
+                ],
+              ),
+            );
+          }
+          break;
+        }
 
         // Vibrate
         final hasVibrator = await Vibration.hasVibrator();

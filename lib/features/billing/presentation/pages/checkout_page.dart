@@ -974,7 +974,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ].where((line) => line.trim().isNotEmpty).join(', '),
         shopPhone: shop.phoneNumber,
         rif: shop.rif,
-        qrData: ReceiptQr.saleUrl(sale.id),
+        qrData: ReceiptQr.privateReceiptData,
         logoData: shop.logoData,
         footer: ReceiptPreferences.footerText ?? shop.footerText,
         showRif: ReceiptPreferences.showRif,
@@ -994,7 +994,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             phone: shop.phoneNumber,
             rif: shop.rif,
             qrData: ReceiptPreferences.showInvoiceQr
-                ? ReceiptQr.saleUrl(sale.id)
+                ? ReceiptQr.privateReceiptData
                 : null,
             customerName: billingState.customer?.name,
             logoData: shop.logoData,
@@ -1079,7 +1079,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         address: address,
         shopPhone: shop.phoneNumber,
         rif: shop.rif,
-        qrData: ReceiptQr.saleUrl(sale.id),
+        qrData: ReceiptQr.privateReceiptData,
         logoData: shop.logoData,
         footer: ReceiptPreferences.footerText ?? shop.footerText,
         showAddress: ReceiptPreferences.showAddress,
@@ -1718,7 +1718,7 @@ class _ReceiptPreviewDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Escanea para consultar esta venta',
+                  'Recibo privado · sin enlace ni datos de venta',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
