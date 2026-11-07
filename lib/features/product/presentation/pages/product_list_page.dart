@@ -98,16 +98,26 @@ class _ProductListPageState extends State<ProductListPage> {
                 final stockThreshold =
                     widget.lowStockThreshold ?? inventoryThreshold;
                 final products = state.products;
-                final categories =
-                    products
-                        .map((product) => product.category.trim())
-                        .where((category) => category.isNotEmpty)
-                        .toSet()
-                        .toList()
-                      ..sort();
-                final selectedCategory = categories.contains(_selectedCategory)
-                    ? _selectedCategory
-                    : 'Todas';
+                final categoriesByKey = <String, String>{};
+                for (final product in products) {
+                  final category = product.category.trim();
+                  if (category.isNotEmpty) {
+                    categoriesByKey.putIfAbsent(
+                      category.toLowerCase(),
+                      () => category,
+                    );
+                  }
+                }
+                final categories = categoriesByKey.values.toList()..sort();
+                final selectedCategory =
+                    categories
+                        .where(
+                          (category) =>
+                              category.toLowerCase() ==
+                              _selectedCategory.toLowerCase(),
+                        )
+                        .firstOrNull ??
+                    'Todas';
                 final filteredProducts = products.where((product) {
                   final matchesStock = widget.lowStockThreshold != null
                       ? product.stock < widget.lowStockThreshold!
@@ -127,7 +137,8 @@ class _ProductListPageState extends State<ProductListPage> {
                       product.description.toLowerCase().contains(_searchQuery);
                   return matchesStock &&
                       (selectedCategory == 'Todas' ||
-                          product.category == selectedCategory) &&
+                          product.category.trim().toLowerCase() ==
+                              selectedCategory.toLowerCase()) &&
                       queryMatches;
                 }).toList()..sort(_compareProducts);
 
@@ -138,7 +149,12 @@ class _ProductListPageState extends State<ProductListPage> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
-                      child: _buildSearch(context, products),
+                      child: _buildSearch(
+                        context,
+                        products,
+                        categories,
+                        selectedCategory,
+                      ),
                     ),
                   ),
                 ];
@@ -149,7 +165,6 @@ class _ProductListPageState extends State<ProductListPage> {
                       child: _buildInventoryOverview(
                         context,
                         products,
-                        categories,
                         inventoryThreshold,
                       ),
                     ),
@@ -305,7 +320,12 @@ class _ProductListPageState extends State<ProductListPage> {
     );
   }
 
-  Widget _buildSearch(BuildContext context, List<Product> products) {
+  Widget _buildSearch(
+    BuildContext context,
+    List<Product> products,
+    List<String> categories,
+    String selectedCategory,
+  ) {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(6),
@@ -314,45 +334,101 @@ class _ProductListPageState extends State<ProductListPage> {
         border: Border.all(color: theme.colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                hintText: widget.showsLowStock
-                    ? 'Buscar en stock bajo'
-                    : 'Buscar por nombre, código o categoría',
-                prefixIcon: const Icon(Icons.search),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                filled: false,
-                suffixIcon: _searchQuery.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Limpiar búsqueda',
-                        onPressed: _searchController.clear,
-                        icon: const Icon(Icons.close),
-                      ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Tooltip(
-            message: 'Escanear código de barras',
-            child: IconButton.filledTonal(
-              onPressed: () => _scanQR(products),
-              icon: const Icon(Icons.qr_code_scanner),
-              style: IconButton.styleFrom(
-                minimumSize: const Size(48, 48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(11),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: InputDecoration(
+                    hintText: widget.showsLowStock
+                        ? 'Buscar en stock bajo'
+                        : 'Buscar por nombre, código o categoría',
+                    prefixIcon: const Icon(Icons.search),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
+                    suffixIcon: _searchQuery.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Limpiar búsqueda',
+                            onPressed: _searchController.clear,
+                            icon: const Icon(Icons.close),
+                          ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 6),
+              Tooltip(
+                message: 'Escanear código de barras',
+                child: IconButton.filledTonal(
+                  onPressed: () => _scanQR(products),
+                  icon: const Icon(Icons.qr_code_scanner),
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
+          if (categories.isNotEmpty) ...[
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.category_outlined,
+                    size: 19,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Categoría',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const Spacer(),
+                  DropdownButtonHideUnderline(
+                    child: SizedBox(
+                      width: 170,
+                      child: DropdownButton<String>(
+                        value: selectedCategory,
+                        isExpanded: true,
+                        borderRadius: BorderRadius.circular(12),
+                        items: [
+                          const DropdownMenuItem(
+                            value: 'Todas',
+                            child: Text('Todas'),
+                          ),
+                          for (final category in categories)
+                            DropdownMenuItem(
+                              value: category,
+                              child: Text(
+                                category,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                        onChanged: (category) {
+                          if (category != null) {
+                            setState(() => _selectedCategory = category);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -361,7 +437,6 @@ class _ProductListPageState extends State<ProductListPage> {
   Widget _buildInventoryOverview(
     BuildContext context,
     List<Product> products,
-    List<String> categories,
     int threshold,
   ) {
     final lowStock = products
@@ -451,42 +526,6 @@ class _ProductListPageState extends State<ProductListPage> {
                       ),
                     ),
                     const Spacer(),
-                    if (categories.isNotEmpty) ...[
-                      const Icon(Icons.category_outlined, size: 18),
-                      const SizedBox(width: 6),
-                      SizedBox(
-                        width: 140,
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            isExpanded: true,
-                            value:
-                                [
-                                  'Todas',
-                                  ...categories,
-                                ].contains(_selectedCategory)
-                                ? _selectedCategory
-                                : 'Todas',
-                            borderRadius: BorderRadius.circular(12),
-                            items: ['Todas', ...categories]
-                                .map(
-                                  (category) => DropdownMenuItem(
-                                    value: category,
-                                    child: Text(
-                                      category,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (category) {
-                              if (category != null) {
-                                setState(() => _selectedCategory = category);
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
                 const SizedBox(height: 8),

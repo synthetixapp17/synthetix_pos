@@ -255,6 +255,13 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
           }
 
           final categories = ProductCategories.load();
+          final selectedCategory =
+              categories.any(
+                (category) =>
+                    category.name.toLowerCase() == _category.toLowerCase(),
+              )
+              ? _category
+              : 'Todas';
           final allTimeSales = <String, int>{};
           final recentSales = <String, int>{};
           final lastSoldAt = <String, DateTime>{};
@@ -288,9 +295,12 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
                     query.isEmpty ||
                     product.name.toLowerCase().contains(query) ||
                     product.barcode.toLowerCase().contains(query) ||
-                    product.category.toLowerCase().contains(query);
+                    product.category.toLowerCase().contains(query) ||
+                    product.description.toLowerCase().contains(query);
                 final matchesCategory =
-                    _category == 'Todas' || product.category == _category;
+                    selectedCategory == 'Todas' ||
+                    product.category.trim().toLowerCase() ==
+                        selectedCategory.trim().toLowerCase();
                 final matchesFilter = switch (_filter) {
                   _CatalogFilter.all => true,
                   _CatalogFilter.available => product.stock > 0,
@@ -333,6 +343,9 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
                 (product) => product.stock > 0 && product.stock < threshold,
               )
               .length;
+          final activeFilterCount =
+              (_filter == _CatalogFilter.all ? 0 : 1) +
+              (selectedCategory == 'Todas' ? 0 : 1);
           return Column(
             children: [
               Padding(
@@ -392,9 +405,9 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
                       ),
                       icon: const Icon(Icons.tune_rounded, size: 19),
                       label: Text(
-                        _filter == _CatalogFilter.all
+                        activeFilterCount == 0
                             ? 'Filtros'
-                            : 'Filtro (1)',
+                            : 'Filtros ($activeFilterCount)',
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Theme.of(context).colorScheme.primary,
@@ -457,14 +470,16 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
                     _CategoryButton(
                       label: 'Todas',
                       icon: Icons.grid_view_rounded,
-                      selected: _category == 'Todas',
+                      selected: selectedCategory == 'Todas',
                       onTap: () => setState(() => _category = 'Todas'),
                     ),
                     ...categories.map(
                       (category) => _CategoryButton(
                         label: category.name,
                         icon: category.icon,
-                        selected: _category == category.name,
+                        selected:
+                            selectedCategory.toLowerCase() ==
+                            category.name.toLowerCase(),
                         onTap: () => setState(() => _category = category.name),
                       ),
                     ),

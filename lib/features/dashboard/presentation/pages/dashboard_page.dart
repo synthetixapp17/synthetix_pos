@@ -12,6 +12,8 @@ import '../../../reports/domain/entities/sale_record.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../../domain/entities/dashboard_summary.dart';
 
+final _dashboardDateFormat = DateFormat('EEE d', 'es');
+
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -20,7 +22,6 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  static final _date = DateFormat('EEE d', 'es');
   late String _metricCurrencyCode;
 
   @override
@@ -104,7 +105,6 @@ class _DashboardPageState extends State<DashboardPage> {
               ? _metricCurrencyCode
               : AppCurrency.baseCode;
           final metricExchangeRate = AppCurrency.rateFor(metricCurrencyCode);
-          final chartCurrencies = [metricCurrencyCode];
           final chartDays = _dashboardChartDays(
             summary,
             metricExchangeRate,
@@ -170,7 +170,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                         trend: dailyTrend,
                         subtitle:
-                            'Tasa: 1 USD = ${metricExchangeRate.toStringAsFixed(2)} $metricCurrencyCode · ${summary.transactionCount} transacciones',
+                            '${summary.transactionCount} transacciones hoy · $metricCurrencyCode',
                         color: const Color(0xFF00E676),
                         legacyDashboardStyle: true,
                         onTap: () => context.push('/reports?period=today'),
@@ -205,133 +205,15 @@ class _DashboardPageState extends State<DashboardPage> {
                   },
                 ),
                 const SizedBox(height: 18),
-                _SectionCard(
-                  title: 'Ventas de los últimos 7 días',
-                  trailing: TextButton(
-                    onPressed: () => context.push('/reports'),
-                    child: const Text('Ver reportes'),
-                  ),
-                  child: SizedBox(
-                    height: 230,
-                    child: LineChart(
-                      LineChartData(
-                        minY: 0,
-                        gridData: FlGridData(
-                          show: true,
-                          drawVerticalLine: false,
-                          getDrawingHorizontalLine: (_) => FlLine(
-                            color: Theme.of(
-                              context,
-                            ).dividerColor.withValues(alpha: 0.35),
-                            strokeWidth: 1,
-                          ),
-                        ),
-                        borderData: FlBorderData(show: false),
-                        titlesData: FlTitlesData(
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 44,
-                              getTitlesWidget: (value, _) => Text(
-                                '${chartCurrencies.length == 1 ? AppCurrency.optionFor(chartCurrencies.first).symbol : ''} ${_compactAmount(value)}',
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
-                            ),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 30,
-                              getTitlesWidget: (value, _) {
-                                final index = value.toInt();
-                                if (index < 0 || index >= chartDays.length) {
-                                  return const SizedBox.shrink();
-                                }
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    _date.format(chartDays[index].date),
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.labelSmall,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        lineBarsData: [
-                          for (
-                            var series = 0;
-                            series < (chartCurrencies.length);
-                            series++
-                          )
-                            LineChartBarData(
-                              spots: [
-                                for (
-                                  var index = 0;
-                                  index < chartDays.length;
-                                  index++
-                                )
-                                  FlSpot(
-                                    index.toDouble(),
-                                    chartDays[index].amount,
-                                  ),
-                              ],
-                              isCurved: true,
-                              color: _chartColor(series),
-                              barWidth: 3,
-                              dotData: const FlDotData(show: true),
-                              belowBarData: BarAreaData(
-                                show: series == 0,
-                                color: _chartColor(
-                                  series,
-                                ).withValues(alpha: 0.10),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
+                _SalesPerformanceCard(
+                  days: chartDays,
+                  currencyCode: metricCurrencyCode,
+                  onReports: () => context.push('/reports'),
                 ),
                 const SizedBox(height: 18),
                 _SectionCard(
-                  title: 'Productos más vendidos',
-                  child: summary.bestSellers.isEmpty
-                      ? const _EmptyMessage(
-                          'Las ventas registradas aparecerán aquí.',
-                        )
-                      : Column(
-                          children: [
-                            for (
-                              var index = 0;
-                              index < summary.bestSellers.length;
-                              index++
-                            )
-                              ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                leading: CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.primary.withValues(alpha: 0.1),
-                                  child: Text('${index + 1}'),
-                                ),
-                                title: Text(summary.bestSellers[index].name),
-                                trailing: Text(
-                                  '${summary.bestSellers[index].quantity} u.',
-                                  style: TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                          ],
-                        ),
+                  title: 'Más vendidos hoy',
+                  child: _BestSellerMetrics(products: summary.bestSellers),
                 ),
                 const SizedBox(height: 18),
                 _SectionCard(
@@ -449,8 +331,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
     final colors = _WebDashboardColors.of(context);
     final weeklyColors = colors.chartColors;
-    final dailySales = weeklySales;
-    final chartMax = dailySales.fold<double>(
+    final chartMax = weeklySales.fold<double>(
       0,
       (maximum, day) => day.amount > maximum ? day.amount : maximum,
     );
@@ -518,11 +399,13 @@ class _DashboardPageState extends State<DashboardPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(
+                        flex: 1,
                         child: _WebSummaryCard(
                           child: _WebWeeklyDonut(
                             days: weeklySales,
                             total: weeklyTotal,
                             colors: weeklyColors,
+                            currencyCode: currentCurrency,
                           ),
                         ),
                       ),
@@ -530,10 +413,24 @@ class _DashboardPageState extends State<DashboardPage> {
                       Expanded(
                         child: _WebSummaryCard(
                           child: _WebDailyBars(
-                            days: dailySales,
+                            days: weeklySales,
                             maximum: chartMax,
                             currencyCode: currentCurrency,
                           ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  height: 330,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _WebSummaryCard(
+                          child: _WebBestSellers(products: summary.bestSellers),
                         ),
                       ),
                       const SizedBox(width: 18),
@@ -551,23 +448,6 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
       ),
     );
-  }
-
-  String _compactAmount(double amount) {
-    if (amount >= 100000) return '${(amount / 1000).toStringAsFixed(0)} mil';
-    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)} mil';
-    return amount.toStringAsFixed(0);
-  }
-
-  Color _chartColor(int index) {
-    final colors = [
-      Theme.of(context).colorScheme.primary,
-      const Color(0xFF00897B),
-      const Color(0xFF8E24AA),
-      const Color(0xFFEF6C00),
-      const Color(0xFF1976D2),
-    ];
-    return colors[index % colors.length];
   }
 }
 
@@ -1326,6 +1206,363 @@ class _WebActivityStat extends StatelessWidget {
   }
 }
 
+class _SalesPerformanceCard extends StatelessWidget {
+  final List<DailySales> days;
+  final String currencyCode;
+  final VoidCallback onReports;
+
+  const _SalesPerformanceCard({
+    required this.days,
+    required this.currencyCode,
+    required this.onReports,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final total = days.fold<double>(0, (sum, day) => sum + day.amount);
+    final maximumDay = days.fold<DailySales?>(
+      null,
+      (maximum, day) =>
+          maximum == null || day.amount > maximum.amount ? day : maximum,
+    );
+    final highestAmount = days.fold<double>(
+      0,
+      (maximum, day) => day.amount > maximum ? day.amount : maximum,
+    );
+    final chartMaximum = highestAmount == 0 ? 1.0 : highestAmount * 1.25;
+    final axisInterval = chartMaximum / 4;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: colors.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ventas de los últimos 7 días',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Rendimiento diario · $currencyCode',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Ver reportes',
+                  onPressed: onReports,
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AppCurrency.format(total, code: currencyCode),
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+                letterSpacing: -.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                _SalesInsight(
+                  icon: Icons.insights_rounded,
+                  label: 'Promedio diario',
+                  value: AppCurrency.format(
+                    total / (days.isEmpty ? 1 : days.length),
+                    code: currencyCode,
+                  ),
+                ),
+                if (maximumDay != null)
+                  _SalesInsight(
+                    icon: Icons.emoji_events_outlined,
+                    label:
+                        'Mejor día · ${_dashboardDateFormat.format(maximumDay.date)}',
+                    value: AppCurrency.format(
+                      maximumDay.amount,
+                      code: currencyCode,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              height: 190,
+              child: LineChart(
+                LineChartData(
+                  minX: 0,
+                  maxX: (days.length - 1).clamp(1, double.infinity).toDouble(),
+                  minY: 0,
+                  maxY: chartMaximum,
+                  lineTouchData: LineTouchData(
+                    handleBuiltInTouches: true,
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipColor: (_) => colors.inverseSurface,
+                      tooltipBorderRadius: BorderRadius.circular(10),
+                      getTooltipItems: (spots) => spots.map((spot) {
+                        final index = spot.x.toInt();
+                        if (index < 0 || index >= days.length) return null;
+                        return LineTooltipItem(
+                          '${DateFormat('EEE d MMM', 'es').format(days[index].date)}\n'
+                          '${AppCurrency.format(spot.y, code: currencyCode)}',
+                          TextStyle(
+                            color: colors.onInverseSurface,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: axisInterval,
+                    getDrawingHorizontalLine: (_) => FlLine(
+                      color: colors.outlineVariant.withValues(alpha: .55),
+                      strokeWidth: 1,
+                      dashArray: [4, 4],
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  titlesData: FlTitlesData(
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 44,
+                        interval: axisInterval,
+                        getTitlesWidget: (value, _) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Text(
+                            _compactChartValue(value),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 28,
+                        getTitlesWidget: (value, _) {
+                          final index = value.toInt();
+                          if (index < 0 || index >= days.length) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 7),
+                            child: Text(
+                              _dashboardDateFormat.format(days[index].date),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: [
+                        for (var index = 0; index < days.length; index++)
+                          FlSpot(index.toDouble(), days[index].amount),
+                      ],
+                      isCurved: true,
+                      curveSmoothness: .28,
+                      color: colors.primary,
+                      barWidth: 3,
+                      dotData: const FlDotData(show: true),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            colors.primary.withValues(alpha: .2),
+                            colors.primary.withValues(alpha: .01),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SalesInsight extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _SalesInsight({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: colors.primary),
+          const SizedBox(width: 7),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: Theme.of(context).textTheme.labelSmall),
+              Text(
+                value,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BestSellerMetrics extends StatelessWidget {
+  final List<ProductSales> products;
+
+  const _BestSellerMetrics({required this.products});
+
+  @override
+  Widget build(BuildContext context) {
+    if (products.isEmpty) {
+      return const _EmptyMessage('Las ventas de hoy aparecerán aquí.');
+    }
+
+    final theme = Theme.of(context);
+    final totalUnits = products.fold<int>(
+      0,
+      (total, product) => total + product.quantity,
+    );
+    final maxQuantity = products.first.quantity;
+
+    return Column(
+      children: [
+        for (var index = 0; index < products.length; index++) ...[
+          if (index > 0) const SizedBox(height: 14),
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: index == 0
+                      ? const Color(0xFFFFF1D6)
+                      : theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: index == 0
+                    ? const Icon(
+                        Icons.emoji_events_rounded,
+                        size: 18,
+                        color: Color(0xFFB7791F),
+                      )
+                    : Text(
+                        '${index + 1}',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  products[index].name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '${products[index].quantity} u.',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: products[index].quantity / maxQuantity,
+              minHeight: 7,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              color: index == 0
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.primary.withValues(alpha: .48),
+            ),
+          ),
+          const SizedBox(height: 3),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '${(products[index].quantity / totalUnits * 100).round()}% del top 5',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _WebSummaryCard extends StatelessWidget {
   final Widget child;
 
@@ -1358,11 +1595,13 @@ class _WebWeeklyDonut extends StatelessWidget {
   final List<DailySales> days;
   final double total;
   final List<Color> colors;
+  final String currencyCode;
 
   const _WebWeeklyDonut({
     required this.days,
     required this.total,
     required this.colors,
+    required this.currencyCode,
   });
 
   @override
@@ -1430,7 +1669,7 @@ class _WebWeeklyDonut extends StatelessWidget {
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          AppCurrency.format(total),
+                          AppCurrency.format(total, code: currencyCode),
                           style: TextStyle(
                             color: palette.text,
                             fontSize: 14,
@@ -1453,6 +1692,7 @@ class _WebWeeklyDonut extends StatelessWidget {
                       color:
                           colors[days.indexOf(recentDays[index]) %
                               colors.length],
+                      currencyCode: currencyCode,
                     ),
                 ],
               ),
@@ -1461,9 +1701,112 @@ class _WebWeeklyDonut extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          'Total acumulado en ${AppCurrency.currentCode}',
+          'Total acumulado en $currencyCode',
           style: TextStyle(color: palette.muted, fontSize: 11),
         ),
+      ],
+    );
+  }
+}
+
+class _WebBestSellers extends StatelessWidget {
+  final List<ProductSales> products;
+
+  const _WebBestSellers({required this.products});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _WebDashboardColors.of(context);
+    final totalUnits = products.fold<int>(
+      0,
+      (total, product) => total + product.quantity,
+    );
+    final maxQuantity = products.isEmpty ? 1 : products.first.quantity;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _WebCardHeading(
+          title: 'Más vendidos hoy',
+          subtitle: 'Unidades por producto',
+          icon: Icons.emoji_events_outlined,
+        ),
+        const SizedBox(height: 10),
+        if (products.isEmpty)
+          Expanded(
+            child: Center(
+              child: Text(
+                'Las ventas de hoy aparecerán aquí.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: palette.muted, fontSize: 12),
+              ),
+            ),
+          )
+        else
+          for (var index = 0; index < products.length; index++)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 26,
+                        height: 26,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: index == 0
+                              ? palette.selectedSurface
+                              : palette.surfaceMuted,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color: index == 0 ? palette.primary : palette.muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          products[index].name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: palette.text,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${products[index].quantity} u. · '
+                        '${(products[index].quantity / totalUnits * 100).round()}% del top 5',
+                        style: TextStyle(
+                          color: palette.text,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: products[index].quantity / maxQuantity,
+                      minHeight: 5,
+                      backgroundColor: palette.surfaceMuted,
+                      color: index == 0 ? palette.primary : palette.success,
+                    ),
+                  ),
+                ],
+              ),
+            ),
       ],
     );
   }
@@ -1472,8 +1815,13 @@ class _WebWeeklyDonut extends StatelessWidget {
 class _WebDailyLegend extends StatelessWidget {
   final DailySales day;
   final Color color;
+  final String currencyCode;
 
-  const _WebDailyLegend({required this.day, required this.color});
+  const _WebDailyLegend({
+    required this.day,
+    required this.color,
+    required this.currencyCode,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1503,7 +1851,7 @@ class _WebDailyLegend extends StatelessWidget {
           const SizedBox(width: 3),
           Flexible(
             child: Text(
-              AppCurrency.format(day.amount),
+              AppCurrency.format(day.amount, code: currencyCode),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
