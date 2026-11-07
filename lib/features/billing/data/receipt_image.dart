@@ -41,7 +41,7 @@ class ReceiptImage {
         ? null
         : pw.MemoryImage(base64Decode(logoData));
     final pageHeight =
-        540 + sale.lines.length * 84.0 + (showInvoiceQr ? 130 : 0);
+        540 + sale.lines.length * 84.0 + (showInvoiceQr ? 190 : 0);
     document.addPage(
       pw.Page(
         pageFormat: PdfPageFormat(420, pageHeight, marginAll: 0),
@@ -295,8 +295,8 @@ class ReceiptImage {
                   child: pw.BarcodeWidget(
                     barcode: Barcode.qrCode(),
                     data: qrData,
-                    width: 92,
-                    height: 92,
+                    width: 144,
+                    height: 144,
                     drawText: false,
                   ),
                 ),

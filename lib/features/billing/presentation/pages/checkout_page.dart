@@ -1190,19 +1190,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
       );
       if (!context.mounted) return;
-      if (result.status == ShareResultStatus.success) {
-        context.read<BillingBloc>().add(ClearCartEvent());
-        context.go('/');
-      } else if (result.status == ShareResultStatus.dismissed) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      context.read<BillingBloc>().add(ClearCartEvent());
+      context.go('/');
+      if (result.status == ShareResultStatus.dismissed) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('No se compartió el ticket.')),
+        );
+      } else if (result.status == ShareResultStatus.unavailable) {
+        messenger.showSnackBar(
           const SnackBar(
-            content: Text(
-              'No se compartió el ticket. Puedes volver a intentarlo.',
-            ),
+            content: Text('El sistema no pudo abrir el menú para compartir.'),
           ),
         );
-      } else {
-        throw StateError('El sistema no pudo abrir el menú para compartir.');
       }
     } catch (error) {
       if (!context.mounted) return;

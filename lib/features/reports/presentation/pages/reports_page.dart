@@ -396,6 +396,75 @@ class _ReportsPageState extends State<ReportsPage> {
                   ),
                 if (totalsByCurrency.isNotEmpty) const SizedBox(height: 18),
                 _ReportCard(
+                  title: 'Totales por ${_groupLabel(_grouping)} y moneda',
+                  child: groupedSales.isEmpty
+                      ? const _NoData()
+                      : Column(
+                          children: [
+                            for (final bucket in groupedSales)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 9,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(
+                                      _grouping == _Grouping.week
+                                          ? 'Semana del ${bucket.label}'
+                                          : bucket.label,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    for (final code
+                                        in bucket.amounts.keys.toList()..sort())
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 2,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                '$code · ${AppCurrency.format(bucket.amounts[code]!, code: code)}',
+                                              ),
+                                            ),
+                                            Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  AppCurrency.formatReference(
+                                                    bucket.usdAmounts[code] ??
+                                                        0,
+                                                  ),
+                                                  style: Theme.of(
+                                                    context,
+                                                  ).textTheme.labelSmall,
+                                                ),
+                                                Text(
+                                                  'TC prom. 1 USD = '
+                                                  '${bucket.averageRates[code]?.toStringAsFixed(2) ?? '1.00'} $code',
+                                                  style: Theme.of(
+                                                    context,
+                                                  ).textTheme.labelSmall,
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 18),
+                _ReportCard(
                   title: 'Ventas por ${_groupLabel(_grouping)}',
                   child: Column(
                     children: [
@@ -766,6 +835,9 @@ class _ReportsPageState extends State<ReportsPage> {
 
   List<_SalesBucket> _groupSales(List<SaleRecord> sales) {
     final totals = <DateTime, Map<String, double>>{};
+    final usdTotals = <DateTime, Map<String, double>>{};
+    final rateTotals = <DateTime, Map<String, double>>{};
+    final rateCounts = <DateTime, Map<String, int>>{};
     for (final sale in sales) {
       var date = DateTime(sale.soldAt.year, sale.soldAt.month, sale.soldAt.day);
       if (_grouping == _Grouping.week) {
@@ -779,6 +851,24 @@ class _ReportsPageState extends State<ReportsPage> {
         (amount) => amount + sale.total,
         ifAbsent: () => sale.total,
       );
+      usdTotals.putIfAbsent(date, () => {});
+      usdTotals[date]!.update(
+        sale.currencyCode,
+        (amount) => amount + sale.total / sale.exchangeRate,
+        ifAbsent: () => sale.total / sale.exchangeRate,
+      );
+      rateTotals.putIfAbsent(date, () => {});
+      rateTotals[date]!.update(
+        sale.currencyCode,
+        (amount) => amount + sale.exchangeRate,
+        ifAbsent: () => sale.exchangeRate,
+      );
+      rateCounts.putIfAbsent(date, () => {});
+      rateCounts[date]!.update(
+        sale.currencyCode,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
     }
     final ordered = totals.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
@@ -789,6 +879,13 @@ class _ReportsPageState extends State<ReportsPage> {
                 ? _monthFormat.format(entry.key)
                 : _dateFormat.format(entry.key),
             amounts: entry.value,
+            usdAmounts: usdTotals[entry.key]!,
+            averageRates: {
+              for (final code in entry.value.keys)
+                code:
+                    rateTotals[entry.key]![code]! /
+                    rateCounts[entry.key]![code]!,
+            },
           ),
         )
         .toList();
@@ -1777,7 +1874,14 @@ class _NoData extends StatelessWidget {
 class _SalesBucket {
   final String label;
   final Map<String, double> amounts;
-  const _SalesBucket({required this.label, required this.amounts});
+  final Map<String, double> usdAmounts;
+  final Map<String, double> averageRates;
+  const _SalesBucket({
+    required this.label,
+    required this.amounts,
+    required this.usdAmounts,
+    required this.averageRates,
+  });
 }
 
 class _ProductTotal {

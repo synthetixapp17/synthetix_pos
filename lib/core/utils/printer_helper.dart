@@ -27,6 +27,55 @@ class EscPos {
   static const List<int> textNormal = [0x1D, 0x21, 0x00];
   static const List<int> textLarge = [0x1D, 0x21, 0x11];
   static const List<int> lineFeed = [0x0A];
+
+  static List<int> qrCode(String data) {
+    final qrData = utf8.encode(data);
+    final length = qrData.length + 3;
+    return [
+      0x1D,
+      0x28,
+      0x6B,
+      0x04,
+      0x00,
+      0x31,
+      0x41,
+      0x32,
+      0x00,
+      0x1D,
+      0x28,
+      0x6B,
+      0x03,
+      0x00,
+      0x31,
+      0x43,
+      0x05,
+      0x1D,
+      0x28,
+      0x6B,
+      0x03,
+      0x00,
+      0x31,
+      0x45,
+      0x31,
+      0x1D,
+      0x28,
+      0x6B,
+      length & 0xFF,
+      (length >> 8) & 0xFF,
+      0x31,
+      0x50,
+      0x30,
+      ...qrData,
+      0x1D,
+      0x28,
+      0x6B,
+      0x03,
+      0x00,
+      0x31,
+      0x51,
+      0x30,
+    ];
+  }
 }
 
 class PrinterHelper {
@@ -345,9 +394,11 @@ class PrinterHelper {
     }
     if (showInvoiceQr && qrData != null && qrData.isNotEmpty) {
       bytes += EscPos.lineFeed;
-      bytes += _qrCodeBytes(qrData);
+      bytes += EscPos.alignCenter;
+      bytes += EscPos.qrCode(qrData);
       bytes += _textToBytes('Consulta esta venta por QR');
       bytes += EscPos.lineFeed;
+      bytes += EscPos.alignLeft;
     }
     bytes += EscPos.lineFeed;
 
@@ -371,57 +422,6 @@ class PrinterHelper {
 
   List<int> _textToBytes(String text) {
     return List.from(text.codeUnits);
-  }
-
-  List<int> _qrCodeBytes(String data) {
-    final qrData = utf8.encode(data);
-    final length = qrData.length + 3;
-    final lengthLow = length & 0xFF;
-    final lengthHigh = (length >> 8) & 0xFF;
-    return [
-      0x1D,
-      0x28,
-      0x6B,
-      0x04,
-      0x00,
-      0x31,
-      0x41,
-      0x32,
-      0x00,
-      0x1D,
-      0x28,
-      0x6B,
-      0x03,
-      0x00,
-      0x31,
-      0x43,
-      0x06,
-      0x1D,
-      0x28,
-      0x6B,
-      0x03,
-      0x00,
-      0x31,
-      0x45,
-      0x30,
-      0x1D,
-      0x28,
-      0x6B,
-      lengthLow,
-      lengthHigh,
-      0x31,
-      0x50,
-      0x30,
-      ...qrData,
-      0x1D,
-      0x28,
-      0x6B,
-      0x03,
-      0x00,
-      0x31,
-      0x51,
-      0x30,
-    ];
   }
 
   List<int> _logoRasterBytes(Uint8List data) {
