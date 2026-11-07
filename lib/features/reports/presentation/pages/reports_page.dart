@@ -29,6 +29,7 @@ class _ReportsPageState extends State<ReportsPage> {
   late DateTime _from;
   late DateTime _to;
   _Grouping _grouping = _Grouping.day;
+  String? _currencyFilterCode;
   final _dateFormat = DateFormat('d MMM', 'es');
   final _monthFormat = DateFormat('MMM yy', 'es');
   final _saleIdController = TextEditingController();
@@ -176,19 +177,31 @@ class _ReportsPageState extends State<ReportsPage> {
           }
         },
         builder: (context, state) {
-          final groupedSales = _groupSales(state.sales);
-          final products = _topProducts(state.sales);
-          final categoryStats = _categoryStats(state.sales);
+          final reportSales = _currencyFilterCode == null
+              ? state.sales
+              : state.sales
+                    .where((sale) => sale.currencyCode == _currencyFilterCode)
+                    .toList();
+          final currencyFilterCodes = <String>{
+            ...AppCurrency.configuredCurrencies.map(
+              (currency) => currency.code,
+            ),
+            ...state.sales.map((sale) => sale.currencyCode),
+            ?_currencyFilterCode,
+          }.toList()..sort();
+          final groupedSales = _groupSales(reportSales);
+          final products = _topProducts(reportSales);
+          final categoryStats = _categoryStats(reportSales);
           final totalCategoryUnits = categoryStats.fold<int>(
             0,
             (total, category) => total + category.units,
           );
           final currencyCodes =
-              state.sales.map((sale) => sale.currencyCode).toSet().toList()
+              reportSales.map((sale) => sale.currencyCode).toSet().toList()
                 ..sort();
           final totalsByCurrency = <String, double>{};
           final usdTotalsByCurrency = <String, double>{};
-          for (final sale in state.sales) {
+          for (final sale in reportSales) {
             totalsByCurrency.update(
               sale.currencyCode,
               (total) => total + sale.total,
@@ -201,18 +214,22 @@ class _ReportsPageState extends State<ReportsPage> {
             );
           }
           final totalLabel = totalsByCurrency.isEmpty
-              ? AppCurrency.formatConfigured(0)
+              ? _currencyFilterCode == null
+                    ? AppCurrency.formatConfigured(0)
+                    : AppCurrency.format(0, code: _currencyFilterCode!)
               : totalsByCurrency.entries
                     .map(
                       (entry) =>
                           AppCurrency.format(entry.value, code: entry.key),
                     )
                     .join('\n');
-          final averageLabel = totalsByCurrency.isEmpty || state.sales.isEmpty
-              ? AppCurrency.formatConfigured(0)
+          final averageLabel = totalsByCurrency.isEmpty || reportSales.isEmpty
+              ? _currencyFilterCode == null
+                    ? AppCurrency.formatConfigured(0)
+                    : AppCurrency.format(0, code: _currencyFilterCode!)
               : totalsByCurrency.entries
                     .map((entry) {
-                      final currencyTransactions = state.sales
+                      final currencyTransactions = reportSales
                           .where((sale) => sale.currencyCode == entry.key)
                           .length;
                       return AppCurrency.format(
@@ -221,7 +238,7 @@ class _ReportsPageState extends State<ReportsPage> {
                       );
                     })
                     .join('\n');
-          final unitsSold = state.sales.fold<int>(
+          final unitsSold = reportSales.fold<int>(
             0,
             (total, sale) =>
                 total +
@@ -231,17 +248,19 @@ class _ReportsPageState extends State<ReportsPage> {
                 ),
           );
           final transactionTrend = _groupTransactionCounts(
-            state.sales,
+            reportSales,
           ).map((count) => count.toDouble()).toList();
+          final trendCurrencyCode =
+              _currencyFilterCode ?? AppCurrency.currentCode;
           final currencyTransactionTrend = _groupCurrencyTransactionCounts(
-            state.sales,
-            AppCurrency.currentCode,
+            reportSales,
+            trendCurrencyCode,
           );
           final unitsTrend = _groupUnitCounts(
-            state.sales,
+            reportSales,
           ).map((count) => count.toDouble()).toList();
           final revenueTrend = groupedSales
-              .map((bucket) => bucket.amounts[AppCurrency.currentCode] ?? 0.0)
+              .map((bucket) => bucket.amounts[trendCurrencyCode] ?? 0.0)
               .toList();
           final averageTrend = List.generate(groupedSales.length, (index) {
             final count = currencyTransactionTrend[index].toDouble();
@@ -255,7 +274,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 _ReportsHeader(
                   dateLabel:
                       '${_dateFormat.format(_from)} – ${_dateFormat.format(_to)}',
-                  transactionCount: state.sales.length,
+                  transactionCount: reportSales.length,
                 ),
                 const SizedBox(height: 16),
                 _SaleLookupCard(
@@ -274,9 +293,13 @@ class _ReportsPageState extends State<ReportsPage> {
                   grouping: _grouping,
                   dateLabel:
                       '${_dateFormat.format(_from)} – ${_dateFormat.format(_to)}',
+                  currencyCode: _currencyFilterCode,
+                  currencyCodes: currencyFilterCodes,
                   onChooseDates: _chooseDates,
                   onGroupingChanged: (grouping) =>
                       setState(() => _grouping = grouping),
+                  onCurrencyChanged: (currencyCode) =>
+                      setState(() => _currencyFilterCode = currencyCode),
                 ),
                 const SizedBox(height: 16),
                 LayoutBuilder(
@@ -299,7 +322,7 @@ class _ReportsPageState extends State<ReportsPage> {
                             trend: revenueTrend,
                             onTap: () => _showMetricDetails(
                               title: 'Ventas que componen los ingresos',
-                              sales: state.sales,
+                              sales: reportSales,
                             ),
                           ),
                         ),
@@ -307,13 +330,13 @@ class _ReportsPageState extends State<ReportsPage> {
                           width: tileWidth,
                           child: _SummaryTile(
                             title: 'Transacciones',
-                            value: '${state.sales.length}',
+                            value: '${reportSales.length}',
                             accent: const Color(0xFF3977D5),
                             badgeLabel: 'En el periodo',
                             trend: transactionTrend,
                             onTap: () => _showMetricDetails(
                               title: 'Transacciones del periodo',
-                              sales: state.sales,
+                              sales: reportSales,
                             ),
                           ),
                         ),
@@ -327,7 +350,7 @@ class _ReportsPageState extends State<ReportsPage> {
                             trend: unitsTrend,
                             onTap: () => _showMetricDetails(
                               title: 'Productos vendidos',
-                              sales: state.sales,
+                              sales: reportSales,
                               showProducts: true,
                             ),
                           ),
@@ -342,7 +365,7 @@ class _ReportsPageState extends State<ReportsPage> {
                             trend: averageTrend,
                             onTap: () => _showMetricDetails(
                               title: 'Ventas y ticket promedio',
-                              sales: state.sales,
+                              sales: reportSales,
                             ),
                           ),
                         ),
@@ -366,8 +389,8 @@ class _ReportsPageState extends State<ReportsPage> {
                               ),
                             ),
                             subtitle: Text(
-                              '${state.sales.where((sale) => sale.currencyCode == code).length} ventas · '
-                              'Tasa promedio: ${_averageExchangeRate(state.sales, code).toStringAsFixed(2)}',
+                              '${reportSales.where((sale) => sale.currencyCode == code).length} ventas · '
+                              'Tasa promedio: ${_averageExchangeRate(reportSales, code).toStringAsFixed(2)}',
                             ),
                             trailing: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -396,7 +419,8 @@ class _ReportsPageState extends State<ReportsPage> {
                   ),
                 if (totalsByCurrency.isNotEmpty) const SizedBox(height: 18),
                 _ReportCard(
-                  title: 'Totales por ${_groupLabel(_grouping)} y moneda',
+                  title:
+                      'Total acumulado por ${_groupLabel(_grouping)} y moneda',
                   child: groupedSales.isEmpty
                       ? const _NoData()
                       : Column(
@@ -469,7 +493,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   child: Column(
                     children: [
                       if (state.status == ReportsStatus.loading &&
-                          state.sales.isEmpty)
+                          reportSales.isEmpty)
                         const SizedBox(
                           height: 220,
                           child: Center(child: CircularProgressIndicator()),
@@ -1043,17 +1067,23 @@ class _FilterCard extends StatelessWidget {
   final DateTime from;
   final DateTime to;
   final _Grouping grouping;
+  final String? currencyCode;
+  final List<String> currencyCodes;
   final String dateLabel;
   final VoidCallback onChooseDates;
   final ValueChanged<_Grouping> onGroupingChanged;
+  final ValueChanged<String?> onCurrencyChanged;
 
   const _FilterCard({
     required this.from,
     required this.to,
     required this.grouping,
+    required this.currencyCode,
+    required this.currencyCodes,
     required this.dateLabel,
     required this.onChooseDates,
     required this.onGroupingChanged,
+    required this.onCurrencyChanged,
   });
 
   @override
@@ -1096,6 +1126,23 @@ class _FilterCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: currencyCode,
+            decoration: const InputDecoration(labelText: 'Filtrar por moneda'),
+            items: [
+              const DropdownMenuItem<String>(
+                value: null,
+                child: Text('Todas las monedas'),
+              ),
+              for (final code in currencyCodes)
+                DropdownMenuItem<String>(
+                  value: code,
+                  child: Text('${AppCurrency.symbolFor(code)} $code'),
+                ),
+            ],
+            onChanged: onCurrencyChanged,
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<_Grouping>(

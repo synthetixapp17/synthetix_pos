@@ -16,6 +16,7 @@ import '../../../../core/utils/payment_methods.dart';
 import '../../../../core/utils/receipt_preferences.dart';
 import '../../../../core/utils/receipt_qr.dart';
 import '../../data/receipt_image.dart';
+import '../../data/whatsapp_sale_receipt_message.dart';
 import '../../../credit/data/credit_pdf.dart';
 import '../../../credit/data/credit_preferences.dart';
 import '../../../credit/domain/entities/credit_schedule.dart';
@@ -1135,32 +1136,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       shop.addressLine1,
       shop.addressLine2,
     ].where((line) => line.trim().isNotEmpty).join(', ');
-    final message = StringBuffer()
-      ..writeln(shopName)
-      ..writeln('Comprobante de compra')
-      ..writeln(
-        'Fecha: ${DateFormat('dd/MM/yyyy HH:mm', 'es').format(sale.soldAt)}',
-      )
-      ..writeln('Folio: ${sale.id}')
-      ..writeln();
-    for (final line in sale.lines) {
-      message.writeln(
-        '${line.quantity} x ${line.productName}: '
-        '${AppCurrency.format(line.total, code: sale.currencyCode)} · '
-        '${AppCurrency.formatReference(line.total / sale.exchangeRate)}',
-      );
-    }
-    message
-      ..writeln()
-      ..writeln('Forma de pago: ${sale.paymentMethod}')
-      ..writeln()
-      ..writeln(
-        'Tasa aplicada: 1 USD = ${sale.exchangeRate} ${sale.currencyCode}',
-      )
-      ..writeln()
-      ..write(
-        'TOTAL: ${AppCurrency.formatWithUsdReference(sale.total, code: sale.currencyCode, exchangeRate: sale.exchangeRate)}',
-      );
+    final message = buildWhatsappSaleReceiptMessage(sale: sale, shop: shop);
     try {
       final image = await ReceiptImage.build(
         sale: sale,
@@ -1183,8 +1159,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
           'ticket-${sale.id.substring(0, sale.id.length > 8 ? 8 : sale.id.length)}.png';
       final result = await SharePlus.instance.share(
         ShareParams(
-          title: 'Ticket de compra',
-          text: message.toString(),
+          title: 'Comprobante de venta',
+          text: message,
           files: [XFile.fromData(image, name: filename, mimeType: 'image/png')],
           fileNameOverrides: [filename],
         ),
