@@ -146,14 +146,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 String upiId = '';
                 String shopName = 'Tienda';
                 final configuredCurrencies = AppCurrency.configuredCurrencies;
-                final currencyCode = configuredCurrencies.any(
-                  (currency) => currency.code == _checkoutCurrencyCode,
-                )
+                final currencyCode =
+                    configuredCurrencies.any(
+                      (currency) => currency.code == _checkoutCurrencyCode,
+                    )
                     ? _checkoutCurrencyCode
                     : AppCurrency.baseCurrency.code;
                 final exchangeRate = AppCurrency.rateFor(currencyCode);
-                final totalInCurrency =
-                    billingState.totalAmount * exchangeRate;
+                final totalInCurrency = billingState.totalAmount * exchangeRate;
                 final parsedDownPayment = double.tryParse(
                   _initialPaymentController.text.trim().replaceAll(',', '.'),
                 );
@@ -164,10 +164,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     parsedCashReceived != null && parsedCashReceived.isFinite
                     ? parsedCashReceived
                     : 0.0;
-                final changeAmount =
-                    (cashReceivedAmount - totalInCurrency)
-                        .clamp(0.0, double.infinity)
-                        .toDouble();
+                final changeAmount = (cashReceivedAmount - totalInCurrency)
+                    .clamp(0.0, double.infinity)
+                    .toDouble();
                 final downPaymentAmount =
                     parsedDownPayment != null && parsedDownPayment.isFinite
                     ? parsedDownPayment
@@ -276,6 +275,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                             ),
                                             TextAlign.right,
                                             isSubtitle: true,
+                                            reference:
+                                                AppCurrency.formatReference(
+                                                  item.product.price,
+                                                ),
                                           ),
                                           _buildDataCell(
                                             AppCurrency.format(
@@ -284,6 +287,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                             ),
                                             TextAlign.right,
                                             isBold: true,
+                                            reference:
+                                                AppCurrency.formatReference(
+                                                  item.total,
+                                                ),
                                           ),
                                         ],
                                       );
@@ -403,14 +410,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                               ),
                                           decoration: InputDecoration(
                                             labelText: 'Efectivo recibido',
+                                            helperText:
+                                                'Total: ${AppCurrency.format(totalInCurrency, code: currencyCode)} · '
+                                                '${AppCurrency.formatReference(billingState.totalAmount)}',
                                             prefixIcon: const Icon(
                                               Icons.payments_outlined,
                                             ),
-                                            hintText:
-                                                AppCurrency.format(
-                                                  totalInCurrency,
-                                                  code: currencyCode,
-                                                ),
                                           ),
                                           onChanged: (_) => setState(() {}),
                                         ),
@@ -421,9 +426,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                           children: [
                                             const Text('Vuelto'),
                                             Text(
-                                              AppCurrency.format(
+                                              AppCurrency.formatWithUsdReference(
                                                 changeAmount,
                                                 code: currencyCode,
+                                                exchangeRate: exchangeRate,
                                               ),
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.w800,
@@ -546,18 +552,39 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                   style: Theme.of(context).textTheme.titleSmall
                                       ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
-                                Text(
-                                  AppCurrency.format(
-                                    totalInCurrency,
-                                    code: currencyCode,
-                                  ),
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w900,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      AppCurrency.format(
+                                        totalInCurrency,
+                                        code: currencyCode,
                                       ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w900,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                          ),
+                                    ),
+                                    Text(
+                                      AppCurrency.formatReference(
+                                        billingState.totalAmount,
+                                      ),
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                    Text(
+                                      'Tasa: 1 USD = ${exchangeRate.toString()} $currencyCode',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -665,10 +692,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  bool _validateCreditSale(
-    BillingState billingState,
-    double totalInCurrency,
-  ) {
+  bool _validateCreditSale(BillingState billingState, double totalInCurrency) {
     if (!_isCreditSale) return true;
     if (billingState.customer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -714,8 +738,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         daysBetweenPayments < 1 ||
         daysBetweenPayments > 3650 ||
         !(totalInCurrency - initialPayment).isFinite ||
-        !((totalInCurrency - initialPayment) * interestRate / 100)
-            .isFinite) {
+        !((totalInCurrency - initialPayment) * interestRate / 100).isFinite) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -817,6 +840,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         installmentCount: _creditInstallments,
         daysBetweenPayments: _creditDaysBetweenPayments,
         currencyCode: sale.currencyCode,
+        exchangeRate: sale.exchangeRate,
         pdfBase64: base64Encode(pdfBytes),
         lines: sale.lines
             .map(
@@ -958,6 +982,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         customerName: billingState.customer?.name ?? '',
         shopName: shopName,
         currencyCode: currencyCode,
+        exchangeRate: exchangeRate,
         lines: billingState.cartItems
             .map(
               (item) => QuotationLine(
@@ -1121,15 +1146,20 @@ class _CheckoutPageState extends State<CheckoutPage> {
     for (final line in sale.lines) {
       message.writeln(
         '${line.quantity} x ${line.productName}: '
-        '${AppCurrency.format(line.total, code: sale.currencyCode)}',
+        '${AppCurrency.format(line.total, code: sale.currencyCode)} · '
+        '${AppCurrency.formatReference(line.total / sale.exchangeRate)}',
       );
     }
     message
       ..writeln()
       ..writeln('Forma de pago: ${sale.paymentMethod}')
       ..writeln()
+      ..writeln(
+        'Tasa aplicada: 1 USD = ${sale.exchangeRate} ${sale.currencyCode}',
+      )
+      ..writeln()
       ..write(
-        'TOTAL: ${AppCurrency.format(sale.total, code: sale.currencyCode)}',
+        'TOTAL: ${AppCurrency.formatWithUsdReference(sale.total, code: sale.currencyCode, exchangeRate: sale.exchangeRate)}',
       );
     try {
       final image = await ReceiptImage.build(
@@ -1205,17 +1235,33 @@ class _CheckoutPageState extends State<CheckoutPage> {
     TextAlign align, {
     bool isBold = false,
     bool isSubtitle = false,
+    String? reference,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-      child: Text(
-        text,
-        textAlign: align,
-        style: TextStyle(
-          fontSize: isSubtitle ? 12 : 14,
-          fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-          color: isSubtitle ? Colors.grey[500] : Colors.black87,
-        ),
+      child: Column(
+        crossAxisAlignment: align == TextAlign.right
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            textAlign: align,
+            style: TextStyle(
+              fontSize: isSubtitle ? 12 : 14,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+              color: isSubtitle ? Colors.grey[500] : Colors.black87,
+            ),
+          ),
+          if (reference != null)
+            Text(
+              reference,
+              textAlign: align,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1686,15 +1732,20 @@ class _ReceiptPreviewDialog extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              Text(
+                'Tasa aplicada: 1 USD = ${sale.exchangeRate} ${sale.currencyCode}',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
               if (sale.paymentMethod.toLowerCase() == 'efectivo' &&
                   sale.amountTendered > 0) ...[
                 Text(
-                  'Efectivo recibido: ${AppCurrency.format(sale.amountTendered, code: sale.currencyCode)}',
+                  'Efectivo recibido: ${AppCurrency.formatWithUsdReference(sale.amountTendered, code: sale.currencyCode, exchangeRate: sale.exchangeRate)}',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 Text(
-                  'Vuelto: ${AppCurrency.format(sale.changeAmount, code: sale.currencyCode)}',
+                  'Vuelto: ${AppCurrency.formatWithUsdReference(sale.changeAmount, code: sale.currencyCode, exchangeRate: sale.exchangeRate)}',
                   textAlign: TextAlign.center,
                   style: Theme.of(
                     context,
@@ -1726,7 +1777,7 @@ class _ReceiptPreviewDialog extends StatelessWidget {
                             ),
                             Text(
                               ReceiptPreferences.showUnitPrices
-                                  ? '${line.quantity} × ${AppCurrency.format(line.unitPrice, code: sale.currencyCode)}'
+                                  ? '${line.quantity} × ${AppCurrency.formatWithUsdReference(line.unitPrice, code: sale.currencyCode, exchangeRate: sale.exchangeRate)}'
                                   : '${line.quantity} unidades',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
@@ -1740,7 +1791,11 @@ class _ReceiptPreviewDialog extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        AppCurrency.format(line.total, code: sale.currencyCode),
+                        AppCurrency.formatWithUsdReference(
+                          line.total,
+                          code: sale.currencyCode,
+                          exchangeRate: sale.exchangeRate,
+                        ),
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ],
@@ -1754,11 +1809,22 @@ class _ReceiptPreviewDialog extends StatelessWidget {
                     'TOTAL',
                     style: TextStyle(fontWeight: FontWeight.w800),
                   ),
-                  Text(
-                    AppCurrency.format(sale.total, code: sale.currencyCode),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        AppCurrency.format(sale.total, code: sale.currencyCode),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        AppCurrency.formatReference(
+                          sale.total / sale.exchangeRate,
+                        ),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                 ],
               ),

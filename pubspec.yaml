@@ -63,6 +63,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  qr: ^3.0.2
   
   # Code Generation
   build_runner: ^2.4.8

@@ -23,6 +23,8 @@ class DashboardRepositoryImpl implements DashboardRepository {
           )
           .toList();
       final amountsByDay = <String, double>{};
+      final usdAmountsByDay = <String, double>{};
+      final dailyUsdTotals = <String, double>{};
       final productQuantities = <String, int>{};
       final productNames = <String, String>{};
 
@@ -41,9 +43,20 @@ class DashboardRepositoryImpl implements DashboardRepository {
             (amount) => amount + sale.total,
             ifAbsent: () => sale.total,
           );
+          usdAmountsByDay.update(
+            key,
+            (amount) => amount + sale.total / sale.exchangeRate,
+            ifAbsent: () => sale.total / sale.exchangeRate,
+          );
         }
       }
       for (final model in sales) {
+        final sale = model.toEntity();
+        dailyUsdTotals.update(
+          sale.currencyCode,
+          (total) => total + sale.total / sale.exchangeRate,
+          ifAbsent: () => sale.total / sale.exchangeRate,
+        );
         for (final line in decodeSaleLines(model.linesJson)) {
           productQuantities.update(
             line.productId,
@@ -91,7 +104,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
         DashboardSummary(
           dailyTotal: sales.fold<double>(
             0,
-            (total, sale) => total + sale.total,
+            (total, sale) => total + sale.total / sale.exchangeRate,
           ),
           transactionCount: sales.length,
           bestSellers: bestSellers.take(5).toList(),
@@ -107,6 +120,9 @@ class DashboardRepositoryImpl implements DashboardRepository {
                   amount:
                       amountsByDay['${today.subtract(Duration(days: offset)).toIso8601String()}|$code'] ??
                       0,
+                  usdAmount:
+                      usdAmountsByDay['${today.subtract(Duration(days: offset)).toIso8601String()}|$code'] ??
+                      0,
                   currencyCode: code,
                 ),
           ],
@@ -117,6 +133,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
                   .where((item) => item.currencyCode == sale.currencyCode)
                   .fold<double>(0, (total, item) => total + item.total),
           },
+          dailyUsdTotals: dailyUsdTotals,
           recentSales: recentSaleRecords,
           unitsSoldToday: productQuantities.values.fold<int>(
             0,

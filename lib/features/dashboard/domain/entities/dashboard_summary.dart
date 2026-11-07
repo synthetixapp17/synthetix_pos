@@ -16,16 +16,18 @@ class ProductSales extends Equatable {
 class DailySales extends Equatable {
   final DateTime date;
   final double amount;
+  final double usdAmount;
   final String currencyCode;
 
   const DailySales({
     required this.date,
     required this.amount,
+    this.usdAmount = 0,
     this.currencyCode = 'USD',
   });
 
   @override
-  List<Object?> get props => [date, amount, currencyCode];
+  List<Object?> get props => [date, amount, usdAmount, currencyCode];
 }
 
 class DashboardSummary extends Equatable {
@@ -36,6 +38,7 @@ class DashboardSummary extends Equatable {
   final List<DailySales> lastSevenDays;
   final int lowStockThreshold;
   final Map<String, double> dailyTotals;
+  final Map<String, double> dailyUsdTotals;
   final List<SaleRecord> recentSales;
   final int unitsSoldToday;
 
@@ -47,6 +50,7 @@ class DashboardSummary extends Equatable {
     required this.lastSevenDays,
     required this.lowStockThreshold,
     this.dailyTotals = const {},
+    this.dailyUsdTotals = const {},
     this.recentSales = const [],
     this.unitsSoldToday = 0,
   });
@@ -60,6 +64,7 @@ class DashboardSummary extends Equatable {
     lastSevenDays,
     lowStockThreshold,
     dailyTotals,
+    dailyUsdTotals,
     recentSales,
     unitsSoldToday,
   ];

@@ -13,7 +13,8 @@ void main() {
       createdAt: DateTime(2026, 10, 31),
       customerName: 'José Núñez',
       shopName: 'Café Bogotá',
-      currencyCode: 'USD',
+      currencyCode: 'VES',
+      exchangeRate: 40,
       lines: const [
         QuotationLine(
           productName: 'Café molido',
@@ -48,5 +49,7 @@ void main() {
     expect(bytes, isNot(equals(professionalBytes)));
     expect(minimalBytes, isNot(equals(professionalBytes)));
     expect(quotation.total, 25);
+    expect(quotation.totalInUsd, 0.625);
+    expect(QuotationRecord.fromJson(quotation.toJson()).exchangeRate, 40);
   });
 }

@@ -86,6 +86,7 @@ class CreditRecord {
   final double interestPercentage;
   final double interestAmount;
   final String currencyCode;
+  final double exchangeRate;
   final String pdfBase64;
   final List<CreditPayment> payments;
   final List<CreditLineItem> lines;
@@ -98,6 +99,7 @@ class CreditRecord {
     required this.total,
     required this.currencyCode,
     required this.pdfBase64,
+    this.exchangeRate = 1,
     this.purchaseAmount,
     this.initialPayment = 0,
     this.installmentCount,
@@ -139,6 +141,7 @@ class CreditRecord {
         interestPercentage: interestPercentage,
         interestAmount: interestAmount,
         currencyCode: currencyCode,
+        exchangeRate: exchangeRate,
         pdfBase64: pdfBase64 ?? this.pdfBase64,
         payments: payments ?? this.payments,
         lines: lines,
@@ -162,6 +165,7 @@ class CreditRecord {
     'interestPercentage': interestPercentage,
     'interestAmount': interestAmount,
     'currencyCode': currencyCode,
+    'exchangeRate': exchangeRate,
     'pdfBase64': pdfBase64,
     'payments': payments.map((payment) => payment.toJson()).toList(),
     'lines': lines.map((line) => line.toJson()).toList(),
@@ -194,16 +198,14 @@ class CreditRecord {
               .fold<double>(0, (total, payment) => total + payment.amount),
       installmentCount: json['installmentCount'] as int?,
       daysBetweenPayments: json['daysBetweenPayments'] as int?,
-      interestPercentage:
-          (json['interestPercentage'] as num?)?.toDouble() ?? 0,
+      interestPercentage: (json['interestPercentage'] as num?)?.toDouble() ?? 0,
       interestAmount: (json['interestAmount'] as num?)?.toDouble() ?? 0,
       currencyCode: json['currencyCode'] as String? ?? 'USD',
+      exchangeRate: (json['exchangeRate'] as num?)?.toDouble() ?? 1,
       pdfBase64: json['pdfBase64'] as String? ?? '',
       payments: payments,
       lines: (json['lines'] as List<dynamic>? ?? const [])
-          .map(
-            (line) => CreditLineItem.fromJson(line as Map<String, dynamic>),
-          )
+          .map((line) => CreditLineItem.fromJson(line as Map<String, dynamic>))
           .toList(),
     );
   }

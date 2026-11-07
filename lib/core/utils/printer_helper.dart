@@ -184,6 +184,7 @@ class PrinterHelper {
     required double total,
     required String footer,
     String currencyCode = 'USD',
+    double exchangeRate = 1,
     String paymentMethod = 'Efectivo',
     double amountTendered = 0,
     double changeAmount = 0,
@@ -195,6 +196,9 @@ class PrinterHelper {
     bool showBarcode = false,
     bool showUnitPrices = true,
   }) async {
+    if (!exchangeRate.isFinite || exchangeRate <= 0) {
+      throw ArgumentError.value(exchangeRate, 'exchangeRate');
+    }
     if (!await checkConnection()) {
       throw const PrinterException(
         'La impresora se desconectó antes de imprimir el recibo.',
@@ -255,6 +259,10 @@ class PrinterHelper {
     }
     bytes += _textToBytes('Forma de pago: $paymentMethod');
     bytes += EscPos.lineFeed;
+    bytes += _textToBytes(
+      'Tasa: 1 USD = ${exchangeRate.toString()} $currencyCode',
+    );
+    bytes += EscPos.lineFeed;
 
     bytes += _textToBytes('--------------------------------');
     bytes += EscPos.lineFeed;
@@ -292,6 +300,13 @@ class PrinterHelper {
           : prefix.padRight(24) + totalItem;
       bytes += _textToBytes(line);
       bytes += EscPos.lineFeed;
+      bytes += _textToBytes(
+        showUnitPrices
+            ? '  Ref. USD: ${((item['price'] as num) / exchangeRate).toStringAsFixed(2)} / u · '
+                  '${((item['total'] as num) / exchangeRate).toStringAsFixed(2)}'
+            : '  Ref. USD: ${((item['total'] as num) / exchangeRate).toStringAsFixed(2)}',
+      );
+      bytes += EscPos.lineFeed;
       if (showBarcode && barcode.isNotEmpty) {
         bytes += _textToBytes('  Código: $barcode');
         bytes += EscPos.lineFeed;
@@ -308,6 +323,10 @@ class PrinterHelper {
       'TOTAL: ${AppCurrency.format(total, code: currencyCode)}',
     );
     bytes += EscPos.lineFeed;
+    bytes += _textToBytes(
+      'Ref. USD: ${(total / exchangeRate).toStringAsFixed(2)}',
+    );
+    bytes += EscPos.lineFeed;
     bytes += EscPos.boldOff;
     if (paymentMethod.toLowerCase() == 'efectivo' && amountTendered > 0) {
       bytes += _textToBytes(
@@ -316,6 +335,11 @@ class PrinterHelper {
       bytes += EscPos.lineFeed;
       bytes += _textToBytes(
         'Vuelto: ${AppCurrency.format(changeAmount, code: currencyCode)}',
+      );
+      bytes += EscPos.lineFeed;
+      bytes += _textToBytes(
+        'Ref. USD: ${(amountTendered / exchangeRate).toStringAsFixed(2)} recibido · '
+        '${(changeAmount / exchangeRate).toStringAsFixed(2)} vuelto',
       );
       bytes += EscPos.lineFeed;
     }
@@ -355,12 +379,48 @@ class PrinterHelper {
     final lengthLow = length & 0xFF;
     final lengthHigh = (length >> 8) & 0xFF;
     return [
-      0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00,
-      0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06,
-      0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x30,
-      0x1D, 0x28, 0x6B, lengthLow, lengthHigh, 0x31, 0x50, 0x30,
+      0x1D,
+      0x28,
+      0x6B,
+      0x04,
+      0x00,
+      0x31,
+      0x41,
+      0x32,
+      0x00,
+      0x1D,
+      0x28,
+      0x6B,
+      0x03,
+      0x00,
+      0x31,
+      0x43,
+      0x06,
+      0x1D,
+      0x28,
+      0x6B,
+      0x03,
+      0x00,
+      0x31,
+      0x45,
+      0x30,
+      0x1D,
+      0x28,
+      0x6B,
+      lengthLow,
+      lengthHigh,
+      0x31,
+      0x50,
+      0x30,
       ...qrData,
-      0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30,
+      0x1D,
+      0x28,
+      0x6B,
+      0x03,
+      0x00,
+      0x31,
+      0x51,
+      0x30,
     ];
   }
 

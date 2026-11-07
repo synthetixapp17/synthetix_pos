@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
+import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 
 import '../data/models/app_settings.dart';
 import '../data/hive_database.dart';
+import '../../features/product/data/models/product_model.dart';
 
 class CurrencyOption {
   final String code;
@@ -13,6 +15,7 @@ class CurrencyOption {
 }
 
 class AppCurrency {
+  static const baseCode = 'USD';
   static final ValueNotifier<String> selectedCode = ValueNotifier('USD');
 
   static const options = [
@@ -43,7 +46,7 @@ class AppCurrency {
   static AppSettings get appSettings {
     final saved = HiveDatabase.settingsBox.get('app_settings');
     if (saved is AppSettings) return saved;
-    final base = optionFor(currentCode);
+    final base = optionFor(baseCode);
     return AppSettings(
       currencies: [
         CurrencyConfig(
@@ -59,8 +62,15 @@ class AppCurrency {
   static List<CurrencyConfig> get configuredCurrencies =>
       List.unmodifiable(appSettings.currencies);
 
-  static CurrencyConfig get baseCurrency =>
-      appSettings.currencies.singleWhere((currency) => currency.isBase);
+  static CurrencyConfig get baseCurrency => appSettings.currencies.firstWhere(
+    (currency) => currency.code == baseCode,
+    orElse: () => CurrencyConfig(
+      code: baseCode,
+      symbol: optionFor(baseCode).symbol,
+      isBase: true,
+      rate: 1,
+    ),
+  );
 
   static double rateFor(String code) => appSettings.currencies
       .singleWhere((currency) => currency.code == code)
@@ -74,8 +84,88 @@ class AppCurrency {
   }
 
   static Future<void> ensureSettings() async {
-    if (HiveDatabase.settingsBox.get('app_settings') is AppSettings) return;
-    await HiveDatabase.settingsBox.put('app_settings', appSettings);
+    final saved = HiveDatabase.settingsBox.get('app_settings');
+    if (saved is! AppSettings) {
+      final currencies = [...appSettings.currencies];
+      final savedCode = currentCode;
+      if (savedCode != baseCode &&
+          options.any((option) => option.code == savedCode)) {
+        final option = optionFor(savedCode);
+        currencies.add(
+          CurrencyConfig(
+            code: option.code,
+            symbol: option.symbol,
+            isBase: false,
+            rate: 1,
+          ),
+        );
+      }
+      await saveCurrencies(currencies);
+      return;
+    }
+
+    final usd = saved.currencies.where((currency) => currency.code == baseCode);
+    final usdRate = usd.isEmpty ? 1.0 : usd.first.rate;
+    if (!usdRate.isFinite || usdRate <= 0) {
+      throw StateError('La tasa existente de USD no es válida.');
+    }
+    final oldBase = saved.currencies.where((currency) => currency.isBase);
+    final needsCatalogMigration =
+        oldBase.isNotEmpty && oldBase.first.code != baseCode;
+    if (needsCatalogMigration &&
+        usd.isNotEmpty &&
+        Hive.isBoxOpen(HiveDatabase.productBoxName)) {
+      final products = HiveDatabase.productBox;
+      final rates = {
+        for (final currency in saved.currencies) currency.code: currency.rate,
+      };
+      final migratedProducts = <dynamic, ProductModel>{};
+      for (final entry in products.toMap().entries) {
+        final product = entry.value;
+        final oldRate = rates[product.currencyCode];
+        if (oldRate == null || !oldRate.isFinite || oldRate <= 0) continue;
+        migratedProducts[entry.key] = product.copyWith(
+          price: product.price * usdRate / oldRate,
+          currencyCode: baseCode,
+        );
+      }
+      if (migratedProducts.isNotEmpty) {
+        await products.putAll(migratedProducts);
+      }
+    }
+
+    final migrated = <CurrencyConfig>[
+      for (final currency in saved.currencies)
+        if (currency.code == baseCode)
+          currency.copyWith(isBase: true, rate: 1)
+        else
+          currency.copyWith(isBase: false, rate: currency.rate / usdRate),
+    ];
+    if (usd.isEmpty) {
+      migrated.insert(
+        0,
+        CurrencyConfig(
+          code: baseCode,
+          symbol: optionFor(baseCode).symbol,
+          isBase: true,
+          rate: 1,
+        ),
+      );
+    }
+    final savedCode = currentCode;
+    if (!migrated.any((currency) => currency.code == savedCode) &&
+        options.any((option) => option.code == savedCode)) {
+      final option = optionFor(savedCode);
+      migrated.add(
+        CurrencyConfig(
+          code: option.code,
+          symbol: option.symbol,
+          isBase: false,
+          rate: 1,
+        ),
+      );
+    }
+    await saveCurrencies(migrated);
   }
 
   static void loadSavedCurrency() {
@@ -86,40 +176,28 @@ class AppCurrency {
     if (!options.any((option) => option.code == code)) {
       throw ArgumentError.value(code, 'code', 'Moneda no admitida');
     }
-    final currentSettings = appSettings;
-    final matchingCurrency = currentSettings.currencies.where(
-      (currency) => currency.code == code,
-    );
-    final existingBaseRate = matchingCurrency.isEmpty
-        ? null
-        : matchingCurrency.first.rate;
-    final divisor = existingBaseRate ?? 1.0;
-    final updatedCurrencies = <CurrencyConfig>[
-      for (final currency in currentSettings.currencies)
-        currency.copyWith(
-          isBase: currency.code == code,
-          rate: currency.code == code ? 1 : currency.rate / divisor,
-        ),
-    ];
-    if (!updatedCurrencies.any((currency) => currency.code == code)) {
-      updatedCurrencies.add(
-        CurrencyConfig(
-          code: code,
-          symbol: optionFor(code).symbol,
-          isBase: true,
-          rate: 1,
-        ),
+    if (!appSettings.currencies.any((currency) => currency.code == code)) {
+      throw ArgumentError.value(
+        code,
+        'code',
+        'Configura la moneda y su tasa antes de seleccionarla.',
       );
     }
     await HiveDatabase.settingsBox.put('currency_code', code);
-    await saveCurrencies(updatedCurrencies);
     selectedCode.value = code;
   }
 
   static Future<void> saveCurrencies(List<CurrencyConfig> currencies) async {
     if (currencies.isEmpty ||
-        currencies.where((currency) => currency.isBase).length != 1) {
-      throw ArgumentError('Debe configurarse exactamente una moneda base.');
+        currencies.where((currency) => currency.code == baseCode).length != 1 ||
+        currencies.where((currency) => currency.isBase).length != 1 ||
+        !currencies.any(
+          (currency) =>
+              currency.code == baseCode &&
+              currency.isBase &&
+              currency.rate == 1,
+        )) {
+      throw ArgumentError('USD debe ser la única moneda base con tasa 1.0.');
     }
     final codes = currencies.map((currency) => currency.code).toSet();
     if (codes.length != currencies.length) {
@@ -170,6 +248,21 @@ class AppCurrency {
   static String format(num amount, {String? code}) {
     final formatted = NumberFormat('#,##0.00', 'es').format(amount);
     return '${symbolFor(code ?? currentCode)} $formatted';
+  }
+
+  static String formatReference(num amount, {String prefix = 'Ref.'}) =>
+      '$prefix ${format(amount, code: baseCode)}';
+
+  static String formatWithUsdReference(
+    num amount, {
+    required String code,
+    required double exchangeRate,
+  }) {
+    if (!exchangeRate.isFinite || exchangeRate <= 0) {
+      throw ArgumentError.value(exchangeRate, 'exchangeRate');
+    }
+    return '${format(amount, code: code)}\n'
+        '${formatReference(amount / exchangeRate)}';
   }
 
   static String formatConfigured(num amount) =>

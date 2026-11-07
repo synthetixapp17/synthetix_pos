@@ -30,7 +30,7 @@ class _AddProductPageState extends State<AddProductPage> {
   final _priceController = TextEditingController();
   final _stockController = TextEditingController(text: '0');
   final _categoryController = TextEditingController();
-  String _currencyCode = AppCurrency.currentCode;
+  final String _currencyCode = AppCurrency.baseCode;
   String? _imageData;
   late List<String> _categories;
   bool _isPickingImage = false;
@@ -138,7 +138,6 @@ class _AddProductPageState extends State<AddProductPage> {
 
   @override
   Widget build(BuildContext context) {
-    final currencies = AppCurrency.options;
     return Scaffold(
       appBar: AppBar(title: const Text('Agregar producto')),
       body: SafeArea(
@@ -254,28 +253,15 @@ class _AddProductPageState extends State<AddProductPage> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _currencyCode,
+                    child: InputDecorator(
                       decoration: const InputDecoration(
-                        labelText: 'Moneda',
+                        labelText: 'Moneda de referencia',
                         prefixIcon: Icon(Icons.currency_exchange),
                       ),
-                      items: currencies
-                          .map(
-                            (currency) => DropdownMenuItem(
-                              value: currency.code,
-                              child: Text(
-                                '${currency.symbol} ${currency.code}',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _currencyCode = value);
-                        }
-                      },
+                      child: Text(
+                        '${AppCurrency.symbolFor(AppCurrency.baseCode)} '
+                        '${AppCurrency.baseCode}',
+                      ),
                     ),
                   ),
                 ],

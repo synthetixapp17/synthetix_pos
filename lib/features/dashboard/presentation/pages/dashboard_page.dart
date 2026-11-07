@@ -21,10 +21,12 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   static final _date = DateFormat('EEE d', 'es');
+  late String _metricCurrencyCode;
 
   @override
   void initState() {
     super.initState();
+    _metricCurrencyCode = AppCurrency.currentCode;
     context.read<DashboardBloc>().add(const LoadDashboardEvent());
   }
 
@@ -94,12 +96,26 @@ class _DashboardPageState extends State<DashboardPage> {
           if (isWebDesktop) {
             return _buildWebDashboard(context, state, summary);
           }
-          final chartCurrencies =
-              summary.lastSevenDays
-                  .map((day) => day.currencyCode)
-                  .toSet()
-                  .toList()
+          final configuredCurrencies =
+              AppCurrency.configuredCurrencies.map((item) => item.code).toList()
                 ..sort();
+          final metricCurrencyCode =
+              configuredCurrencies.contains(_metricCurrencyCode)
+              ? _metricCurrencyCode
+              : AppCurrency.baseCode;
+          final metricExchangeRate = AppCurrency.rateFor(metricCurrencyCode);
+          final chartCurrencies = [metricCurrencyCode];
+          final chartDays = _dashboardChartDays(
+            summary,
+            metricExchangeRate,
+            metricCurrencyCode,
+          );
+          final dailyTotal =
+              summary.dailyUsdTotals.values.fold<double>(
+                0,
+                (total, amount) => total + amount,
+              ) *
+              metricExchangeRate;
           return RefreshIndicator(
             onRefresh: () async => context.read<DashboardBloc>().add(
               LoadDashboardEvent(threshold: state.threshold),
@@ -109,29 +125,52 @@ class _DashboardPageState extends State<DashboardPage> {
               children: [
                 _WelcomeCard(onNewSale: () => context.push('/new-sale')),
                 const SizedBox(height: 16),
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Mostrar métricas en',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 2,
+                    ),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: metricCurrencyCode,
+                      isExpanded: true,
+                      items: [
+                        for (final code in configuredCurrencies)
+                          DropdownMenuItem(
+                            value: code,
+                            child: Text(
+                              '$code - ${AppCurrency.optionFor(code).symbol}',
+                            ),
+                          ),
+                      ],
+                      onChanged: (code) {
+                        if (code != null) {
+                          setState(() => _metricCurrencyCode = code);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 LayoutBuilder(
                   builder: (context, _) {
-                    final dailyTrend = summary.lastSevenDays
-                        .where(
-                          (day) => day.currencyCode == AppCurrency.currentCode,
-                        )
+                    final dailyTrend = chartDays
                         .map((day) => day.amount)
                         .toList();
                     final metricCards = <Widget>[
                       MetricChartCard(
                         title: 'Ventas del día',
-                        value: summary.dailyTotals.isEmpty
-                            ? AppCurrency.formatConfigured(0)
-                            : summary.dailyTotals.entries
-                                  .map(
-                                    (entry) => AppCurrency.format(
-                                      entry.value,
-                                      code: entry.key,
-                                    ),
-                                  )
-                                  .join('\n'),
+                        value: AppCurrency.format(
+                          dailyTotal,
+                          code: metricCurrencyCode,
+                        ),
                         trend: dailyTrend,
-                        subtitle: '${summary.transactionCount} transacciones',
+                        subtitle:
+                            'Tasa: 1 USD = ${metricExchangeRate.toStringAsFixed(2)} $metricCurrencyCode · ${summary.transactionCount} transacciones',
                         color: const Color(0xFF00E676),
                         legacyDashboardStyle: true,
                         onTap: () => context.push('/reports?period=today'),
@@ -211,16 +250,13 @@ class _DashboardPageState extends State<DashboardPage> {
                               reservedSize: 30,
                               getTitlesWidget: (value, _) {
                                 final index = value.toInt();
-                                if (index < 0 ||
-                                    index >= summary.lastSevenDays.length) {
+                                if (index < 0 || index >= chartDays.length) {
                                   return const SizedBox.shrink();
                                 }
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 8),
                                   child: Text(
-                                    _date.format(
-                                      summary.lastSevenDays[index].date,
-                                    ),
+                                    _date.format(chartDays[index].date),
                                     style: Theme.of(
                                       context,
                                     ).textTheme.labelSmall,
@@ -238,27 +274,14 @@ class _DashboardPageState extends State<DashboardPage> {
                           )
                             LineChartBarData(
                               spots: [
-                                for (var index = 0; index < 7; index++)
+                                for (
+                                  var index = 0;
+                                  index < chartDays.length;
+                                  index++
+                                )
                                   FlSpot(
                                     index.toDouble(),
-                                    summary.lastSevenDays
-                                        .where(
-                                          (day) =>
-                                              day.date ==
-                                                  summary
-                                                      .lastSevenDays
-                                                      .first
-                                                      .date
-                                                      .add(
-                                                        Duration(days: index),
-                                                      ) &&
-                                              day.currencyCode ==
-                                                  chartCurrencies[series],
-                                        )
-                                        .fold<double>(
-                                          0,
-                                          (total, day) => total + day.amount,
-                                        ),
+                                    chartDays[index].amount,
                                   ),
                               ],
                               isCurved: true,
@@ -375,31 +398,58 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  List<DailySales> _dashboardChartDays(
+    DashboardSummary summary,
+    double exchangeRate,
+    String currencyCode,
+  ) {
+    final dates = summary.lastSevenDays.map((day) => day.date).toSet();
+    return [
+      for (final date in dates)
+        DailySales(
+          date: date,
+          amount:
+              summary.lastSevenDays
+                  .where((day) => day.date == date)
+                  .fold<double>(0, (total, day) => total + day.usdAmount) *
+              exchangeRate,
+          currencyCode: currencyCode,
+        ),
+    ];
+  }
+
   Widget _buildWebDashboard(
     BuildContext context,
     DashboardState state,
     DashboardSummary summary,
   ) {
-    final currentCurrency = AppCurrency.currentCode;
-    final weeklySales = summary.lastSevenDays
-        .where((day) => day.currencyCode == currentCurrency)
-        .toList();
+    final availableCurrencies =
+        AppCurrency.configuredCurrencies.map((item) => item.code).toList()
+          ..sort();
+    final currentCurrency = availableCurrencies.contains(_metricCurrencyCode)
+        ? _metricCurrencyCode
+        : AppCurrency.baseCode;
+    final currentRate = AppCurrency.rateFor(currentCurrency);
+    final weeklySales = _dashboardChartDays(
+      summary,
+      currentRate,
+      currentCurrency,
+    );
     final weeklyTotal = weeklySales.fold<double>(
       0,
       (total, day) => total + day.amount,
     );
-    final availableCurrencies = summary.dailyTotals.keys.toList()..sort();
-    if (availableCurrencies.isEmpty) availableCurrencies.add(currentCurrency);
-    final dailyBalance = summary.dailyTotals.isEmpty
-        ? AppCurrency.formatConfigured(0)
-        : summary.dailyTotals.entries
-              .map((entry) => AppCurrency.format(entry.value, code: entry.key))
-              .join('  ·  ');
+    final dailyUsdTotal = summary.dailyUsdTotals.values.fold<double>(
+      0,
+      (total, amount) => total + amount,
+    );
+    final dailyBalance = AppCurrency.format(
+      dailyUsdTotal * currentRate,
+      code: currentCurrency,
+    );
     final colors = _WebDashboardColors.of(context);
     final weeklyColors = colors.chartColors;
-    final dailySales = summary.lastSevenDays
-        .where((day) => day.currencyCode == currentCurrency)
-        .toList();
+    final dailySales = weeklySales;
     final chartMax = dailySales.fold<double>(
       0,
       (maximum, day) => day.amount > maximum ? day.amount : maximum,
@@ -435,7 +485,13 @@ class _DashboardPageState extends State<DashboardPage> {
                         flex: 6,
                         child: _WebBalanceCard(
                           currencies: availableCurrencies,
+                          selectedCurrency: currentCurrency,
                           balance: dailyBalance,
+                          onCurrencyChanged: (code) {
+                            if (code != null) {
+                              setState(() => _metricCurrencyCode = code);
+                            }
+                          },
                           onNewSale: () => context.push('/new-sale'),
                           onReports: () => context.push('/reports'),
                         ),
@@ -878,13 +934,17 @@ class _WebHeaderAction extends StatelessWidget {
 
 class _WebBalanceCard extends StatelessWidget {
   final List<String> currencies;
+  final String selectedCurrency;
   final String balance;
+  final ValueChanged<String?> onCurrencyChanged;
   final VoidCallback onNewSale;
   final VoidCallback onReports;
 
   const _WebBalanceCard({
     required this.currencies,
+    required this.selectedCurrency,
     required this.balance,
+    required this.onCurrencyChanged,
     required this.onNewSale,
     required this.onReports,
   });
@@ -915,21 +975,27 @@ class _WebBalanceCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final currency in currencies.take(3))
-                      _WebCurrencyPill(
-                        code: currency,
-                        selected: currency == AppCurrency.currentCode,
-                      ),
-                    if (currencies.length > 3)
-                      Text(
-                        '+${currencies.length - 3}',
-                        style: TextStyle(color: webColors.muted, fontSize: 12),
-                      ),
-                  ],
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedCurrency,
+                    isExpanded: true,
+                    onChanged: onCurrencyChanged,
+                    style: TextStyle(
+                      color: webColors.text,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    items: [
+                      for (final currency in currencies)
+                        DropdownMenuItem(
+                          value: currency,
+                          child: Text(
+                            '${AppCurrency.optionFor(currency).symbol} $currency',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -985,6 +1051,13 @@ class _WebBalanceCard extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Tasa visualizada: 1 USD = '
+            '${AppCurrency.rateFor(selectedCurrency).toStringAsFixed(2)} '
+            '$selectedCurrency',
+            style: TextStyle(color: webColors.muted, fontSize: 10),
           ),
           const Spacer(),
           Row(
@@ -1061,33 +1134,6 @@ class _WebBalanceCard extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _WebCurrencyPill extends StatelessWidget {
-  final String code;
-  final bool selected;
-
-  const _WebCurrencyPill({required this.code, required this.selected});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = _WebDashboardColors.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: selected ? colors.primary : colors.surfaceMuted,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        code,
-        style: TextStyle(
-          color: selected ? colors.onPrimary : colors.secondary,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-        ),
       ),
     );
   }

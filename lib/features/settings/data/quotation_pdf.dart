@@ -121,8 +121,16 @@ class QuotationPdf {
                 [
                   line.productName,
                   '${line.quantity}',
-                  _money(line.unitPrice, quotation.currencyCode),
-                  _money(line.total, quotation.currencyCode),
+                  _moneyWithReference(
+                    line.unitPrice,
+                    quotation.currencyCode,
+                    quotation.exchangeRate,
+                  ),
+                  _moneyWithReference(
+                    line.total,
+                    quotation.currencyCode,
+                    quotation.exchangeRate,
+                  ),
                 ],
             ],
             headerDecoration: pw.BoxDecoration(
@@ -174,7 +182,11 @@ class QuotationPdf {
                     ),
                   ),
                   pw.Text(
-                    _money(quotation.total, quotation.currencyCode),
+                    _moneyWithReference(
+                      quotation.total,
+                      quotation.currencyCode,
+                      quotation.exchangeRate,
+                    ),
                     style: pw.TextStyle(
                       color: isProfessional ? PdfColors.white : primary,
                       fontSize: 13,
@@ -186,6 +198,12 @@ class QuotationPdf {
             ),
           ),
           pw.SizedBox(height: 32),
+          pw.Text(
+            'Tasa aplicada: 1 USD = ${quotation.exchangeRate} ${quotation.currencyCode}',
+            textAlign: pw.TextAlign.right,
+            style: const pw.TextStyle(color: PdfColors.grey600, fontSize: 9),
+          ),
+          pw.SizedBox(height: 12),
           pw.Divider(color: PdfColors.grey300),
           pw.Text(
             'Documento de cotización. No representa una venta ni una factura.',
@@ -210,8 +228,13 @@ class QuotationPdf {
     color.blue + (1 - color.blue) * amount,
   );
 
-  static String _money(double amount, String code) =>
-      '$code ${amount.toStringAsFixed(2)}';
+  static String _moneyWithReference(
+    double amount,
+    String code,
+    double exchangeRate,
+  ) =>
+      '$code ${amount.toStringAsFixed(2)}\n'
+      'Ref. USD ${(amount / exchangeRate).toStringAsFixed(2)}';
 
   static String _formatDate(DateTime date) =>
       '${date.day.toString().padLeft(2, '0')}/'

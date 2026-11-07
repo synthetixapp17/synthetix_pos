@@ -247,297 +247,297 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: const Text('Cotización'),
-        centerTitle: true,
+        appBar: AppBar(
+          title: const Text('Cotización'),
+          centerTitle: true,
           foregroundColor: const Color(0xFF202938),
           backgroundColor: const Color(0xFFF5F7FA),
           surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          tooltip: 'Volver',
-          onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back_rounded),
+          leading: IconButton(
+            tooltip: 'Volver',
+            onPressed: () => context.pop(),
+            icon: const Icon(Icons.arrow_back_rounded),
+          ),
         ),
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1050),
-          child: Column(
-            children: [
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
-                  children: [
-                    _SurfaceCard(
-                      child: SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: _enabled,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1050),
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+                    children: [
+                      _SurfaceCard(
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: _enabled,
                           onChanged: (value) =>
                               setState(() => _enabled = value),
-                        secondary: Container(
-                          width: 46,
-                          height: 46,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE5F4F0),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Icon(
-                            Icons.request_quote_outlined,
-                            color: Color(0xFF2E7D6F),
-                          ),
-                        ),
-                        title: const Text(
-                          'Usar cotizaciones',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        subtitle: Text(
-                          'En Revisar orden aparece Crear cotización para generar un PDF.',
-                          style: TextStyle(color: colors.onSurfaceVariant),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _SurfaceCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Diseño del PDF',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
+                          secondary: Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE5F4F0),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.request_quote_outlined,
+                              color: Color(0xFF2E7D6F),
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Elige una presentación para tus documentos.',
+                          title: const Text(
+                            'Usar cotizaciones',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          subtitle: Text(
+                            'En Revisar orden aparece Crear cotización para generar un PDF.',
                             style: TextStyle(color: colors.onSurfaceVariant),
                           ),
-                          const SizedBox(height: 18),
-                          SizedBox(
-                            height: 154,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _templates.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(width: 14),
-                              itemBuilder: (context, index) {
-                                final template = _templates[index];
-                                return _TemplateOption(
-                                  name: template,
-                                  selected: _template == template,
-                                  primaryColor: _primaryColor,
-                                  accentColor: _accentColor,
-                                  onTap: () =>
-                                      setState(() => _template = template),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _SurfaceCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Diseño del PDF',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Elige una presentación para tus documentos.',
+                              style: TextStyle(color: colors.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: 18),
+                            SizedBox(
+                              height: 154,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _templates.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 14),
+                                itemBuilder: (context, index) {
+                                  final template = _templates[index];
+                                  return _TemplateOption(
+                                    name: template,
+                                    selected: _template == template,
+                                    primaryColor: _primaryColor,
+                                    accentColor: _accentColor,
+                                    onTap: () =>
+                                        setState(() => _template = template),
                                     onPreview: () => _previewTemplate(template),
+                                  );
+                                },
+                              ),
+                            ),
+                            const Divider(height: 30),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Colores',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        'Personaliza la identidad del PDF.',
+                                        style: TextStyle(
+                                          color: colors.onSurfaceVariant,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                CircleAvatar(
+                                  radius: 11,
+                                  backgroundColor: Color(_primaryColor),
+                                ),
+                                const SizedBox(width: 7),
+                                CircleAvatar(
+                                  radius: 11,
+                                  backgroundColor: Color(_accentColor),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(
+                                  Icons.expand_more_rounded,
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final width = (constraints.maxWidth - 12) / 2;
+                                return Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: [
+                                    _PdfColorCard(
+                                      width: width,
+                                      title: 'Principal',
+                                      color: _primaryColor,
+                                      hex: _hex(_primaryColor),
+                                      onTap: () => _chooseColor(primary: true),
+                                    ),
+                                    _PdfColorCard(
+                                      width: width,
+                                      title: 'Acento',
+                                      color: _accentColor,
+                                      hex: _hex(_accentColor),
+                                      onTap: () => _chooseColor(primary: false),
+                                    ),
+                                  ],
                                 );
                               },
                             ),
-                          ),
-                          const Divider(height: 30),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Colores',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      'Personaliza la identidad del PDF.',
-                                      style: TextStyle(
-                                        color: colors.onSurfaceVariant,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              CircleAvatar(
-                                radius: 11,
-                                backgroundColor: Color(_primaryColor),
-                              ),
-                              const SizedBox(width: 7),
-                              CircleAvatar(
-                                radius: 11,
-                                backgroundColor: Color(_accentColor),
-                              ),
-                              const SizedBox(width: 6),
-                              Icon(
-                                Icons.expand_more_rounded,
-                                color: colors.onSurfaceVariant,
+                            if (accentIsLight) ...[
+                              const SizedBox(height: 12),
+                              _AccentWarning(
+                                onDarken: () =>
+                                    setState(() => _accentColor = 0xFF008F7A),
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 14),
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final width = (constraints.maxWidth - 12) / 2;
-                              return Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                children: [
-                                  _PdfColorCard(
-                                    width: width,
-                                    title: 'Principal',
-                                    color: _primaryColor,
-                                    hex: _hex(_primaryColor),
-                                    onTap: () => _chooseColor(primary: true),
+                            const SizedBox(height: 18),
+                            Text(
+                              'Combinaciones',
+                              style: TextStyle(
+                                color: colors.onSurfaceVariant,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: [
+                                for (final (primary, accent) in _colorPairs)
+                                  _ColorCombination(
+                                    primary: primary,
+                                    accent: accent,
+                                    label: _colorLabel(primary, accent),
+                                    selected:
+                                        primary == _primaryColor &&
+                                        accent == _accentColor,
+                                    onTap: () =>
+                                        _selectCombination(primary, accent),
                                   ),
-                                  _PdfColorCard(
-                                    width: width,
-                                    title: 'Acento',
-                                    color: _accentColor,
-                                    hex: _hex(_accentColor),
-                                    onTap: () => _chooseColor(primary: false),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          if (accentIsLight) ...[
-                            const SizedBox(height: 12),
-                            _AccentWarning(
-                              onDarken: () =>
-                                  setState(() => _accentColor = 0xFF008F7A),
+                              ],
                             ),
                           ],
-                          const SizedBox(height: 18),
-                          Text(
-                            'Combinaciones',
-                            style: TextStyle(
-                              color: colors.onSurfaceVariant,
-                              fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Historial',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      if (_historyError != null)
+                        _SurfaceCard(
+                          child: Text(
+                            'No se pudo leer el historial: $_historyError',
+                            style: TextStyle(color: colors.error),
+                          ),
+                        )
+                      else if (_history.isEmpty)
+                        _SurfaceCard(
+                          child: SizedBox(
+                            height: 150,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.description_outlined,
+                                  size: 38,
+                                  color: colors.onSurfaceVariant.withValues(
+                                    alpha: 0.55,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Aún no hay cotizaciones',
+                                  style: TextStyle(
+                                    color: colors.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: [
-                              for (final (primary, accent) in _colorPairs)
-                                _ColorCombination(
-                                  primary: primary,
-                                  accent: accent,
-                                    label: _colorLabel(primary, accent),
-                                  selected:
-                                      primary == _primaryColor &&
-                                      accent == _accentColor,
-                                  onTap: () =>
-                                      _selectCombination(primary, accent),
-                                ),
-                            ],
+                        )
+                      else
+                        for (final quotation in _history)
+                          _QuotationHistoryTile(
+                            quotation: quotation,
+                            onTap: () => _shareQuotation(quotation),
                           ),
-                        ],
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.07),
+                        blurRadius: 16,
+                        offset: const Offset(0, -4),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Historial',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    if (_historyError != null)
-                      _SurfaceCard(
-                        child: Text(
-                          'No se pudo leer el historial: $_historyError',
-                          style: TextStyle(color: colors.error),
-                        ),
-                      )
-                    else if (_history.isEmpty)
-                      _SurfaceCard(
-                        child: SizedBox(
-                          height: 150,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.description_outlined,
-                                size: 38,
-                                color: colors.onSurfaceVariant.withValues(
-                                  alpha: 0.55,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Aún no hay cotizaciones',
-                                style: TextStyle(
-                                  color: colors.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                    ],
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: FilledButton.icon(
+                        onPressed: _saving ? null : _save,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF2E7D6F),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                      )
-                    else
-                      for (final quotation in _history)
-                        _QuotationHistoryTile(
-                          quotation: quotation,
-                          onTap: () => _shareQuotation(quotation),
+                        icon: _saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.save_outlined),
+                        label: const Text(
+                          'Guardar',
+                          style: TextStyle(fontWeight: FontWeight.w800),
                         ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.07),
-                      blurRadius: 16,
-                      offset: const Offset(0, -4),
-                    ),
-                  ],
-                ),
-                child: SafeArea(
-                  top: false,
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: FilledButton.icon(
-                      onPressed: _saving ? null : _save,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E7D6F),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      icon: _saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.save_outlined),
-                      label: const Text(
-                        'Guardar',
-                        style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -601,32 +601,32 @@ class _TemplateOption extends StatelessWidget {
                   Positioned.fill(
                     child: Container(
                       padding: const EdgeInsets.all(9),
-                    decoration: BoxDecoration(
+                      decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
+                        border: Border.all(
                           color: selected ? primary : const Color(0xFFDCE2EA),
                           width: selected ? 2.5 : 1,
-                      ),
+                        ),
                         boxShadow: [
-                        BoxShadow(
+                          BoxShadow(
                             color: const Color(
                               0xFF172B4D,
                             ).withValues(alpha: 0.06),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: BlocBuilder<ShopBloc, ShopState>(
+                        builder: (context, state) => _InvoicePreview(
+                          name: name,
+                          shopName: state is ShopLoaded ? state.shop.name : '',
+                          primaryColor: primaryColor,
+                          accentColor: accentColor,
                         ),
-                      ],
-                    ),
-                    child: BlocBuilder<ShopBloc, ShopState>(
-                      builder: (context, state) => _InvoicePreview(
-                        name: name,
-                        shopName: state is ShopLoaded ? state.shop.name : '',
-                        primaryColor: primaryColor,
-                        accentColor: accentColor,
                       ),
                     ),
-                  ),
                   ),
                   if (selected)
                     Positioned(
@@ -1018,12 +1018,12 @@ class _PdfColorCard extends StatelessWidget {
   Widget build(BuildContext context) => Material(
     color: Colors.transparent,
     child: InkWell(
-    onTap: onTap,
+      onTap: onTap,
       borderRadius: BorderRadius.circular(16),
-    child: Container(
-      width: width,
+      child: Container(
+        width: width,
         clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
+        decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFE7EBF0)),
@@ -1040,7 +1040,7 @@ class _PdfColorCard extends StatelessWidget {
             Container(
               height: 62,
               width: double.infinity,
-        color: Color(color),
+              color: Color(color),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               alignment: Alignment.centerLeft,
               child: Text(
@@ -1049,33 +1049,33 @@ class _PdfColorCard extends StatelessWidget {
                   color: Colors.white,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-      ),
+                ),
               ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          Expanded(
+              child: Row(
+                children: [
+                  Expanded(
                     child: Text(
-                  title,
-                  style: const TextStyle(
+                      title,
+                      style: const TextStyle(
                         color: Color(0xFF202938),
                         fontWeight: FontWeight.w700,
-                  ),
-                ),
+                      ),
+                    ),
                   ),
                   const Icon(
                     Icons.edit_outlined,
                     color: Color(0xFF697587),
                     size: 18,
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     ),
   );
 }
@@ -1210,7 +1210,9 @@ class _QuotationHistoryTile extends StatelessWidget {
                 Text(
                   '${DateFormat('dd/MM/yyyy HH:mm').format(quotation.createdAt)} · '
                   '${quotation.lines.length} productos · '
-                  '${AppCurrency.format(quotation.total, code: quotation.currencyCode)}',
+                  '${AppCurrency.format(quotation.total, code: quotation.currencyCode)} · '
+                  '${AppCurrency.formatReference(quotation.totalInUsd)} · '
+                  '1 USD = ${quotation.exchangeRate} ${quotation.currencyCode}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

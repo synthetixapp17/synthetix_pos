@@ -21,6 +21,7 @@ void main() {
         interestPercentage: 10,
         interestAmount: 10,
         currencyCode: 'USD',
+        exchangeRate: 1,
         pdfBase64: 'cGRm',
         lines: const [
           CreditLineItem(
@@ -60,6 +61,7 @@ void main() {
       expect(restored.installmentCount, 3);
       expect(restored.daysBetweenPayments, 15);
       expect(restored.lines.single.total, 110);
+      expect(restored.exchangeRate, 1);
     },
   );
 
@@ -85,5 +87,6 @@ void main() {
     expect(legacy.payments.single.method, 'Efectivo');
     expect(legacy.lines, isEmpty);
     expect(legacy.installmentCount, isNull);
+    expect(legacy.exchangeRate, 1);
   });
 }

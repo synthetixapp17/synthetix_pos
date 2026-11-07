@@ -55,6 +55,28 @@ class ProductModel extends Product {
          category: category,
        );
 
+  ProductModel copyWith({
+    String? id,
+    String? name,
+    String? barcode,
+    double? price,
+    int? stock,
+    String? description,
+    String? imageData,
+    String? currencyCode,
+    String? category,
+  }) => ProductModel(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    barcode: barcode ?? this.barcode,
+    price: price ?? this.price,
+    stock: stock ?? this.stock,
+    description: description ?? this.description,
+    imageData: imageData ?? this.imageData,
+    currencyCode: currencyCode ?? this.currencyCode,
+    category: category ?? this.category,
+  );
+
   factory ProductModel.fromEntity(Product product) {
     return ProductModel(
       id: product.id,

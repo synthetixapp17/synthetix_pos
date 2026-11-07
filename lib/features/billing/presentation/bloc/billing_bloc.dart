@@ -392,6 +392,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
         total: state.totalAmount * event.exchangeRate,
         footer: event.footer,
         currencyCode: event.currencyCode,
+        exchangeRate: event.exchangeRate,
         paymentMethod: event.paymentMethod,
         amountTendered: event.amountTendered,
         changeAmount: event.changeAmount,

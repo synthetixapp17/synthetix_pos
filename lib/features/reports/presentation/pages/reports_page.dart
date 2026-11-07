@@ -187,11 +187,17 @@ class _ReportsPageState extends State<ReportsPage> {
               state.sales.map((sale) => sale.currencyCode).toSet().toList()
                 ..sort();
           final totalsByCurrency = <String, double>{};
+          final usdTotalsByCurrency = <String, double>{};
           for (final sale in state.sales) {
             totalsByCurrency.update(
               sale.currencyCode,
               (total) => total + sale.total,
               ifAbsent: () => sale.total,
+            );
+            usdTotalsByCurrency.update(
+              sale.currencyCode,
+              (total) => total + sale.total / sale.exchangeRate,
+              ifAbsent: () => sale.total / sale.exchangeRate,
             );
           }
           final totalLabel = totalsByCurrency.isEmpty
@@ -345,6 +351,50 @@ class _ReportsPageState extends State<ReportsPage> {
                   },
                 ),
                 const SizedBox(height: 18),
+                if (totalsByCurrency.isNotEmpty)
+                  _ReportCard(
+                    title: 'Aporte por moneda y tipo de cambio',
+                    child: Column(
+                      children: [
+                        for (final code in currencyCodes)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              '${AppCurrency.symbolFor(code)} $code',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${state.sales.where((sale) => sale.currencyCode == code).length} ventas · '
+                              'Tasa promedio: ${_averageExchangeRate(state.sales, code).toStringAsFixed(2)}',
+                            ),
+                            trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  AppCurrency.format(
+                                    totalsByCurrency[code]!,
+                                    code: code,
+                                  ),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                Text(
+                                  AppCurrency.formatReference(
+                                    usdTotalsByCurrency[code]!,
+                                  ),
+                                  style: Theme.of(context).textTheme.labelSmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                if (totalsByCurrency.isNotEmpty) const SizedBox(height: 18),
                 _ReportCard(
                   title: 'Ventas por ${_groupLabel(_grouping)}',
                   child: Column(
@@ -702,6 +752,18 @@ class _ReportsPageState extends State<ReportsPage> {
     _load();
   }
 
+  double _averageExchangeRate(List<SaleRecord> sales, String currencyCode) {
+    final matchingSales = sales
+        .where((sale) => sale.currencyCode == currencyCode)
+        .toList();
+    if (matchingSales.isEmpty) return 1;
+    return matchingSales.fold<double>(
+          0,
+          (total, sale) => total + sale.exchangeRate,
+        ) /
+        matchingSales.length;
+  }
+
   List<_SalesBucket> _groupSales(List<SaleRecord> sales) {
     final totals = <DateTime, Map<String, double>>{};
     for (final sale in sales) {
@@ -826,6 +888,7 @@ class _ReportsPageState extends State<ReportsPage> {
           (amount) => amount + line.total,
           ifAbsent: () => line.total,
         );
+        category.usdAmount += line.total / sale.exchangeRate;
       }
     }
     return categories.values.toList()
@@ -1014,7 +1077,8 @@ class _ReportMetricDetailsSheet extends StatelessWidget {
         );
         product
           ..quantity += line.quantity
-          ..amount += line.total;
+          ..amount += line.total
+          ..usdAmount += line.total / sale.exchangeRate;
       }
     }
     final sortedProducts = products.values.toList()
@@ -1076,14 +1140,26 @@ class _ReportMetricDetailsSheet extends StatelessWidget {
                                   ),
                                 ),
                                 subtitle: Text('${product.quantity} unidades'),
-                                trailing: Text(
-                                  AppCurrency.format(
-                                    product.amount,
-                                    code: product.currencyCode,
-                                  ),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                                trailing: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      AppCurrency.format(
+                                        product.amount,
+                                        code: product.currencyCode,
+                                      ),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    Text(
+                                      AppCurrency.formatReference(
+                                        product.usdAmount,
+                                      ),
+                                      style: theme.textTheme.labelSmall,
+                                    ),
+                                  ],
                                 ),
                               );
                             },
@@ -1106,9 +1182,10 @@ class _ReportMetricDetailsSheet extends StatelessWidget {
                           ),
                           child: ExpansionTile(
                             title: Text(
-                              AppCurrency.format(
+                              AppCurrency.formatWithUsdReference(
                                 sale.total,
                                 code: sale.currencyCode,
+                                exchangeRate: sale.exchangeRate,
                               ),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w800,
@@ -1118,7 +1195,8 @@ class _ReportMetricDetailsSheet extends StatelessWidget {
                               '${DateFormat('dd/MM/yyyy HH:mm', 'es').format(sale.soldAt)} · '
                               '${sale.customerName ?? 'Venta sin cliente'} · '
                               '${sale.paymentMethod} · '
-                              '${sale.lines.length} productos',
+                              '${sale.lines.length} productos · '
+                              'Tasa 1 USD = ${sale.exchangeRate} ${sale.currencyCode}',
                             ),
                             children: [
                               for (final line in sale.lines)
@@ -1126,12 +1204,15 @@ class _ReportMetricDetailsSheet extends StatelessWidget {
                                   dense: true,
                                   title: Text(line.productName),
                                   subtitle: Text(
-                                    '${line.quantity} × ${AppCurrency.format(line.unitPrice, code: sale.currencyCode)}',
+                                    '${line.quantity} × '
+                                    '${AppCurrency.format(line.unitPrice, code: sale.currencyCode)} · '
+                                    '${AppCurrency.formatReference(line.unitPrice / sale.exchangeRate)}',
                                   ),
                                   trailing: Text(
-                                    AppCurrency.format(
+                                    AppCurrency.formatWithUsdReference(
                                       line.total,
                                       code: sale.currencyCode,
+                                      exchangeRate: sale.exchangeRate,
                                     ),
                                   ),
                                 ),
@@ -1252,7 +1333,8 @@ class _SaleLookupCard extends StatelessWidget {
                     Text(
                       '${DateFormat('dd/MM/yyyy HH:mm', 'es').format(sale!.soldAt)}'
                       ' · ${sale!.customerName ?? 'Venta sin cliente'}'
-                      ' · ${sale!.paymentMethod}',
+                      ' · ${sale!.paymentMethod}'
+                      ' · Tasa 1 USD = ${sale!.exchangeRate} ${sale!.currencyCode}',
                     ),
                     const Divider(height: 18),
                     for (final line in sale!.lines)
@@ -1266,9 +1348,10 @@ class _SaleLookupCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              AppCurrency.format(
+                              AppCurrency.formatWithUsdReference(
                                 line.total,
                                 code: sale!.currencyCode,
+                                exchangeRate: sale!.exchangeRate,
                               ),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
@@ -1286,9 +1369,10 @@ class _SaleLookupCard extends StatelessWidget {
                           style: TextStyle(fontWeight: FontWeight.w800),
                         ),
                         Text(
-                          AppCurrency.format(
+                          AppCurrency.formatWithUsdReference(
                             sale!.total,
                             code: sale!.currencyCode,
+                            exchangeRate: sale!.exchangeRate,
                           ),
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w900,
@@ -1313,6 +1397,7 @@ class _DetailedProduct {
   final String currencyCode;
   int quantity = 0;
   double amount = 0;
+  double usdAmount = 0;
 
   _DetailedProduct({required this.name, required this.currencyCode});
 }
@@ -1632,6 +1717,13 @@ class _CategoryMetricTile extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
+                  Text(
+                    AppCurrency.formatReference(category.usdAmount),
+                    style: const TextStyle(
+                      color: Color(0xFF778397),
+                      fontSize: 11,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -1699,6 +1791,7 @@ class _CategoryTotal {
   final Map<String, double> amounts = {};
   final Set<String> transactions = {};
   int units = 0;
+  double usdAmount = 0;
 
   _CategoryTotal(this.name);
 }

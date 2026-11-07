@@ -15,8 +15,6 @@ import '../../../../core/utils/app_currency.dart';
 import '../../../billing/presentation/bloc/billing_bloc.dart';
 import '../../../customer/presentation/bloc/customer_bloc.dart';
 import '../../../dashboard/presentation/bloc/dashboard_bloc.dart';
-import '../../../product/data/models/product_model.dart';
-import '../../../product/domain/entities/product.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../reports/presentation/bloc/reports_bloc.dart';
 import '../../../shop/presentation/bloc/shop_bloc.dart';
@@ -95,7 +93,6 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _saveCurrency(String? code) async {
     if (code == null) return;
     if (code == _currencyCode) return;
-    final productBloc = context.read<ProductBloc>();
     if (context.read<BillingBloc>().state.cartItems.isNotEmpty) {
       setState(() => _currencyDropdownVersion++);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -108,30 +105,8 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
 
-    final productsBox = HiveDatabase.productBox;
-    final previousProducts = productsBox.toMap();
     try {
-      final replacements = <dynamic, ProductModel>{};
-      for (final entry in previousProducts.entries) {
-        final product = entry.value;
-        replacements[entry.key] = ProductModel.fromEntity(
-          Product(
-            id: product.id,
-            name: product.name,
-            barcode: product.barcode,
-            price: product.price,
-            stock: product.stock,
-            description: product.description,
-            imageData: product.imageData,
-            currencyCode: code,
-            category: product.category,
-          ),
-        );
-      }
-
-      await productsBox.putAll(replacements);
       await AppCurrency.setCurrentCode(code);
-      productBloc.add(LoadProducts());
       if (mounted) {
         setState(() {
           _currencyCode = code;
@@ -139,23 +114,11 @@ class _SettingsPageState extends State<SettingsPage> {
         });
       }
     } catch (error) {
-      String? rollbackError;
-      try {
-        await productsBox.putAll(previousProducts);
-        await AppCurrency.setCurrentCode(_currencyCode);
-      } catch (error) {
-        rollbackError = error.toString();
-      }
-      productBloc.add(LoadProducts());
       if (mounted) {
         setState(() => _currencyDropdownVersion++);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              rollbackError == null
-                  ? 'No se pudo actualizar la moneda. Se conservaron los datos anteriores: $error'
-                  : 'No se pudo actualizar la moneda ($error) ni restaurar todos los datos ($rollbackError).',
-            ),
+            content: Text('No se pudo actualizar la moneda de cobro: $error'),
           ),
         );
       }
@@ -165,7 +128,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Moneda actualizada. Se aplicó a los productos sin convertir sus precios. Los importes históricos mantienen su valor y se muestran con el símbolo seleccionado.',
+            'Moneda de cobro predeterminada actualizada. Los precios del catálogo y su referencia permanecen en USD.',
           ),
         ),
       );
@@ -546,18 +509,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   key: ValueKey(_currencyDropdownVersion),
                   initialValue: _currencyCode,
                   decoration: const InputDecoration(
-                    labelText: 'Moneda base del catálogo',
+                    labelText: 'Moneda predeterminada de cobro',
                     helperText:
-                        'Los precios de catálogo se interpretan en esta moneda. Cambiarla no convierte los precios históricos.',
+                        'Los precios del catálogo siempre usan USD como referencia.',
                     prefixIcon: Icon(Icons.currency_exchange),
                   ),
-                  items: AppCurrency.options
+                  items: AppCurrency.configuredCurrencies
                       .map(
-                        (option) => DropdownMenuItem(
-                          value: option.code,
-                          child: Text(
-                            '${option.symbol}  ${option.name} (${option.code})',
-                          ),
+                        (currency) => DropdownMenuItem(
+                          value: currency.code,
+                          child: Text('${currency.symbol}  ${currency.code}'),
                         ),
                       )
                       .toList(),
@@ -1153,7 +1114,7 @@ class _CurrencyRatesSectionState extends State<_CurrencyRatesSection> {
           content: Text(
             'Tasa de ${currency.code} guardada: '
             '${rate.toString()} ${currency.code} por cada '
-            '${AppCurrency.baseCurrency.code}.',
+            'USD.',
           ),
         ),
       );
@@ -1175,8 +1136,8 @@ class _CurrencyRatesSectionState extends State<_CurrencyRatesSection> {
         Text('Tasas de cambio', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 4),
         Text(
-          'Indica cuántas unidades de cada moneda equivalen a 1 '
-          '${AppCurrency.baseCurrency.code}. Las tasas se guardan en este dispositivo.',
+          'Indica cuántas unidades de cada moneda equivalen a 1 USD. '
+          'Las tasas se guardan en este dispositivo.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 12),
@@ -1192,7 +1153,9 @@ class _CurrencyRatesSectionState extends State<_CurrencyRatesSection> {
                   ),
                   decoration: InputDecoration(
                     labelText: '${currency.code} - ${currency.symbol}',
-                    helperText: currency.isBase ? 'Moneda base' : null,
+                    helperText: currency.isBase
+                        ? 'Moneda base fija (1 USD)'
+                        : null,
                     prefixIcon: const Icon(Icons.currency_exchange_outlined),
                   ),
                 ),

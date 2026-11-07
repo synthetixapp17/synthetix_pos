@@ -41,7 +41,7 @@ class ReceiptImage {
         ? null
         : pw.MemoryImage(base64Decode(logoData));
     final pageHeight =
-        540 + sale.lines.length * 68.0 + (showInvoiceQr ? 130 : 0);
+        540 + sale.lines.length * 84.0 + (showInvoiceQr ? 130 : 0);
     document.addPage(
       pw.Page(
         pageFormat: PdfPageFormat(420, pageHeight, marginAll: 0),
@@ -118,6 +118,10 @@ class ReceiptImage {
                     ],
                     pw.SizedBox(height: 4),
                     pw.Text('Forma de pago: ${sale.paymentMethod}'),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'Tasa aplicada: 1 USD = ${sale.exchangeRate} ${sale.currencyCode}',
+                    ),
                   ],
                 ),
               ),
@@ -171,7 +175,7 @@ class ReceiptImage {
                             pw.SizedBox(height: 3),
                             pw.Text(
                               showUnitPrices
-                                  ? '${line.quantity} × ${_money(line.unitPrice, sale.currencyCode)}'
+                                  ? '${line.quantity} × ${_moneyWithReference(line.unitPrice, sale.currencyCode, sale.exchangeRate)}'
                                   : '${line.quantity} unidades',
                               style: const pw.TextStyle(
                                 color: _muted,
@@ -194,14 +198,29 @@ class ReceiptImage {
                       pw.SizedBox(width: 12),
                       pw.SizedBox(
                         width: 100,
-                        child: pw.Text(
-                          _money(line.total, sale.currencyCode),
-                          textAlign: pw.TextAlign.right,
-                          style: pw.TextStyle(
-                            color: _navy,
-                            fontSize: 10,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.end,
+                          children: [
+                            pw.Text(
+                              _money(line.total, sale.currencyCode),
+                              textAlign: pw.TextAlign.right,
+                              style: pw.TextStyle(
+                                color: _navy,
+                                fontSize: 10,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
+                            ),
+                            pw.Text(
+                              AppCurrency.formatReference(
+                                line.total / sale.exchangeRate,
+                              ),
+                              textAlign: pw.TextAlign.right,
+                              style: const pw.TextStyle(
+                                color: _muted,
+                                fontSize: 8,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -231,17 +250,32 @@ class ReceiptImage {
                   ),
                 ],
               ),
+              pw.Align(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Text(
+                  AppCurrency.formatReference(sale.total / sale.exchangeRate),
+                  style: const pw.TextStyle(color: _muted, fontSize: 9),
+                ),
+              ),
               if (sale.paymentMethod.toLowerCase() == 'efectivo' &&
                   sale.amountTendered > 0) ...[
                 pw.SizedBox(height: 12),
                 _amountRow(
                   'Efectivo recibido',
-                  _money(sale.amountTendered, sale.currencyCode),
+                  _moneyWithReference(
+                    sale.amountTendered,
+                    sale.currencyCode,
+                    sale.exchangeRate,
+                  ),
                 ),
                 pw.SizedBox(height: 5),
                 _amountRow(
                   'Vuelto',
-                  _money(sale.changeAmount, sale.currencyCode),
+                  _moneyWithReference(
+                    sale.changeAmount,
+                    sale.currencyCode,
+                    sale.exchangeRate,
+                  ),
                   emphasize: true,
                 ),
               ],
@@ -321,6 +355,14 @@ class ReceiptImage {
 
   static String _money(double amount, String code) =>
       AppCurrency.format(amount, code: code);
+
+  static String _moneyWithReference(
+    double amount,
+    String code,
+    double exchangeRate,
+  ) =>
+      '${_money(amount, code)}\n'
+      '${AppCurrency.formatReference(amount / exchangeRate)}';
 
   static String _shortId(String id) =>
       id.substring(0, id.length > 8 ? 8 : id.length);

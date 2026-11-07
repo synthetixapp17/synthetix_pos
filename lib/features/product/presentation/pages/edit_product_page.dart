@@ -35,7 +35,7 @@ class _EditProductPageState extends State<EditProductPage> {
   late final _categoryController = TextEditingController(
     text: widget.product.category,
   );
-  late String _currencyCode = widget.product.currencyCode;
+  final String _currencyCode = AppCurrency.baseCode;
   late String? _imageData = widget.product.imageData;
   late List<String> _categories;
 
@@ -237,22 +237,14 @@ class _EditProductPageState extends State<EditProductPage> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _currencyCode,
-                    decoration: const InputDecoration(labelText: 'Moneda'),
-                    items: AppCurrency.options
-                        .map(
-                          (currency) => DropdownMenuItem(
-                            value: currency.code,
-                            child: Text('${currency.symbol} ${currency.code}'),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => _currencyCode = value);
-                      }
-                    },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Moneda de referencia',
+                    ),
+                    child: Text(
+                      '${AppCurrency.symbolFor(AppCurrency.baseCode)} '
+                      '${AppCurrency.baseCode}',
+                    ),
                   ),
                 ),
               ],

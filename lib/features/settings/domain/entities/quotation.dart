@@ -34,6 +34,7 @@ class QuotationRecord {
   final String customerName;
   final String shopName;
   final String currencyCode;
+  final double exchangeRate;
   final List<QuotationLine> lines;
 
   const QuotationRecord({
@@ -42,10 +43,12 @@ class QuotationRecord {
     required this.customerName,
     required this.shopName,
     required this.currencyCode,
+    this.exchangeRate = 1,
     required this.lines,
   });
 
   double get total => lines.fold(0, (sum, line) => sum + line.total);
+  double get totalInUsd => total / exchangeRate;
 
   Map<String, Object> toJson() => {
     'id': id,
@@ -53,6 +56,7 @@ class QuotationRecord {
     'customerName': customerName,
     'shopName': shopName,
     'currencyCode': currencyCode,
+    'exchangeRate': exchangeRate,
     'lines': lines.map((line) => line.toJson()).toList(),
   };
 
@@ -63,6 +67,7 @@ class QuotationRecord {
         customerName: json['customerName'] as String? ?? '',
         shopName: json['shopName'] as String? ?? '',
         currencyCode: json['currencyCode'] as String? ?? 'USD',
+        exchangeRate: (json['exchangeRate'] as num?)?.toDouble() ?? 1,
         lines: (json['lines'] as List<dynamic>)
             .map((line) => QuotationLine.fromJson(line as Map<String, dynamic>))
             .toList(),

@@ -65,4 +65,35 @@ void main() {
       expect(summary.unitsSoldToday, 28);
     },
   );
+
+  test(
+    'summary converts daily currency totals using each sale exchange rate',
+    () async {
+      final sale = SaleRecord(
+        id: 'sale-ves',
+        soldAt: DateTime.now(),
+        total: 4000,
+        totalInCurrency: 4000,
+        exchangeRate: 40,
+        currencyCode: 'VES',
+        lines: const [],
+      );
+      await HiveDatabase.salesBox.put(sale.id, SaleModel.fromEntity(sale));
+
+      final result = await DashboardRepositoryImpl().getSummary(
+        lowStockThreshold: 5,
+      );
+
+      final summary = result.getRight().toNullable();
+      expect(summary, isNotNull);
+      expect(summary!.dailyTotal, 100);
+      expect(summary.dailyUsdTotals['VES'], 100);
+      expect(
+        summary.lastSevenDays
+            .firstWhere((day) => day.currencyCode == 'VES' && day.amount == 4000)
+            .usdAmount,
+        100,
+      );
+    },
+  );
 }
