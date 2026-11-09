@@ -1,10 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
-import 'package:app_settings/app_settings.dart' as app_settings;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/data/hive_database.dart';
@@ -20,9 +21,9 @@ import '../../../reports/presentation/bloc/reports_bloc.dart';
 import '../../../shop/presentation/bloc/shop_bloc.dart';
 import '../../data/csv_backup_exporter.dart';
 import '../../data/csv_backup_importer.dart';
+import '../../../splash/data/splash_preferences.dart';
 import '../bloc/printer_bloc.dart';
 import '../bloc/printer_event.dart';
-import '../bloc/printer_state.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -391,8 +392,52 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Configuración'), centerTitle: true),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 8, 18, 32),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
+          Container(
+            margin: const EdgeInsets.only(bottom: 22),
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: .1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    Icons.tune_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ajustes de tu negocio',
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Organiza tu tienda, personaliza la plataforma y administra tus dispositivos.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           _BusinessProfileCard(onTap: () => context.push('/shop')),
           const SizedBox(height: 22),
           const _SectionTitle(
@@ -518,7 +563,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       .map(
                         (currency) => DropdownMenuItem(
                           value: currency.code,
-                          child: Text('${currency.symbol}  ${currency.code}'),
+                          child: Text(
+                            '${currency.symbol}  ${currency.code}',
+                          ),
                         ),
                       )
                       .toList(),
@@ -526,7 +573,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               const _SettingsDivider(),
-              _CurrencyRatesSection(key: ValueKey(_currencyDropdownVersion)),
+              _CurrencyRatesSection(
+                key: ValueKey(_currencyDropdownVersion),
+              ),
               const _SettingsDivider(),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
@@ -574,7 +623,9 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         ],
                         onChanged: (value) {
-                          if (value != null) AppThemeController.setMode(value);
+                          if (value != null) {
+                            AppThemeController.setMode(value);
+                          }
                         },
                       ),
                 ),
@@ -597,12 +648,16 @@ class _SettingsPageState extends State<SettingsPage> {
                               children: [
                                 Text(
                                   'Color principal',
-                                  style: Theme.of(context).textTheme.titleSmall,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleSmall,
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
                                   'Se aplica al menú, botones y elementos principales de toda la plataforma.',
-                                  style: Theme.of(context).textTheme.bodySmall,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.bodySmall,
                                 ),
                               ],
                             ),
@@ -629,7 +684,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: selectedColor.withValues(alpha: .3),
+                                    color: selectedColor.withValues(
+                                      alpha: .3,
+                                    ),
                                     blurRadius: 8,
                                     offset: const Offset(0, 3),
                                   ),
@@ -639,7 +696,8 @@ class _SettingsPageState extends State<SettingsPage> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     'Color seleccionado',
@@ -652,7 +710,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleSmall
-                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                   ),
                                 ],
                               ),
@@ -683,28 +743,37 @@ class _SettingsPageState extends State<SettingsPage> {
                               final color =
                                   AppThemeController.availableColors[index];
                               final selected =
-                                  color.toARGB32() == selectedColor.toARGB32();
+                                  color.toARGB32() ==
+                                  selectedColor.toARGB32();
                               return Semantics(
                                 button: true,
                                 selected: selected,
                                 label: 'Color ${_colorName(color)}',
                                 child: InkWell(
                                   onTap: () =>
-                                      AppThemeController.setPrimaryColor(color),
+                                      AppThemeController.setPrimaryColor(
+                                        color,
+                                      ),
                                   borderRadius: BorderRadius.circular(12),
                                   child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 180),
+                                    duration: const Duration(
+                                      milliseconds: 180,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: selected
                                           ? color.withValues(alpha: .1)
                                           : Theme.of(
                                               context,
                                             ).colorScheme.surface,
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(
+                                        12,
+                                      ),
                                       border: Border.all(
                                         color: selected
                                             ? color
-                                            : Theme.of(context).dividerColor,
+                                            : Theme.of(
+                                                context,
+                                              ).dividerColor,
                                         width: selected ? 1.5 : 1,
                                       ),
                                     ),
@@ -731,9 +800,10 @@ class _SettingsPageState extends State<SettingsPage> {
                                         ),
                                         const SizedBox(height: 5),
                                         Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 3,
-                                          ),
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 3,
+                                              ),
                                           child: Text(
                                             _colorName(color),
                                             maxLines: 1,
@@ -743,10 +813,10 @@ class _SettingsPageState extends State<SettingsPage> {
                                             ).textTheme.labelSmall,
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                  ),
+                                  ],
                                 ),
+                              ),
+                            ),
                               );
                             },
                           );
@@ -756,138 +826,25 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
               ),
+              const _SettingsDivider(),
+              const _SplashImageSettings(),
             ],
           ),
           const SizedBox(height: 22),
           const _SectionTitle(
             title: 'Dispositivos',
-            subtitle: 'Conecta la impresora térmica para emitir recibos.',
+            subtitle: 'Gestiona la conexión y el formato de impresión.',
           ),
-          BlocConsumer<PrinterBloc, PrinterState>(
-            listener: (context, state) {
-              if (state.errorMessage != null) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
-              }
-            },
-            builder: (context, state) {
-              final connected = state.status == PrinterStatus.connected;
-              final canManageConnection =
-                  connected || state.status == PrinterStatus.testPrintFailure;
-              final busy =
-                  state.status == PrinterStatus.scanning ||
-                  state.status == PrinterStatus.connecting ||
-                  state.status == PrinterStatus.testPrinting;
-              final shopState = context.read<ShopBloc>().state;
-              final shopName =
-                  shopState is ShopLoaded && shopState.shop.name.isNotEmpty
-                  ? shopState.shop.name
-                  : 'Prueba de impresión';
-              return _SettingsGroup(
-                children: [
-                  _SettingsTile(
-                    icon: Icons.print_outlined,
-                    title: 'Impresora térmica',
-                    subtitle: connected
-                        ? 'Conectada: ${state.connectedName ?? 'impresora seleccionada'}'
-                        : state.status == PrinterStatus.testPrintFailure
-                        ? 'No se pudo completar la prueba de impresión'
-                        : state.connectedMac == null
-                        ? 'No hay impresora conectada'
-                        : 'Impresora guardada sin conexión',
-                    trailing: busy
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : IconButton(
-                            tooltip: 'Buscar impresoras vinculadas',
-                            onPressed: () => context.read<PrinterBloc>().add(
-                              RefreshPrinterEvent(),
-                            ),
-                            icon: const Icon(Icons.refresh),
-                          ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: Text(
-                      'Primero vincula la impresora en los ajustes de Bluetooth. Después, búscala aquí para conectarla.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  if (state.devices.isNotEmpty) ...[
-                    const _SettingsDivider(),
-                    ...state.devices.map(
-                      (device) => ListTile(
-                        leading: const Icon(Icons.bluetooth),
-                        title: Text(device.name),
-                        subtitle: Text(device.macAdress),
-                        trailing: OutlinedButton(
-                          onPressed: busy || connected
-                              ? null
-                              : () => context.read<PrinterBloc>().add(
-                                  ConnectPrinterEvent(
-                                    mac: device.macAdress,
-                                    name: device.name,
-                                  ),
-                                ),
-                          child: Text(
-                            connected && state.connectedMac == device.macAdress
-                                ? 'Conectada'
-                                : 'Conectar',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (canManageConnection) ...[
-                    const _SettingsDivider(),
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 8,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: busy
-                                ? null
-                                : () => context.read<PrinterBloc>().add(
-                                    TestPrintEvent(shopName),
-                                  ),
-                            icon: const Icon(Icons.receipt_long_outlined),
-                            label: Text(
-                              state.status == PrinterStatus.testPrinting
-                                  ? 'Imprimiendo prueba…'
-                                  : 'Imprimir prueba',
-                            ),
-                          ),
-                          TextButton.icon(
-                            onPressed: busy
-                                ? null
-                                : () => context.read<PrinterBloc>().add(
-                                    DisconnectPrinterEvent(),
-                                  ),
-                            icon: const Icon(Icons.link_off),
-                            label: const Text('Desconectar'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  const _SettingsDivider(),
-                  _SettingsTile(
-                    icon: Icons.bluetooth,
-                    title: 'Ajustes de Bluetooth',
-                    subtitle: 'Vincula la impresora desde el dispositivo',
-                    onTap: () => app_settings.AppSettings.openAppSettings(
-                      type: app_settings.AppSettingsType.bluetooth,
-                    ),
-                  ),
-                ],
-              );
-            },
+          _SettingsGroup(
+            children: [
+              _SettingsTile(
+                icon: Icons.print_outlined,
+                title: 'Impresora térmica',
+                subtitle:
+                    'Tamaño del papel, dispositivos y prueba de impresión',
+                onTap: () => context.push('/settings/printer'),
+              ),
+            ],
           ),
           const SizedBox(height: 22),
           const _SectionTitle(
@@ -993,6 +950,194 @@ class _SettingsPageState extends State<SettingsPage> {
     };
     return names[color.toARGB32()] ?? 'personalizado';
   }
+}
+
+class _SplashImageSettings extends StatefulWidget {
+  const _SplashImageSettings();
+
+  @override
+  State<_SplashImageSettings> createState() => _SplashImageSettingsState();
+}
+
+class _SplashImageSettingsState extends State<_SplashImageSettings> {
+  Uint8List? _imageBytes;
+  bool _isSaving = false;
+  bool _hasInvalidImage = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final imageData = SplashPreferences.imageData;
+    if (imageData == null) return;
+    try {
+      _imageBytes = base64Decode(imageData);
+    } on FormatException {
+      _hasInvalidImage = true;
+    }
+  }
+
+  Future<void> _pickImage() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      final selected = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1400,
+        maxHeight: 1400,
+      );
+      if (selected == null || !mounted) return;
+      final bytes = await selected.readAsBytes();
+      await SplashPreferences.saveImage(base64Encode(bytes));
+      if (!mounted) return;
+      setState(() {
+        _imageBytes = bytes;
+        _hasInvalidImage = false;
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Imagen de bienvenida guardada.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo guardar la imagen: $error')),
+      );
+    } finally {
+      if (mounted && _isSaving) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _removeImage() async {
+    setState(() => _isSaving = true);
+    try {
+      await SplashPreferences.clearImage();
+      if (!mounted) return;
+      setState(() {
+        _imageBytes = null;
+        _hasInvalidImage = false;
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Se restauró el logo predeterminado de bienvenida.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo quitar la imagen: $error')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.image_outlined,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Imagen de bienvenida',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Personaliza el logo que aparece en la pantalla de inicio.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            height: 170,
+            width: double.infinity,
+            child: _imageBytes == null
+                ? Image.asset(
+                    'assets/images/logo.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        _defaultImagePlaceholder(context),
+                  )
+                : Image.memory(
+                    _imageBytes!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        _defaultImagePlaceholder(context),
+                  ),
+          ),
+        ),
+        if (_hasInvalidImage) ...[
+          const SizedBox(height: 8),
+          Text(
+            'La imagen guardada no es válida. Selecciona otra imagen.',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: _isSaving ? null : _pickImage,
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.upload_rounded),
+              label: Text(
+                _isSaving
+                    ? 'Guardando…'
+                    : _imageBytes == null
+                    ? 'Elegir imagen'
+                    : 'Cambiar imagen',
+              ),
+            ),
+            if (_imageBytes != null || _hasInvalidImage)
+              OutlinedButton.icon(
+                onPressed: _isSaving ? null : _removeImage,
+                icon: const Icon(Icons.restore_rounded),
+                label: const Text('Usar logo predeterminado'),
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Widget _defaultImagePlaceholder(BuildContext context) => ColoredBox(
+    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    child: Center(
+      child: Icon(
+        Icons.image_not_supported_outlined,
+        size: 38,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    ),
+  );
 }
 
 class _CurrencyRatesSection extends StatefulWidget {

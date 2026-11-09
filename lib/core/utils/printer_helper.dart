@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'app_currency.dart';
+import 'receipt_preferences.dart';
 
 class PrinterException implements Exception {
   final String message;
@@ -254,6 +255,15 @@ class PrinterHelper {
       );
     }
 
+    final paperColumns = ReceiptPreferences.paperColumns;
+    final totalColumnWidth = paperColumns == 48 ? 12 : 8;
+    final priceColumnWidth = paperColumns == 48 ? 10 : 8;
+    final productColumnWidth = paperColumns - totalColumnWidth;
+    final unitPriceProductWidth = paperColumns -
+        totalColumnWidth -
+        priceColumnWidth;
+    final separator = '-' * paperColumns;
+
     // Construct ESC/POS bytes manually or using helper
     List<int> bytes = [];
 
@@ -313,18 +323,21 @@ class PrinterHelper {
     );
     bytes += EscPos.lineFeed;
 
-    bytes += _textToBytes('--------------------------------');
+    bytes += _textToBytes(separator);
     bytes += EscPos.lineFeed;
 
     // Header (Align Left)
     bytes += EscPos.alignLeft;
     bytes += _textToBytes(
       showUnitPrices
-          ? 'Producto        Precio  Total'
-          : 'Producto          Total',
+          ? 'Producto'.padRight(unitPriceProductWidth) +
+                'Precio'.padLeft(priceColumnWidth) +
+                'Total'.padLeft(totalColumnWidth)
+          : 'Producto'.padRight(productColumnWidth) +
+                'Total'.padLeft(totalColumnWidth),
     );
     bytes += EscPos.lineFeed;
-    bytes += _textToBytes('--------------------------------');
+    bytes += _textToBytes(separator);
     bytes += EscPos.lineFeed;
 
     // Items
@@ -341,12 +354,20 @@ class PrinterHelper {
       );
 
       final barcode = item['barcode']?.toString() ?? '';
-      String prefix = '${qty}x $name';
-      if (prefix.length > 16) prefix = prefix.substring(0, 16);
+      final rawPrefix = '${qty}x $name';
+      final productTextWidth = showUnitPrices
+          ? unitPriceProductWidth
+          : productColumnWidth;
+      final prefix = rawPrefix.length > productTextWidth
+          ? rawPrefix.substring(0, productTextWidth)
+          : rawPrefix;
 
-      String line = showUnitPrices
-          ? prefix.padRight(16) + price.padRight(8) + totalItem
-          : prefix.padRight(24) + totalItem;
+      final line = showUnitPrices
+          ? prefix.padRight(unitPriceProductWidth) +
+                price.padLeft(priceColumnWidth) +
+                totalItem.padLeft(totalColumnWidth)
+          : prefix.padRight(productColumnWidth) +
+                totalItem.padLeft(totalColumnWidth);
       bytes += _textToBytes(line);
       bytes += EscPos.lineFeed;
       bytes += _textToBytes(
@@ -362,7 +383,7 @@ class PrinterHelper {
       }
     }
 
-    bytes += _textToBytes('--------------------------------');
+    bytes += _textToBytes(separator);
     bytes += EscPos.lineFeed;
 
     // Total (Align Right)

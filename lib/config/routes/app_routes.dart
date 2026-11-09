@@ -1,6 +1,9 @@
 import 'package:go_router/go_router.dart';
 
 import '../../core/widgets/web_app_shell.dart';
+import '../../features/settings/presentation/pages/printer_settings_page.dart';
+import '../../features/splash/data/splash_preferences.dart';
+import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/billing/presentation/pages/home_page.dart';
 import '../../features/billing/presentation/pages/product_catalog_page.dart';
 import '../../features/billing/presentation/pages/scanner_page.dart';
@@ -26,8 +29,16 @@ import '../../features/credit/presentation/pages/credit_detail_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
 
 final router = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/welcome',
   routes: [
+    GoRoute(
+      path: '/welcome',
+      builder: (context, state) =>
+          SplashPage(
+            imageData: SplashPreferences.imageData,
+            onContinue: () => context.go('/'),
+          ),
+    ),
     ShellRoute(
       builder: (context, state, child) =>
           WebAppShell(location: state.uri.path, child: child),
@@ -89,6 +100,10 @@ final router = GoRouter(
         GoRoute(
           path: '/settings/receipt',
           builder: (context, state) => const ReceiptSettingsPage(),
+        ),
+        GoRoute(
+          path: '/settings/printer',
+          builder: (context, state) => const PrinterSettingsPage(),
         ),
         GoRoute(
           path: '/settings/barcodes',

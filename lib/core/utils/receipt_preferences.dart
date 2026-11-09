@@ -9,6 +9,7 @@ class ReceiptPreferences {
   static const showRifKey = 'receipt_show_rif';
   static const showInvoiceQrKey = 'receipt_show_invoice_qr';
   static const footerTextKey = 'receipt_footer_text';
+  static const paperWidthKey = 'printer_paper_width';
 
   static bool get showAddress =>
       HiveDatabase.settingsBox.get(showAddressKey, defaultValue: true) as bool;
@@ -28,4 +29,14 @@ class ReceiptPreferences {
           as bool;
   static String? get footerText =>
       HiveDatabase.settingsBox.get(footerTextKey) as String?;
+  static int get paperWidth =>
+      HiveDatabase.settingsBox.get(paperWidthKey, defaultValue: 58) as int;
+  static int get paperColumns => paperWidth == 80 ? 48 : 32;
+
+  static Future<void> savePaperWidth(int width) {
+    if (width != 58 && width != 80) {
+      throw ArgumentError.value(width, 'width', 'Debe ser 58 u 80 mm.');
+    }
+    return HiveDatabase.settingsBox.put(paperWidthKey, width);
+  }
 }

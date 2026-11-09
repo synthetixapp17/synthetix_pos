@@ -75,4 +75,5 @@ flutter:
   assets:
     - assets/sound/
     - assets/fonts/Roboto.ttf
+    - assets/images/logo.png
     
