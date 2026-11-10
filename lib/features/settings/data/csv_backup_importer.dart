@@ -375,6 +375,7 @@ class CsvBackupImporter {
           price: _double(row, 'precio', 'productos'),
           currencyCode: _required(row, 'moneda', 'productos'),
           stock: _double(row, 'existencias', 'productos'),
+          unitLabel: _optional(row['unidad']) ?? 'ud.',
           imageData: _optional(row['imagen_base64']),
           variantsJson: _optional(row['variaciones_json']) ?? '[]',
           variants: _parseVariants(row['variaciones_json']),

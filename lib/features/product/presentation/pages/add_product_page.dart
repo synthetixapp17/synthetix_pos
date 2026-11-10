@@ -36,6 +36,7 @@ class _AddProductPageState extends State<AddProductPage> {
   late List<String> _categories;
   bool _isPickingImage = false;
   bool _hasVariants = false;
+  String _unitLabel = 'ud.';
   final _variantsFormKey = GlobalKey<ProductVariantsFormState>();
 
   @override
@@ -160,6 +161,7 @@ class _AddProductPageState extends State<AddProductPage> {
           imageData: _imageData,
           currencyCode: _currencyCode,
           category: _categoryController.text.trim(),
+          unitLabel: _unitLabel,
           variants: variants ?? const [],
         ),
       ),
@@ -271,6 +273,23 @@ class _AddProductPageState extends State<AddProductPage> {
                 ),
               ),
               if (!_hasVariants) ...[
+                DropdownButtonFormField<String>(
+                  initialValue: _unitLabel,
+                  decoration: const InputDecoration(
+                    labelText: 'Unidad de venta',
+                    helperText:
+                        'Usa kg o g para habilitar este producto en la balanza.',
+                    prefixIcon: Icon(Icons.scale_outlined),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'ud.', child: Text('Unidad (ud.)')),
+                    DropdownMenuItem(value: 'kg', child: Text('Kilogramo (kg)')),
+                    DropdownMenuItem(value: 'g', child: Text('Gramo (g)')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => _unitLabel = value);
+                  },
+                ),
                 const SizedBox(height: 14),
                 Row(
                   children: [
@@ -316,9 +335,11 @@ class _AddProductPageState extends State<AddProductPage> {
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _stockController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Existencias iniciales',
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Existencias iniciales ($_unitLabel)',
                     prefixIcon: Icon(Icons.warehouse_outlined),
                   ),
                   validator: (value) {

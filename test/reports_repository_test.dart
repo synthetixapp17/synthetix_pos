@@ -122,38 +122,79 @@ void main() {
     expect(HiveDatabase.salesBox.values, isEmpty);
   });
 
-  test('deducts fractional stock from the selected product variation', () async {
-    const variant = ProductVariant(
-      id: 'coffee-500g',
-      attributes: {'Peso': '500 g'},
-      price: 4.5,
-      stock: 2.75,
-      unitLabel: 'kg',
-    );
-    await HiveDatabase.productBox.put(
-      'product-variant',
-      const ProductModel(
-        id: 'product-variant',
-        name: 'Café',
-        barcode: '123',
+  test(
+    'deducts fractional stock from the selected product variation',
+    () async {
+      const variant = ProductVariant(
+        id: 'coffee-500g',
+        attributes: {'Peso': '500 g'},
         price: 4.5,
         stock: 2.75,
-        variants: [variant],
+        unitLabel: 'kg',
+      );
+      await HiveDatabase.productBox.put(
+        'product-variant',
+        const ProductModel(
+          id: 'product-variant',
+          name: 'Café',
+          barcode: '123',
+          price: 4.5,
+          stock: 2.75,
+          variants: [variant],
+        ),
+      );
+      final sale = SaleRecord(
+        id: 'sale-weight',
+        soldAt: DateTime(2026, 11, 1),
+        total: 3.375,
+        lines: const [
+          SaleLine(
+            productId: 'product-variant',
+            productName: 'Café',
+            variantId: 'coffee-500g',
+            variantAttributes: {'Peso': '500 g'},
+            quantity: .75,
+            unitPrice: 4.5,
+            unitLabel: 'kg',
+          ),
+        ],
+      );
+
+      final result = await ReportsRepositoryImpl().recordSale(sale);
+
+      expect(result.isRight(), isTrue);
+      final savedProduct = HiveDatabase.productBox.get('product-variant')!;
+      expect(savedProduct.stock, 2.0);
+      expect(savedProduct.variants.single.stock, 2.0);
+      final savedSale = HiveDatabase.salesBox.get('sale-weight')!.toEntity();
+      expect(savedSale.lines.single.quantity, .75);
+      expect(savedSale.lines.single.variationLabel, 'Peso: 500 g');
+    },
+  );
+
+  test('deducts gram-based stock and preserves the sale unit', () async {
+    await HiveDatabase.productBox.put(
+      'product-grams',
+      const ProductModel(
+        id: 'product-grams',
+        name: 'Especias',
+        barcode: '789',
+        price: .02,
+        stock: 1000,
+        unitLabel: 'g',
       ),
     );
     final sale = SaleRecord(
-      id: 'sale-weight',
+      id: 'sale-grams',
       soldAt: DateTime(2026, 11, 1),
-      total: 3.375,
+      total: 5,
       lines: const [
         SaleLine(
-          productId: 'product-variant',
-          productName: 'Café',
-          variantId: 'coffee-500g',
-          variantAttributes: {'Peso': '500 g'},
-          quantity: .75,
-          unitPrice: 4.5,
-          unitLabel: 'kg',
+          productId: 'product-grams',
+          productName: 'Especias',
+          quantity: 250,
+          unitPrice: .02,
+          unitLabel: 'g',
         ),
       ],
     );
@@ -161,11 +202,15 @@ void main() {
     final result = await ReportsRepositoryImpl().recordSale(sale);
 
     expect(result.isRight(), isTrue);
-    final savedProduct = HiveDatabase.productBox.get('product-variant')!;
-    expect(savedProduct.stock, 2.0);
-    expect(savedProduct.variants.single.stock, 2.0);
-    final savedSale = HiveDatabase.salesBox.get('sale-weight')!.toEntity();
-    expect(savedSale.lines.single.quantity, .75);
-    expect(savedSale.lines.single.variationLabel, 'Peso: 500 g');
+    expect(HiveDatabase.productBox.get('product-grams')?.stock, 750);
+    expect(
+      HiveDatabase.salesBox
+          .get('sale-grams')
+          ?.toEntity()
+          .lines
+          .single
+          .unitLabel,
+      'g',
+    );
   });
 }

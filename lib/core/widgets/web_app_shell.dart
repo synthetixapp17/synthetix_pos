@@ -21,6 +21,12 @@ class WebAppShell extends StatelessWidget {
       selectedIcon: Icons.point_of_sale_rounded,
     ),
     _NavigationItem(
+      label: 'Balanza digital',
+      path: '/scale',
+      icon: Icons.scale_outlined,
+      selectedIcon: Icons.scale_rounded,
+    ),
+    _NavigationItem(
       label: 'Inventario',
       path: '/products',
       icon: Icons.inventory_2_outlined,

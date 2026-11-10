@@ -758,7 +758,7 @@ class _HomePageState extends State<HomePage> {
                 SizedBox(
                   width: 32,
                   child: Text(
-                    '${item.quantity} ${item.product.selectedVariant?.unitLabel ?? 'ud.'}',
+                    '${item.quantity} ${item.product.saleUnitLabel}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),

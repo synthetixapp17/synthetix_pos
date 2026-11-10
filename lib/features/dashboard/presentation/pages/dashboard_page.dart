@@ -113,7 +113,10 @@ class _DashboardPageState extends State<DashboardPage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
               children: [
-                _WelcomeCard(onNewSale: () => context.push('/new-sale')),
+                _WelcomeCard(
+                  onNewSale: () => context.push('/new-sale'),
+                  onOpenScale: () => context.push('/scale'),
+                ),
                 const SizedBox(height: 16),
                 InputDecorator(
                   decoration: const InputDecoration(
@@ -488,7 +491,12 @@ class _DashboardPageState extends State<DashboardPage> {
 
 class _WelcomeCard extends StatelessWidget {
   final VoidCallback onNewSale;
-  const _WelcomeCard({required this.onNewSale});
+  final VoidCallback onOpenScale;
+
+  const _WelcomeCard({
+    required this.onNewSale,
+    required this.onOpenScale,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -566,22 +574,47 @@ class _WelcomeCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: onNewSale,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: colors.onPrimary,
-                    foregroundColor: colors.primary,
-                    minimumSize: const Size(170, 48),
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: onNewSale,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: colors.onPrimary,
+                        foregroundColor: colors.primary,
+                        minimumSize: const Size(170, 48),
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.add_shopping_cart_rounded),
+                      label: const Text(
+                        'Nueva venta',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
                     ),
-                  ),
-                  icon: const Icon(Icons.add_shopping_cart_rounded),
-                  label: const Text(
-                    'Nueva venta',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
+                    OutlinedButton.icon(
+                      onPressed: onOpenScale,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colors.onPrimary,
+                        side: BorderSide(
+                          color: colors.onPrimary.withValues(alpha: .55),
+                        ),
+                        minimumSize: const Size(180, 48),
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.scale_rounded),
+                      label: const Text(
+                        'Balanza digital',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

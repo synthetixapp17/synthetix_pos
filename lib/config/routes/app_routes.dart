@@ -7,6 +7,7 @@ import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/billing/presentation/pages/home_page.dart';
 import '../../features/billing/presentation/pages/product_catalog_page.dart';
 import '../../features/billing/presentation/pages/scanner_page.dart';
+import '../../features/billing/presentation/pages/digital_scale_page.dart';
 import '../../features/product/presentation/pages/product_list_page.dart';
 import '../../features/product/presentation/pages/add_product_page.dart';
 import '../../features/product/presentation/pages/edit_product_page.dart';
@@ -66,6 +67,10 @@ final router = GoRouter(
         GoRoute(
           path: '/scan-code',
           builder: (context, state) => const ScannerPage(),
+        ),
+        GoRoute(
+          path: '/scale',
+          builder: (context, state) => const DigitalScalePage(),
         ),
         GoRoute(
           path: '/customers',

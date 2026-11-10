@@ -266,7 +266,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       return TableRow(
                                         children: [
                                           _buildDataCell(
-                                            '${item.quantity} ${item.product.selectedVariant?.unitLabel ?? 'ud.'} x '
+                                            '${item.quantity} ${item.product.saleUnitLabel} x '
                                             '${item.product.name}'
                                             '${item.product.variationLabel.isEmpty ? '' : ' · ${item.product.variationLabel}'}',
                                             TextAlign.left,

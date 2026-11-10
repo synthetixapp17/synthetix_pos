@@ -81,6 +81,7 @@ void main() {
           stock: 4,
           description: 'Molido\nartesanal',
           category: 'Bebidas',
+          unitLabel: 'kg',
           imageData: 'aW1hZ2U=',
           variants: const [
             ProductVariant(
@@ -193,6 +194,7 @@ void main() {
       expect(contents['productos'], contains('Café'));
       expect(contents['productos'], contains('aW1hZ2U='));
       expect(contents['productos'], contains('coffee-500g'));
+      expect(contents['productos'], contains('unidad'));
       expect(contents['ventas'], contains('variacion_id'));
       expect(contents['categorias'], contains('"Bebidas"'));
       expect(
@@ -257,6 +259,7 @@ void main() {
         HiveDatabase.productBox.get('product-1')?.variants.single.stock,
         2.5,
       );
+      expect(HiveDatabase.productBox.get('product-1')?.unitLabel, 'kg');
       expect(
         HiveDatabase.salesBox
             .get('sale-1')
@@ -338,6 +341,7 @@ void main() {
         barcode: '123',
         price: 25,
         stock: 4,
+        unitLabel: 'g',
       ),
     );
     await HiveDatabase.customerBox.put(
@@ -374,6 +378,7 @@ void main() {
 
     expect(HiveDatabase.productBox.containsKey('stale-product'), isFalse);
     expect(HiveDatabase.productBox.get('product-1')?.name, 'Restaurado');
+    expect(HiveDatabase.productBox.get('product-1')?.unitLabel, 'g');
     expect(HiveDatabase.customerBox.containsKey('customer-1'), isTrue);
     expect(HiveDatabase.settingsBox.get('currency_code'), 'USD');
   });

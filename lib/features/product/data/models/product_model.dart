@@ -37,6 +37,9 @@ class ProductModel extends Product {
   final String category;
   @HiveField(9, defaultValue: '[]')
   final String variantsJson;
+  @HiveField(10, defaultValue: 'ud.')
+  @override
+  final String unitLabel;
 
   const ProductModel({
     required this.id,
@@ -49,6 +52,7 @@ class ProductModel extends Product {
     this.currencyCode = 'USD',
     this.category = '',
     this.variantsJson = '[]',
+    this.unitLabel = 'ud.',
     List<ProductVariant> variants = const [],
   }) : super(
          id: id,
@@ -60,6 +64,7 @@ class ProductModel extends Product {
          imageData: imageData,
          currencyCode: currencyCode,
          category: category,
+         unitLabel: unitLabel,
          variants: variants,
        );
 
@@ -73,6 +78,7 @@ class ProductModel extends Product {
     String? imageData,
     String? currencyCode,
     String? category,
+    String? unitLabel,
     List<ProductVariant>? variants,
   }) => ProductModel(
     id: id ?? this.id,
@@ -84,6 +90,7 @@ class ProductModel extends Product {
     imageData: imageData ?? this.imageData,
     currencyCode: currencyCode ?? this.currencyCode,
     category: category ?? this.category,
+    unitLabel: unitLabel ?? this.unitLabel,
     variantsJson: variants == null
         ? variantsJson
         : jsonEncode(variants.map((variant) => variant.toJson()).toList()),
@@ -110,6 +117,7 @@ class ProductModel extends Product {
       imageData: product.imageData,
       currencyCode: product.currencyCode,
       category: product.category,
+      unitLabel: product.unitLabel,
       variantsJson: jsonEncode(
         product.variants.map((variant) => variant.toJson()).toList(),
       ),
@@ -133,6 +141,7 @@ class ProductModel extends Product {
       imageData: imageData,
       currencyCode: currencyCode,
       category: category,
+      unitLabel: unitLabel,
       variants: variants,
     );
   }

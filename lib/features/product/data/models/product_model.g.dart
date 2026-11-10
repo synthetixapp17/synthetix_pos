@@ -13,6 +13,7 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     final variantsJson = fields[9] == null ? '[]' : fields[9] as String;
+    final unitLabel = fields[10] == null ? 'ud.' : fields[10] as String;
     return ProductModel(
       id: fields[0] as String,
       name: fields[1] as String,
@@ -24,6 +25,7 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       currencyCode: fields[7] == null ? 'USD' : fields[7] as String,
       category: fields[8] == null ? '' : fields[8] as String,
       variantsJson: variantsJson,
+      unitLabel: unitLabel,
       variants: ProductModel.decodeVariants(variantsJson),
     );
   }
@@ -31,7 +33,7 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
   @override
   void write(BinaryWriter writer, ProductModel obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -51,7 +53,9 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       ..writeByte(8)
       ..write(obj.category)
       ..writeByte(9)
-      ..write(obj.variantsJson);
+      ..write(obj.variantsJson)
+      ..writeByte(10)
+      ..write(obj.unitLabel);
   }
 
   @override

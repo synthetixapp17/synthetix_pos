@@ -40,6 +40,7 @@ class _EditProductPageState extends State<EditProductPage> {
   late String? _imageData = widget.product.imageData;
   late List<String> _categories;
   late bool _hasVariants = widget.product.hasVariants;
+  late String _unitLabel = widget.product.unitLabel;
   final _variantsFormKey = GlobalKey<ProductVariantsFormState>();
 
   @override
@@ -138,6 +139,7 @@ class _EditProductPageState extends State<EditProductPage> {
           imageData: _imageData,
           currencyCode: _currencyCode,
           category: _categoryController.text.trim(),
+          unitLabel: _unitLabel,
           variants: variants ?? const [],
         ),
       ),
@@ -267,6 +269,26 @@ class _EditProductPageState extends State<EditProductPage> {
               ),
             ),
             if (!_hasVariants) ...[
+              DropdownButtonFormField<String>(
+                initialValue: const {'ud.', 'kg', 'g'}.contains(_unitLabel)
+                    ? _unitLabel
+                    : 'ud.',
+                decoration: const InputDecoration(
+                  labelText: 'Unidad de venta',
+                  helperText:
+                      'Usa kg o g para habilitar este producto en la balanza.',
+                  prefixIcon: Icon(Icons.scale_outlined),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'ud.', child: Text('Unidad (ud.)')),
+                  DropdownMenuItem(value: 'kg', child: Text('Kilogramo (kg)')),
+                  DropdownMenuItem(value: 'g', child: Text('Gramo (g)')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _unitLabel = value);
+                },
+              ),
+              const SizedBox(height: 14),
               Row(
                 children: [
                   Expanded(
@@ -306,9 +328,11 @@ class _EditProductPageState extends State<EditProductPage> {
               const SizedBox(height: 14),
               TextFormField(
                 controller: _stockController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Existencias',
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Existencias ($_unitLabel)',
                   prefixIcon: Icon(Icons.warehouse_outlined),
                 ),
                 validator: (value) {

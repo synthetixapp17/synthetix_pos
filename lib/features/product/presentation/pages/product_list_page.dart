@@ -446,10 +446,6 @@ class _ProductListPageState extends State<ProductListPage> {
     final available = products
         .where((product) => product.stock >= threshold)
         .length;
-    final units = products.fold<double>(
-      0,
-      (total, product) => total + product.stock,
-    );
     final theme = Theme.of(context);
 
     return Padding(
@@ -471,9 +467,9 @@ class _ProductListPageState extends State<ProductListPage> {
                   const Color(0xFF3977D5),
                 ),
                 (
-                  'Unidades',
-                  '$units',
-                  Icons.stacked_bar_chart_rounded,
+                  'Stock saludable',
+                  '$available',
+                  Icons.inventory_2_outlined,
                   const Color(0xFF1E9B72),
                 ),
                 (
@@ -845,11 +841,12 @@ class _ProductCard extends StatelessWidget {
         : product.stock < stockThreshold
         ? const Color(0xFFE59B36)
         : const Color(0xFF1E9B72);
+    final stockUnit = product.hasVariants ? '' : ' ${product.unitLabel}';
     final stockLabel = product.stock <= 0
         ? 'Agotado'
         : product.stock < stockThreshold
-        ? 'Stock bajo · ${product.stock}'
-        : '${product.stock} en stock';
+        ? 'Stock bajo · ${product.stock}$stockUnit'
+        : '${product.stock}$stockUnit en stock';
     final details = [
       if (product.category.isNotEmpty) product.category,
       if (product.barcode.isNotEmpty) 'Código ${product.barcode}',

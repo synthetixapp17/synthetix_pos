@@ -94,6 +94,8 @@ class DashboardRepositoryImpl implements DashboardRepository {
                   barcode: model.barcode,
                   price: model.price,
                   stock: model.stock,
+                  unitLabel: model.unitLabel,
+                  variants: model.variants,
                 ),
               )
               .where((product) => product.stock < lowStockThreshold)

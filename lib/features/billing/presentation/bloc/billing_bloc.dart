@@ -268,7 +268,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
               variantId: item.product.selectedVariantId,
               variantAttributes:
                   item.product.selectedVariant?.attributes ?? const {},
-              unitLabel: item.product.selectedVariant?.unitLabel ?? 'ud.',
+              unitLabel: item.product.saleUnitLabel,
               unitPrice: item.product.price * event.exchangeRate,
               category: item.product.category,
               barcode: item.product.saleBarcode,
@@ -391,7 +391,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
               'name':
                   '${item.product.name}${item.product.variationLabel.isEmpty ? '' : ' · ${item.product.variationLabel}'}',
               'qty':
-                  '${item.quantity} ${item.product.selectedVariant?.unitLabel ?? 'ud.'}',
+                  '${item.quantity} ${item.product.saleUnitLabel}',
               'price': item.product.price * event.exchangeRate,
               'total': item.total * event.exchangeRate,
               'barcode': item.product.barcode,

@@ -56,6 +56,7 @@ class Product extends Equatable {
   final String? imageData;
   final String currencyCode;
   final String category;
+  final String unitLabel;
   final List<ProductVariant> variants;
   final String? selectedVariantId;
 
@@ -69,6 +70,7 @@ class Product extends Equatable {
     this.imageData,
     this.currencyCode = 'USD',
     this.category = '',
+    this.unitLabel = 'ud.',
     this.variants = const [],
     this.selectedVariantId,
   });
@@ -91,6 +93,7 @@ class Product extends Equatable {
   String get cartKey =>
       selectedVariantId == null ? id : '$id:$selectedVariantId';
   String get variationLabel => selectedVariant?.label ?? '';
+  String get saleUnitLabel => selectedVariant?.unitLabel ?? unitLabel;
 
   Product forVariant(ProductVariant variant) => Product(
     id: id,
@@ -102,6 +105,7 @@ class Product extends Equatable {
     imageData: imageData,
     currencyCode: currencyCode,
     category: category,
+    unitLabel: variant.unitLabel,
     variants: variants,
     selectedVariantId: variant.id,
   );
@@ -117,6 +121,7 @@ class Product extends Equatable {
     imageData,
     currencyCode,
     category,
+    unitLabel,
     variants,
     selectedVariantId,
   ];
