@@ -238,6 +238,7 @@ class PrinterHelper {
     String paymentMethod = 'Efectivo',
     double amountTendered = 0,
     double changeAmount = 0,
+    DateTime? soldAt,
     bool showAddress = true,
     bool showPhone = true,
     bool showRif = true,
@@ -259,9 +260,8 @@ class PrinterHelper {
     final totalColumnWidth = paperColumns == 48 ? 12 : 8;
     final priceColumnWidth = paperColumns == 48 ? 10 : 8;
     final productColumnWidth = paperColumns - totalColumnWidth;
-    final unitPriceProductWidth = paperColumns -
-        totalColumnWidth -
-        priceColumnWidth;
+    final unitPriceProductWidth =
+        paperColumns - totalColumnWidth - priceColumnWidth;
     final separator = '-' * paperColumns;
 
     // Construct ESC/POS bytes manually or using helper
@@ -308,7 +308,7 @@ class PrinterHelper {
       final formattedDate = DateFormat(
         'dd/MM/yyyy HH:mm',
         'es',
-      ).format(DateTime.now());
+      ).format(soldAt ?? DateTime.now());
       bytes += _textToBytes(formattedDate);
       bytes += EscPos.lineFeed;
     }

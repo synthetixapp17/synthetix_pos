@@ -25,6 +25,7 @@ This application serves as a complete offline POS system for small to medium-siz
 - **Product Management System**: Complete CRUD operations for inventory items with barcode/QR code support.
 - **Smart Checkout System**: Rapid cart building via camera-based barcode scanning or manual entry, and robust order calculation functionality.
 - **Bluetooth Thermal Printing**: Direct integration with thermal printers (`print_bluetooth_thermal`) to instantly output physical receipts.
+- **Sales Reports & Cash Closing**: Look up and reprint saved receipts, preview invoices before printing, and print daily sales totals by currency.
 - **Shop Settings & Customization**: Centrally managed shop details printed dynamically on receipts.
 - **CSV Backups**: Export a complete ZIP backup or restore an individual CSV without replacing unrelated data.
 - **Offline-First Architecture**: Powered by `Hive` for lightning-fast localized NoSQL data storage. No active internet connectivity required.

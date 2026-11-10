@@ -6,10 +6,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:zxing2/zxing2.dart' show NotFoundException;
 
+import '../../../../core/data/hive_database.dart';
 import '../../../../core/utils/app_currency.dart';
+import '../../../../core/utils/printer_helper.dart';
+import '../../../../core/utils/receipt_preferences.dart';
 import '../../../../core/utils/receipt_qr.dart';
 import '../../../../core/utils/receipt_qr_image_decoder.dart';
 import '../../../../core/widgets/metric_chart_card.dart';
+import '../../../shop/data/repositories/shop_repository_impl.dart';
 import '../../domain/entities/sale_record.dart';
 import '../bloc/reports_bloc.dart';
 
@@ -34,6 +38,7 @@ class _ReportsPageState extends State<ReportsPage> {
   final _monthFormat = DateFormat('MMM yy', 'es');
   final _saleIdController = TextEditingController();
   String? _saleId;
+  bool _isPrinting = false;
 
   @override
   void initState() {
@@ -92,28 +97,202 @@ class _ReportsPageState extends State<ReportsPage> {
       if (!mounted) return;
       _searchScannedQr(data);
     } on NotFoundException {
-      _showQrError('No se encontró un código QR legible en la imagen.');
+      _showMessage('No se encontró un código QR legible en la imagen.');
     } on FormatException catch (error) {
-      _showQrError('No se pudo leer la imagen: ${error.message}');
+      _showMessage('No se pudo leer la imagen: ${error.message}');
     } catch (error) {
-      _showQrError('No se pudo leer el QR de la imagen: $error');
+      _showMessage('No se pudo leer el QR de la imagen: $error');
     }
   }
 
   void _searchScannedQr(String data) {
     final saleId = ReceiptQr.saleIdFromData(data);
     if (saleId == null || saleId.isEmpty) {
-      _showQrError('El QR no contiene un folio de venta válido.');
+      _showMessage('El QR no contiene un folio de venta válido.');
       return;
     }
     _searchSale(saleId);
   }
 
-  void _showQrError(String message) {
+  void _showMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _ensurePrinterConnected(PrinterHelper printer) async {
+    if (await printer.checkConnection()) return;
+    final savedMac = HiveDatabase.settingsBox.get('printer_mac');
+    if (savedMac is! String || savedMac.isEmpty) {
+      throw const PrinterException(
+        'La impresora no está conectada y no hay una impresora guardada.',
+      );
+    }
+    if (!await printer.connect(savedMac)) {
+      throw const PrinterException(
+        'No se pudo conectar automáticamente con la impresora. '
+        'Comprueba que esté encendida y vinculada.',
+      );
+    }
+  }
+
+  Future<void> _reprintSale(SaleRecord sale) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => _SaleInvoicePreviewDialog(sale: sale),
+    );
+    if (!mounted || confirmed != true || _isPrinting) return;
+
+    setState(() => _isPrinting = true);
+    try {
+      final printer = PrinterHelper();
+      await _ensurePrinterConnected(printer);
+      final shop = HiveDatabase.shopBox.get(ShopRepositoryImpl.shopKey);
+      final printed = await printer.printReceipt(
+        shopName: shop == null || shop.name.isEmpty ? 'MI TIENDA' : shop.name,
+        address1: shop?.addressLine1 ?? '',
+        address2: shop?.addressLine2 ?? '',
+        phone: shop?.phoneNumber ?? '',
+        rif: shop?.rif ?? '',
+        qrData: ReceiptPreferences.showInvoiceQr
+            ? ReceiptQr.saleQrData(sale.id)
+            : null,
+        customerName: sale.customerName,
+        logoData: shop?.logoData,
+        items: sale.lines
+            .map(
+              (line) => {
+                'name': line.productName,
+                'qty': line.quantity,
+                'price': line.unitPrice,
+                'total': line.total,
+                'barcode': line.barcode,
+              },
+            )
+            .toList(),
+        total: sale.total,
+        footer: ReceiptPreferences.footerText ?? shop?.footerText ?? '',
+        currencyCode: sale.currencyCode,
+        exchangeRate: sale.exchangeRate,
+        paymentMethod: sale.paymentMethod,
+        amountTendered: sale.amountTendered,
+        changeAmount: sale.changeAmount,
+        soldAt: sale.soldAt,
+        showAddress: ReceiptPreferences.showAddress,
+        showPhone: ReceiptPreferences.showPhone,
+        showRif: ReceiptPreferences.showRif,
+        showInvoiceQr: ReceiptPreferences.showInvoiceQr,
+        showDate: ReceiptPreferences.showDate,
+        showBarcode: ReceiptPreferences.showBarcode,
+        showUnitPrices: ReceiptPreferences.showUnitPrices,
+      );
+      if (!printed) {
+        throw const PrinterException('No se pudo reimprimir el ticket.');
+      }
+      _showMessage('Ticket de ${sale.id} enviado a la impresora.');
+    } catch (error) {
+      _showMessage(
+        error is PrinterException
+            ? error.message
+            : 'No se pudo reimprimir el ticket: $error',
+      );
+    } finally {
+      if (mounted) setState(() => _isPrinting = false);
+    }
+  }
+
+  Future<void> _printCashClosing() async {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day);
+    final end = start.add(const Duration(days: 1));
+    final sales =
+        HiveDatabase.salesBox.values
+            .map((sale) => sale.toEntity())
+            .where(
+              (sale) =>
+                  !sale.soldAt.isBefore(start) && sale.soldAt.isBefore(end),
+            )
+            .toList()
+          ..sort((first, second) => first.soldAt.compareTo(second.soldAt));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) =>
+          _CashClosingPreviewDialog(sales: sales, date: start),
+    );
+    if (!mounted || confirmed != true || _isPrinting) return;
+
+    setState(() => _isPrinting = true);
+    try {
+      final printer = PrinterHelper();
+      await _ensurePrinterConnected(printer);
+      final totalsByCurrency = <String, double>{};
+      final salesByCurrency = <String, int>{};
+      var unitsSold = 0;
+      var totalUsd = 0.0;
+      for (final sale in sales) {
+        totalsByCurrency.update(
+          sale.currencyCode,
+          (total) => total + sale.total,
+          ifAbsent: () => sale.total,
+        );
+        salesByCurrency.update(
+          sale.currencyCode,
+          (count) => count + 1,
+          ifAbsent: () => 1,
+        );
+        unitsSold += sale.lines.fold<int>(
+          0,
+          (total, line) => total + line.quantity,
+        );
+        totalUsd += sale.total / sale.exchangeRate;
+      }
+
+      final shop = HiveDatabase.shopBox.get(ShopRepositoryImpl.shopKey);
+      final separator = '-' * ReceiptPreferences.paperColumns;
+      final buffer = StringBuffer()
+        ..writeln('CIERRE DE CAJA')
+        ..writeln(shop == null || shop.name.isEmpty ? 'MI TIENDA' : shop.name)
+        ..writeln(DateFormat('dd/MM/yyyy', 'es').format(start))
+        ..writeln(separator)
+        ..writeln('VENTAS: ${sales.length}  UNIDADES: $unitsSold')
+        ..writeln(separator);
+      for (final sale in sales) {
+        buffer
+          ..writeln(
+            '${DateFormat('HH:mm', 'es').format(sale.soldAt)} '
+            '${sale.id} ${AppCurrency.format(sale.total, code: sale.currencyCode)}',
+          )
+          ..writeln(
+            '  ${sale.paymentMethod} · ${sale.customerName ?? 'Sin cliente'}',
+          );
+      }
+      buffer
+        ..writeln(separator)
+        ..writeln('TOTALES POR MONEDA');
+      for (final entry in totalsByCurrency.entries) {
+        buffer.writeln(
+          '${AppCurrency.format(entry.value, code: entry.key)} '
+          '(${salesByCurrency[entry.key]} ventas)',
+        );
+      }
+      buffer
+        ..writeln(
+          'TOTAL REF. USD: ${AppCurrency.format(totalUsd, code: 'USD')}',
+        )
+        ..writeln(separator)
+        ..writeln();
+      await printer.printText(buffer.toString());
+      _showMessage('Cierre de caja enviado a la impresora.');
+    } catch (error) {
+      _showMessage(
+        error is PrinterException
+            ? error.message
+            : 'No se pudo imprimir el cierre de caja: $error',
+      );
+    } finally {
+      if (mounted) setState(() => _isPrinting = false);
+    }
   }
 
   SaleRecord? _findSale(List<SaleRecord> sales) {
@@ -158,6 +337,17 @@ class _ReportsPageState extends State<ReportsPage> {
       appBar: AppBar(
         title: const Text('Reportes de ventas'),
         actions: [
+          IconButton(
+            tooltip: 'Cierre de caja del día',
+            onPressed: _isPrinting ? null : _printCashClosing,
+            icon: _isPrinting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.point_of_sale_rounded),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: IconButton.filledTonal(
@@ -285,6 +475,8 @@ class _ReportsPageState extends State<ReportsPage> {
                   onSearch: _searchSale,
                   onScan: _scanSaleQr,
                   onPickImage: _pickSaleQrImage,
+                  onReprint: _reprintSale,
+                  isPrinting: _isPrinting,
                 ),
                 const SizedBox(height: 16),
                 _FilterCard(
@@ -1381,6 +1573,8 @@ class _SaleLookupCard extends StatelessWidget {
   final ValueChanged<String> onSearch;
   final VoidCallback onScan;
   final VoidCallback onPickImage;
+  final ValueChanged<SaleRecord> onReprint;
+  final bool isPrinting;
 
   const _SaleLookupCard({
     required this.controller,
@@ -1390,6 +1584,8 @@ class _SaleLookupCard extends StatelessWidget {
     required this.onSearch,
     required this.onScan,
     required this.onPickImage,
+    required this.onReprint,
+    required this.isPrinting,
   });
 
   @override
@@ -1525,6 +1721,15 @@ class _SaleLookupCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: isPrinting ? null : () => onReprint(sale!),
+                        icon: const Icon(Icons.print_outlined),
+                        label: const Text('Reimprimir ticket'),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1532,6 +1737,216 @@ class _SaleLookupCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SaleInvoicePreviewDialog extends StatelessWidget {
+  final SaleRecord sale;
+
+  const _SaleInvoicePreviewDialog({required this.sale});
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('Factura · ${sale.id}'),
+    content: SizedBox(
+      width: 420,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(DateFormat('dd/MM/yyyy HH:mm', 'es').format(sale.soldAt)),
+            Text('Cliente: ${sale.customerName ?? 'Venta sin cliente'}'),
+            Text('Pago: ${sale.paymentMethod}'),
+            Text('Tasa: 1 USD = ${sale.exchangeRate} ${sale.currencyCode}'),
+            const Divider(height: 24),
+            for (final line in sale.lines)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text('${line.quantity} × ${line.productName}'),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppCurrency.format(line.total, code: sale.currencyCode),
+                    ),
+                  ],
+                ),
+              ),
+            const Divider(height: 24),
+            _InvoiceAmountRow(
+              label: 'Total',
+              amount: sale.total,
+              currencyCode: sale.currencyCode,
+              emphasized: true,
+            ),
+            if (sale.paymentMethod.toLowerCase() == 'efectivo' &&
+                sale.amountTendered > 0) ...[
+              const SizedBox(height: 8),
+              _InvoiceAmountRow(
+                label: 'Recibido',
+                amount: sale.amountTendered,
+                currencyCode: sale.currencyCode,
+              ),
+              _InvoiceAmountRow(
+                label: 'Vuelto',
+                amount: sale.changeAmount,
+                currencyCode: sale.currencyCode,
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context, false),
+        child: const Text('Cancelar'),
+      ),
+      FilledButton.icon(
+        onPressed: () => Navigator.pop(context, true),
+        icon: const Icon(Icons.print_outlined),
+        label: const Text('Imprimir'),
+      ),
+    ],
+  );
+}
+
+class _InvoiceAmountRow extends StatelessWidget {
+  final String label;
+  final double amount;
+  final String currencyCode;
+  final bool emphasized;
+
+  const _InvoiceAmountRow({
+    required this.label,
+    required this.amount,
+    required this.currencyCode,
+    this.emphasized = false,
+  });
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          fontWeight: emphasized ? FontWeight.w800 : FontWeight.normal,
+        ),
+      ),
+      Text(
+        AppCurrency.format(amount, code: currencyCode),
+        style: TextStyle(
+          fontWeight: emphasized ? FontWeight.w800 : FontWeight.normal,
+        ),
+      ),
+    ],
+  );
+}
+
+class _CashClosingPreviewDialog extends StatelessWidget {
+  final List<SaleRecord> sales;
+  final DateTime date;
+
+  const _CashClosingPreviewDialog({required this.sales, required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalsByCurrency = <String, double>{};
+    final salesByCurrency = <String, int>{};
+    var unitsSold = 0;
+    var totalUsd = 0.0;
+    for (final sale in sales) {
+      totalsByCurrency.update(
+        sale.currencyCode,
+        (total) => total + sale.total,
+        ifAbsent: () => sale.total,
+      );
+      salesByCurrency.update(
+        sale.currencyCode,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+      unitsSold += sale.lines.fold<int>(
+        0,
+        (total, line) => total + line.quantity,
+      );
+      totalUsd += sale.total / sale.exchangeRate;
+    }
+
+    return AlertDialog(
+      title: const Text('Cierre de caja'),
+      content: SizedBox(
+        width: 440,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(DateFormat('dd/MM/yyyy', 'es').format(date)),
+              const SizedBox(height: 8),
+              Text('${sales.length} ventas · $unitsSold unidades vendidas'),
+              const Divider(height: 24),
+              if (sales.isEmpty)
+                const Text('No hay ventas registradas para este día.')
+              else ...[
+                for (final sale in sales)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: Text(
+                      '${DateFormat('HH:mm', 'es').format(sale.soldAt)} · '
+                      '${sale.id}',
+                    ),
+                    subtitle: Text(
+                      '${sale.paymentMethod} · '
+                      '${sale.customerName ?? 'Sin cliente'}',
+                    ),
+                    trailing: Text(
+                      AppCurrency.format(sale.total, code: sale.currencyCode),
+                    ),
+                  ),
+                const Divider(height: 24),
+                Text(
+                  'Totales por moneda',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                for (final entry in totalsByCurrency.entries)
+                  _InvoiceAmountRow(
+                    label: '${salesByCurrency[entry.key]} ventas',
+                    amount: entry.value,
+                    currencyCode: entry.key,
+                  ),
+                const SizedBox(height: 8),
+                _InvoiceAmountRow(
+                  label: 'Total de referencia USD',
+                  amount: totalUsd,
+                  currencyCode: 'USD',
+                  emphasized: true,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton.icon(
+          onPressed: () => Navigator.pop(context, true),
+          icon: const Icon(Icons.print_outlined),
+          label: const Text('Imprimir cierre'),
+        ),
+      ],
     );
   }
 }
