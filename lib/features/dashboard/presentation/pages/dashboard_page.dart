@@ -11,6 +11,7 @@ import '../../../../core/widgets/metric_chart_card.dart';
 import '../../../reports/domain/entities/sale_record.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../../domain/entities/dashboard_summary.dart';
+import '../utils/dashboard_greeting.dart';
 
 final _dashboardDateFormat = DateFormat('EEE d', 'es');
 
@@ -34,7 +35,9 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     AppCurrencyScope.of(context);
-    final isWebDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 900;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isWebDesktop = kIsWeb && screenWidth >= 900;
+    final showBottomNavigation = !kIsWeb || screenWidth < 800;
     final webColors = _WebDashboardColors.of(context);
     return Scaffold(
       backgroundColor: isWebDesktop
@@ -53,19 +56,6 @@ class _DashboardPageState extends State<DashboardPage> {
                         ? Icons.light_mode
                         : Icons.dark_mode,
                   ),
-                ),
-                PopupMenuButton<String>(
-                  tooltip: 'Navegación',
-                  onSelected: (route) => context.push(route),
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: '/customers', child: Text('Clientes')),
-                    PopupMenuItem(value: '/reports', child: Text('Reportes')),
-                    PopupMenuItem(value: '/products', child: Text('Productos')),
-                    PopupMenuItem(
-                      value: '/settings',
-                      child: Text('Configuración'),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -277,6 +267,51 @@ class _DashboardPageState extends State<DashboardPage> {
           );
         },
       ),
+      bottomNavigationBar: showBottomNavigation
+          ? NavigationBar(
+              height: 72,
+              selectedIndex: 0,
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
+              onDestinationSelected: (index) {
+                const destinations = [
+                  '/',
+                  '/new-sale',
+                  '/products',
+                  '/customers',
+                  '/settings',
+                ];
+                context.go(destinations[index]);
+              },
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.space_dashboard_outlined),
+                  selectedIcon: Icon(Icons.space_dashboard_rounded),
+                  label: 'Inicio',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.point_of_sale_outlined),
+                  selectedIcon: Icon(Icons.point_of_sale_rounded),
+                  label: 'Venta',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.inventory_2_outlined),
+                  selectedIcon: Icon(Icons.inventory_2_rounded),
+                  label: 'Productos',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.people_outline_rounded),
+                  selectedIcon: Icon(Icons.people_rounded),
+                  label: 'Clientes',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings_rounded),
+                  label: 'Ajustes',
+                ),
+              ],
+            )
+          : null,
     );
   }
 
@@ -517,7 +552,7 @@ class _WelcomeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Tu negocio, en una mirada',
+                  '¡${dashboardGreeting(DateTime.now())}!',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: colors.onPrimary,
                     fontWeight: FontWeight.w800,
@@ -525,7 +560,7 @@ class _WelcomeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  'Revisa el rendimiento y gestiona tus ventas desde aquí.',
+                  'Bienvenido a tu panel de negocio. Revisa tus resultados y gestiona tus ventas desde aquí.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: colors.onPrimary.withValues(alpha: 0.82),
                   ),
@@ -623,7 +658,7 @@ class _WebDashboardHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Hola, bienvenido',
+                '${dashboardGreeting(DateTime.now())}, bienvenido',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.headlineSmall?.copyWith(

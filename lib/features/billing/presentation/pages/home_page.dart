@@ -20,11 +20,12 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final MobileScannerController _scannerController = MobileScannerController(
+    autoStart: false,
     detectionSpeed: DetectionSpeed.normal,
     returnImage: false,
   );
 
-  bool _isCameraOn = true;
+  bool _isCameraOn = false;
   bool _isFlashOn = false;
 
   // Cooldown mapping to prevent rapid firing of the same barcode
@@ -258,8 +259,10 @@ class _HomePageState extends State<HomePage> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          MobileScanner(controller: _scannerController, onDetect: _onDetect),
-          if (!_isCameraOn) _buildCameraOffState(),
+          if (_isCameraOn)
+            MobileScanner(controller: _scannerController, onDetect: _onDetect)
+          else
+            _buildCameraOffState(),
 
           // Overlay Actions (Top Right)
           Positioned(
@@ -345,58 +348,85 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCameraOffState() {
+    final colors = Theme.of(context).colorScheme;
     return Container(
-      color: const Color(0xFF1E293B), // slate-800
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF172331), Color(0xFF101820)],
+        ),
+      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 64,
-            height: 64,
-            decoration: const BoxDecoration(
-              color: Color(0xFF334155), // slate-700
-              shape: BoxShape.circle,
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: colors.primary.withValues(alpha: .16),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: .08)),
             ),
             alignment: Alignment.center,
-            child: const Icon(
-              Icons.videocam_off,
+            child: Icon(
+              Icons.qr_code_scanner_rounded,
               color: Colors.white,
-              size: 32,
+              size: 30,
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'La cámara está apagada',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+          const SizedBox(height: 12),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Text(
+                'ESCÁNER EN PAUSA',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              'Activa la cámara para escanear códigos y agregar productos automáticamente.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, fontSize: 12),
+          const Text(
+            'Escanea tus productos',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 19,
             ),
           ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+          const SizedBox(height: 6),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              'La cámara permanece apagada. Enciéndela cuando quieras leer un código de barras.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                height: 1.45,
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
-            icon: const Icon(Icons.videocam),
-            label: const Text(
-              'Activar cámara',
-              style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: colors.primary,
+              foregroundColor: AppTheme.onColor(colors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
             ),
+            icon: const Icon(Icons.videocam_rounded),
+            label: const Text('Activar cámara'),
             onPressed: () {
               setState(() => _isCameraOn = true);
               _scannerController.start();
@@ -418,7 +448,7 @@ class _HomePageState extends State<HomePage> {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: color ?? Colors.black45,
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white24),
       ),
       child: IconButton(

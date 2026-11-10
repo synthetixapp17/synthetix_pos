@@ -75,11 +75,39 @@ extension on _BackupScopeChoice {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  final _generalSectionKey = GlobalKey();
+  final _catalogSectionKey = GlobalKey();
+  final _analyticsSectionKey = GlobalKey();
+  final _documentsSectionKey = GlobalKey();
+  final _preferencesSectionKey = GlobalKey();
+  final _devicesSectionKey = GlobalKey();
+  final _backupSectionKey = GlobalKey();
   late String _currencyCode;
   late int _stockThreshold;
   int _currencyDropdownVersion = 0;
+  int _selectedSection = 0;
   bool _isExportingBackup = false;
   bool _isRestoringBackup = false;
+
+  static const _settingsSections = [
+    ('General', Icons.storefront_outlined),
+    ('Catálogo', Icons.inventory_2_outlined),
+    ('Análisis', Icons.bar_chart_outlined),
+    ('Documentos', Icons.description_outlined),
+    ('Preferencias', Icons.tune_rounded),
+    ('Dispositivos', Icons.print_outlined),
+    ('Respaldo', Icons.backup_outlined),
+  ];
+
+  List<GlobalKey> get _sectionKeys => [
+    _generalSectionKey,
+    _catalogSectionKey,
+    _analyticsSectionKey,
+    _documentsSectionKey,
+    _preferencesSectionKey,
+    _devicesSectionKey,
+    _backupSectionKey,
+  ];
 
   @override
   void initState() {
@@ -89,6 +117,18 @@ class _SettingsPageState extends State<SettingsPage> {
         HiveDatabase.settingsBox.get('low_stock_threshold', defaultValue: 5)
             as int;
     context.read<ShopBloc>().add(LoadShopEvent());
+  }
+
+  Future<void> _navigateToSection(int index) async {
+    setState(() => _selectedSection = index);
+    final targetContext = _sectionKeys[index].currentContext;
+    if (targetContext == null) return;
+    await Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+      alignment: 0.06,
+    );
   }
 
   Future<void> _saveCurrency(String? code) async {
@@ -389,532 +429,608 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Configuración'), centerTitle: true),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        children: [
-          Container(
-            margin: const EdgeInsets.only(bottom: 22),
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(22),
+      appBar: AppBar(
+        title: const Text('Configuración'),
+        centerTitle: false,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(58),
+          child: SizedBox(
+            height: 58,
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+              scrollDirection: Axis.horizontal,
+              itemCount: _settingsSections.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final section = _settingsSections[index];
+                final selected = _selectedSection == index;
+                return ChoiceChip(
+                  avatar: Icon(
+                    section.$2,
+                    size: 18,
+                    color: selected ? colors.onSecondaryContainer : null,
+                  ),
+                  label: Text(section.$1),
+                  selected: selected,
+                  showCheckmark: false,
+                  onSelected: (_) => _navigateToSection(index),
+                  backgroundColor: colors.surface,
+                  selectedColor: colors.secondaryContainer,
+                  side: BorderSide(
+                    color: selected
+                        ? colors.secondary.withValues(alpha: .25)
+                        : colors.outlineVariant,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: selected ? colors.onSecondaryContainer : null,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                );
+              },
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: .1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(
-                    Icons.tune_rounded,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Ajustes de tu negocio',
-                        style: Theme.of(context).textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Organiza tu tienda, personaliza la plataforma y administra tus dispositivos.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+          ),
+        ),
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1120),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            children: [
+              Container(
+                key: _generalSectionKey,
+                margin: const EdgeInsets.only(bottom: 22),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colors.primaryContainer,
+                      Color.lerp(colors.primaryContainer, colors.surface, .3)!,
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
-          _BusinessProfileCard(onTap: () => context.push('/shop')),
-          const SizedBox(height: 22),
-          const _SectionTitle(
-            title: 'Catálogo y clientes',
-            subtitle: 'Administra productos, existencias y contactos.',
-          ),
-          _SettingsGroup(
-            children: [
-              _SettingsTile(
-                icon: Icons.inventory_2_outlined,
-                title: 'Productos',
-                subtitle: 'Imágenes, precios, códigos y existencias',
-                onTap: () => context.push('/products'),
-              ),
-              const _SettingsDivider(),
-              _SettingsTile(
-                icon: Icons.category_outlined,
-                title: 'Categorías',
-                subtitle: 'Crea y organiza categorías para tus productos',
-                onTap: () => context.push('/settings/categories'),
-              ),
-              const _SettingsDivider(),
-              _SettingsTile(
-                icon: Icons.account_balance_wallet_outlined,
-                title: 'Formas de pago',
-                subtitle: 'Crea y edita las opciones que acepta tu negocio',
-                onTap: () => context.push('/settings/payment-methods'),
-              ),
-              const _SettingsDivider(),
-              _SettingsTile(
-                icon: Icons.people_outline,
-                title: 'Clientes',
-                subtitle: 'Directorio y datos de contacto',
-                onTap: () => context.push('/customers'),
-              ),
-              const _SettingsDivider(),
-              _SettingsTile(
-                icon: Icons.account_balance_wallet_outlined,
-                title: 'Compras a crédito',
-                subtitle: 'Saldos, abonos y comprobantes por cliente',
-                onTap: () => context.push('/settings/credits'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          const _SectionTitle(
-            title: 'Documentos y etiquetas',
-            subtitle: 'Personaliza lo que compartes e imprimes.',
-          ),
-          _SettingsGroup(
-            children: [
-              _SettingsTile(
-                icon: Icons.storefront_outlined,
-                title: 'Datos de la tienda',
-                subtitle: 'Logotipo, dirección y recibos',
-                onTap: () => context.push('/shop'),
-              ),
-              const _SettingsDivider(),
-              _SettingsTile(
-                icon: Icons.receipt_long_outlined,
-                title: 'Diseño del ticket',
-                subtitle: 'Vista previa y campos impresos',
-                onTap: () => context.push('/settings/receipt'),
-              ),
-              const _SettingsDivider(),
-              _SettingsTile(
-                icon: Icons.request_quote_outlined,
-                title: 'Cotización',
-                subtitle: 'Activa, diseña y consulta cotizaciones PDF',
-                onTap: () => context.push('/settings/quotation'),
-              ),
-              const _SettingsDivider(),
-              _SettingsTile(
-                icon: Icons.description_outlined,
-                title: 'Contrato de crédito',
-                subtitle: 'Diseño, colores y cláusulas del PDF de créditos',
-                onTap: () => context.push('/settings/credit-document'),
-              ),
-              const _SettingsDivider(),
-              _SettingsTile(
-                icon: Icons.qr_code_scanner,
-                title: 'Códigos de barras',
-                subtitle: 'Consulta e imprime etiquetas de productos',
-                onTap: () => context.push('/settings/barcodes'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          const _SectionTitle(
-            title: 'Análisis del negocio',
-            subtitle: 'Revisa ventas y rendimiento de tu operación.',
-          ),
-          _SettingsGroup(
-            children: [
-              _SettingsTile(
-                icon: Icons.bar_chart_outlined,
-                title: 'Reportes y métricas',
-                subtitle: 'Ventas, productos y rendimiento por categoría',
-                onTap: () => context.push('/reports'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          const _SectionTitle(
-            title: 'Preferencias del negocio',
-            subtitle:
-                'Ajusta moneda, inventario y apariencia de la aplicación.',
-          ),
-          _SettingsGroup(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey(_currencyDropdownVersion),
-                  initialValue: _currencyCode,
-                  decoration: const InputDecoration(
-                    labelText: 'Moneda predeterminada de cobro',
-                    helperText:
-                        'Los precios del catálogo siempre usan USD como referencia.',
-                    prefixIcon: Icon(Icons.currency_exchange),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: colors.primary.withValues(alpha: .1),
                   ),
-                  items: AppCurrency.configuredCurrencies
-                      .map(
-                        (currency) => DropdownMenuItem(
-                          value: currency.code,
-                          child: Text(
-                            '${currency.symbol}  ${currency.code}',
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: _saveCurrency,
                 ),
-              ),
-              const _SettingsDivider(),
-              _CurrencyRatesSection(
-                key: ValueKey(_currencyDropdownVersion),
-              ),
-              const _SettingsDivider(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-                child: DropdownButtonFormField<int>(
-                  initialValue: _stockThreshold,
-                  decoration: const InputDecoration(
-                    labelText: 'Aviso de existencias bajas',
-                    helperText:
-                        'Los productos por debajo de este número aparecerán en el resumen.',
-                    prefixIcon: Icon(Icons.warning_amber_outlined),
-                  ),
-                  items: const [3, 5, 10, 15, 20].map((value) {
-                    return DropdownMenuItem(
-                      value: value,
-                      child: Text('Menos de $value unidades'),
-                    );
-                  }).toList(),
-                  onChanged: _saveThreshold,
-                ),
-              ),
-              const _SettingsDivider(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 15, 16, 12),
-                child: ValueListenableBuilder<ThemeMode>(
-                  valueListenable: AppThemeController.mode,
-                  builder: (context, mode, _) =>
-                      DropdownButtonFormField<ThemeMode>(
-                        initialValue: mode,
-                        decoration: const InputDecoration(
-                          labelText: 'Apariencia',
-                          prefixIcon: Icon(Icons.brightness_6_outlined),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: ThemeMode.system,
-                            child: Text('Seguir el sistema'),
-                          ),
-                          DropdownMenuItem(
-                            value: ThemeMode.light,
-                            child: Text('Claro'),
-                          ),
-                          DropdownMenuItem(
-                            value: ThemeMode.dark,
-                            child: Text('Oscuro'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            AppThemeController.setMode(value);
-                          }
-                        },
+                child: Row(
+                  children: [
+                    Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: .1),
+                        borderRadius: BorderRadius.circular(18),
                       ),
-                ),
-              ),
-              const _SettingsDivider(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-                child: ValueListenableBuilder<Color>(
-                  valueListenable: AppThemeController.primaryColor,
-                  builder: (context, selectedColor, _) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                      child: Icon(
+                        Icons.tune_rounded,
+                        color: colors.primary,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.palette_outlined),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Color principal',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleSmall,
+                          Text(
+                            'CENTRO DE ADMINISTRACIÓN',
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: colors.primary,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.1,
                                 ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  'Se aplica al menú, botones y elementos principales de toda la plataforma.',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Todo tu negocio, bajo control',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Configura tu tienda, personaliza la experiencia y administra tus herramientas.',
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: selectedColor.withValues(alpha: .08),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: selectedColor.withValues(alpha: .2),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 30,
-                              height: 30,
-                              decoration: BoxDecoration(
-                                color: selectedColor,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: selectedColor.withValues(
-                                      alpha: .3,
-                                    ),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Color seleccionado',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.labelSmall,
-                                  ),
-                                  Text(
-                                    _colorName(selectedColor),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(Icons.check_circle, color: selectedColor),
-                          ],
-                        ),
+                    ),
+                  ],
+                ),
+              ),
+              _BusinessProfileCard(onTap: () => context.push('/shop')),
+              const SizedBox(height: 22),
+              _SectionTitle(
+                key: _catalogSectionKey,
+                title: 'Catálogo y clientes',
+                subtitle: 'Administra productos, existencias y contactos.',
+              ),
+              _SettingsGroup(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'Productos',
+                    subtitle: 'Imágenes, precios, códigos y existencias',
+                    onTap: () => context.push('/products'),
+                  ),
+                  const _SettingsDivider(),
+                  _SettingsTile(
+                    icon: Icons.category_outlined,
+                    title: 'Categorías',
+                    subtitle: 'Crea y organiza categorías para tus productos',
+                    onTap: () => context.push('/settings/categories'),
+                  ),
+                  const _SettingsDivider(),
+                  _SettingsTile(
+                    icon: Icons.account_balance_wallet_outlined,
+                    title: 'Formas de pago',
+                    subtitle: 'Crea y edita las opciones que acepta tu negocio',
+                    onTap: () => context.push('/settings/payment-methods'),
+                  ),
+                  const _SettingsDivider(),
+                  _SettingsTile(
+                    icon: Icons.people_outline,
+                    title: 'Clientes',
+                    subtitle: 'Directorio y datos de contacto',
+                    onTap: () => context.push('/customers'),
+                  ),
+                  const _SettingsDivider(),
+                  _SettingsTile(
+                    icon: Icons.account_balance_wallet_outlined,
+                    title: 'Compras a crédito',
+                    subtitle: 'Saldos, abonos y comprobantes por cliente',
+                    onTap: () => context.push('/settings/credits'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              _SectionTitle(
+                key: _documentsSectionKey,
+                title: 'Documentos y etiquetas',
+                subtitle: 'Personaliza lo que compartes e imprimes.',
+              ),
+              _SettingsGroup(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.storefront_outlined,
+                    title: 'Datos de la tienda',
+                    subtitle: 'Logotipo, dirección y recibos',
+                    onTap: () => context.push('/shop'),
+                  ),
+                  const _SettingsDivider(),
+                  _SettingsTile(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'Diseño del ticket',
+                    subtitle: 'Vista previa y campos impresos',
+                    onTap: () => context.push('/settings/receipt'),
+                  ),
+                  const _SettingsDivider(),
+                  _SettingsTile(
+                    icon: Icons.request_quote_outlined,
+                    title: 'Cotización',
+                    subtitle: 'Activa, diseña y consulta cotizaciones PDF',
+                    onTap: () => context.push('/settings/quotation'),
+                  ),
+                  const _SettingsDivider(),
+                  _SettingsTile(
+                    icon: Icons.description_outlined,
+                    title: 'Contrato de crédito',
+                    subtitle: 'Diseño, colores y cláusulas del PDF de créditos',
+                    onTap: () => context.push('/settings/credit-document'),
+                  ),
+                  const _SettingsDivider(),
+                  _SettingsTile(
+                    icon: Icons.qr_code_scanner,
+                    title: 'Códigos de barras',
+                    subtitle: 'Consulta e imprime etiquetas de productos',
+                    onTap: () => context.push('/settings/barcodes'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              _SectionTitle(
+                key: _analyticsSectionKey,
+                title: 'Análisis del negocio',
+                subtitle: 'Revisa ventas y rendimiento de tu operación.',
+              ),
+              _SettingsGroup(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.bar_chart_outlined,
+                    title: 'Reportes y métricas',
+                    subtitle: 'Ventas, productos y rendimiento por categoría',
+                    onTap: () => context.push('/reports'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              _SectionTitle(
+                key: _preferencesSectionKey,
+                title: 'Preferencias del negocio',
+                subtitle:
+                    'Ajusta moneda, inventario y apariencia de la aplicación.',
+              ),
+              _SettingsGroup(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+                    child: DropdownButtonFormField<String>(
+                      key: ValueKey(_currencyDropdownVersion),
+                      initialValue: _currencyCode,
+                      decoration: const InputDecoration(
+                        labelText: 'Moneda predeterminada de cobro',
+                        helperText:
+                            'Los precios del catálogo siempre usan USD como referencia.',
+                        prefixIcon: Icon(Icons.currency_exchange),
                       ),
-                      const SizedBox(height: 14),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final columns = (constraints.maxWidth / 82)
-                              .floor()
-                              .clamp(3, 5);
-                          return GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount:
-                                AppThemeController.availableColors.length,
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: columns,
-                                  mainAxisSpacing: 8,
-                                  crossAxisSpacing: 8,
-                                  childAspectRatio: 1.15,
-                                ),
-                            itemBuilder: (context, index) {
-                              final color =
-                                  AppThemeController.availableColors[index];
-                              final selected =
-                                  color.toARGB32() ==
-                                  selectedColor.toARGB32();
-                              return Semantics(
-                                button: true,
-                                selected: selected,
-                                label: 'Color ${_colorName(color)}',
-                                child: InkWell(
-                                  onTap: () =>
-                                      AppThemeController.setPrimaryColor(
-                                        color,
-                                      ),
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(
-                                      milliseconds: 180,
+                      items: AppCurrency.configuredCurrencies
+                          .map(
+                            (currency) => DropdownMenuItem(
+                              value: currency.code,
+                              child: Text(
+                                '${currency.symbol}  ${currency.code}',
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _saveCurrency,
+                    ),
+                  ),
+                  const _SettingsDivider(),
+                  _CurrencyRatesSection(
+                    key: ValueKey(_currencyDropdownVersion),
+                  ),
+                  const _SettingsDivider(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+                    child: DropdownButtonFormField<int>(
+                      initialValue: _stockThreshold,
+                      decoration: const InputDecoration(
+                        labelText: 'Aviso de existencias bajas',
+                        helperText:
+                            'Los productos por debajo de este número aparecerán en el resumen.',
+                        prefixIcon: Icon(Icons.warning_amber_outlined),
+                      ),
+                      items: const [3, 5, 10, 15, 20].map((value) {
+                        return DropdownMenuItem(
+                          value: value,
+                          child: Text('Menos de $value unidades'),
+                        );
+                      }).toList(),
+                      onChanged: _saveThreshold,
+                    ),
+                  ),
+                  const _SettingsDivider(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 15, 16, 12),
+                    child: ValueListenableBuilder<ThemeMode>(
+                      valueListenable: AppThemeController.mode,
+                      builder: (context, mode, _) =>
+                          DropdownButtonFormField<ThemeMode>(
+                            initialValue: mode,
+                            decoration: const InputDecoration(
+                              labelText: 'Apariencia',
+                              prefixIcon: Icon(Icons.brightness_6_outlined),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: ThemeMode.system,
+                                child: Text('Seguir el sistema'),
+                              ),
+                              DropdownMenuItem(
+                                value: ThemeMode.light,
+                                child: Text('Claro'),
+                              ),
+                              DropdownMenuItem(
+                                value: ThemeMode.dark,
+                                child: Text('Oscuro'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                AppThemeController.setMode(value);
+                              }
+                            },
+                          ),
+                    ),
+                  ),
+                  const _SettingsDivider(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+                    child: ValueListenableBuilder<Color>(
+                      valueListenable: AppThemeController.primaryColor,
+                      builder: (context, selectedColor, _) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.palette_outlined),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Color principal',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleSmall,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: selected
-                                          ? color.withValues(alpha: .1)
-                                          : Theme.of(
-                                              context,
-                                            ).colorScheme.surface,
-                                      borderRadius: BorderRadius.circular(
-                                        12,
-                                      ),
-                                      border: Border.all(
-                                        color: selected
-                                            ? color
-                                            : Theme.of(
-                                                context,
-                                              ).dividerColor,
-                                        width: selected ? 1.5 : 1,
-                                      ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'Se aplica al menú, botones y elementos principales de toda la plataforma.',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
                                     ),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Container(
-                                          width: 28,
-                                          height: 28,
-                                          decoration: BoxDecoration(
-                                            color: color,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: selected
-                                              ? Icon(
-                                                  Icons.check,
-                                                  color: AppTheme.onColor(
-                                                    color,
-                                                  ),
-                                                  size: 18,
-                                                )
-                                              : null,
-                                        ),
-                                        const SizedBox(height: 5),
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.symmetric(
-                                                horizontal: 3,
-                                              ),
-                                          child: Text(
-                                            _colorName(color),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.labelSmall,
-                                          ),
-                                        ),
                                   ],
                                 ),
                               ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: selectedColor.withValues(alpha: .08),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: selectedColor.withValues(alpha: .2),
+                              ),
                             ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    color: selectedColor,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: selectedColor.withValues(
+                                          alpha: .3,
+                                        ),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Color seleccionado',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.labelSmall,
+                                      ),
+                                      Text(
+                                        _colorName(selectedColor),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(Icons.check_circle, color: selectedColor),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final columns = (constraints.maxWidth / 82)
+                                  .floor()
+                                  .clamp(3, 5);
+                              return GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount:
+                                    AppThemeController.availableColors.length,
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: columns,
+                                      mainAxisSpacing: 8,
+                                      crossAxisSpacing: 8,
+                                      childAspectRatio: 1.15,
+                                    ),
+                                itemBuilder: (context, index) {
+                                  final color =
+                                      AppThemeController.availableColors[index];
+                                  final selected =
+                                      color.toARGB32() ==
+                                      selectedColor.toARGB32();
+                                  return Semantics(
+                                    button: true,
+                                    selected: selected,
+                                    label: 'Color ${_colorName(color)}',
+                                    child: InkWell(
+                                      onTap: () =>
+                                          AppThemeController.setPrimaryColor(
+                                            color,
+                                          ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 180,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: selected
+                                              ? color.withValues(alpha: .1)
+                                              : Theme.of(
+                                                  context,
+                                                ).colorScheme.surface,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: selected
+                                                ? color
+                                                : Theme.of(
+                                                    context,
+                                                  ).dividerColor,
+                                            width: selected ? 1.5 : 1,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              width: 28,
+                                              height: 28,
+                                              decoration: BoxDecoration(
+                                                color: color,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: selected
+                                                  ? Icon(
+                                                      Icons.check,
+                                                      color: AppTheme.onColor(
+                                                        color,
+                                                      ),
+                                                      size: 18,
+                                                    )
+                                                  : null,
+                                            ),
+                                            const SizedBox(height: 5),
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 3,
+                                                  ),
+                                              child: Text(
+                                                _colorName(color),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.labelSmall,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               );
                             },
-                          );
-                        },
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  const _SettingsDivider(),
+                  const _SplashImageSettings(),
+                ],
               ),
-              const _SettingsDivider(),
-              const _SplashImageSettings(),
-            ],
-          ),
-          const SizedBox(height: 22),
-          const _SectionTitle(
-            title: 'Dispositivos',
-            subtitle: 'Gestiona la conexión y el formato de impresión.',
-          ),
-          _SettingsGroup(
-            children: [
-              _SettingsTile(
-                icon: Icons.print_outlined,
-                title: 'Impresora térmica',
+              const SizedBox(height: 22),
+              _SectionTitle(
+                key: _devicesSectionKey,
+                title: 'Dispositivos',
+                subtitle: 'Gestiona la conexión y el formato de impresión.',
+              ),
+              _SettingsGroup(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.print_outlined,
+                    title: 'Impresora térmica',
+                    subtitle:
+                        'Tamaño del papel, dispositivos y prueba de impresión',
+                    onTap: () => context.push('/settings/printer'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              _SectionTitle(
+                key: _backupSectionKey,
+                title: 'Copia de seguridad',
                 subtitle:
-                    'Tamaño del papel, dispositivos y prueba de impresión',
-                onTap: () => context.push('/settings/printer'),
+                    'Exporta tus datos locales para guardarlos o compartirlos.',
               ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          const _SectionTitle(
-            title: 'Copia de seguridad',
-            subtitle:
-                'Exporta tus datos locales para guardarlos o compartirlos.',
-          ),
-          _SettingsGroup(
-            children: [
-              _SettingsTile(
-                icon: Icons.download_outlined,
-                title: 'Exportar datos en CSV',
-                subtitle:
-                    'Elige una copia completa o exporta productos, categorías y otros datos por separado.',
-                onTap: _isExportingBackup ? null : _exportCsvBackup,
-                trailing: _isExportingBackup
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.ios_share_outlined),
+              _SettingsGroup(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.download_outlined,
+                    title: 'Exportar datos en CSV',
+                    subtitle:
+                        'Elige una copia completa o exporta productos, categorías y otros datos por separado.',
+                    onTap: _isExportingBackup ? null : _exportCsvBackup,
+                    trailing: _isExportingBackup
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.ios_share_outlined),
+                  ),
+                  const _SettingsDivider(),
+                  _SettingsTile(
+                    icon: Icons.settings_backup_restore_outlined,
+                    title: 'Restaurar copia de seguridad',
+                    subtitle:
+                        'Restaura un tipo de dato desde su CSV o todos los datos desde un ZIP.',
+                    onTap: _isRestoringBackup ? null : _restoreCsvBackup,
+                    trailing: _isRestoringBackup
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.upload_file_outlined),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
+                    child: Text(
+                      'Las imágenes y el logotipo se incluyen codificados en Base64. La restauración reemplaza los datos actuales; conserva una copia antes de continuar.',
+                    ),
+                  ),
+                ],
               ),
-              const _SettingsDivider(),
-              _SettingsTile(
-                icon: Icons.settings_backup_restore_outlined,
-                title: 'Restaurar copia de seguridad',
-                subtitle:
-                    'Restaura un tipo de dato desde su CSV o todos los datos desde un ZIP.',
-                onTap: _isRestoringBackup ? null : _restoreCsvBackup,
-                trailing: _isRestoringBackup
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.upload_file_outlined),
+              const SizedBox(height: 22),
+              const _SectionTitle(
+                title: 'Acceso rápido',
+                subtitle: 'Consulta los datos importantes de tu operación.',
               ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
+              _SettingsGroup(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.space_dashboard_outlined,
+                    title: 'Resumen del negocio',
+                    subtitle: 'Ventas del día y estado del inventario',
+                    onTap: () => context.go('/'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Center(
                 child: Text(
-                  'Las imágenes y el logotipo se incluyen codificados en Base64. La restauración reemplaza los datos actuales; conserva una copia antes de continuar.',
+                  'Gestión de ventas · Datos almacenados en este dispositivo',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 22),
-          const _SectionTitle(
-            title: 'Acceso rápido',
-            subtitle: 'Consulta los datos importantes de tu operación.',
-          ),
-          _SettingsGroup(
-            children: [
-              _SettingsTile(
-                icon: Icons.space_dashboard_outlined,
-                title: 'Resumen del negocio',
-                subtitle: 'Ventas del día y estado del inventario',
-                onTap: () => context.go('/'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Center(
-            child: Text(
-              'Gestión de ventas · Datos almacenados en este dispositivo',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1428,7 +1544,7 @@ class _BusinessProfileCard extends StatelessWidget {
 class _SectionTitle extends StatelessWidget {
   final String title;
   final String subtitle;
-  const _SectionTitle({required this.title, required this.subtitle});
+  const _SectionTitle({super.key, required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -1476,21 +1592,43 @@ class _SettingsTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => ListTile(
-    onTap: onTap,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-    leading: CircleAvatar(
-      backgroundColor: Theme.of(
-        context,
-      ).colorScheme.primary.withValues(alpha: .1),
-      child: Icon(icon, color: Theme.of(context).colorScheme.primary),
-    ),
-    title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-    subtitle: Text(subtitle),
-    trailing:
-        trailing ??
-        (onTap == null ? null : const Icon(Icons.chevron_right, size: 20)),
-  );
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return ListTile(
+      onTap: onTap,
+      minVerticalPadding: 12,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
+      leading: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: colors.primaryContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.primary.withValues(alpha: .08)),
+        ),
+        alignment: Alignment.center,
+        child: Icon(icon, color: colors.primary, size: 25),
+      ),
+      title: Text(
+        title,
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 3),
+        child: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+      ),
+      trailing:
+          trailing ??
+          (onTap == null
+              ? null
+              : Icon(
+                  Icons.chevron_right_rounded,
+                  color: colors.onSurfaceVariant,
+                )),
+    );
+  }
 }
 
 class _SettingsDivider extends StatelessWidget {
