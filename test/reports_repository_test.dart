@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:billing_app/core/data/hive_database.dart';
 import 'package:billing_app/features/product/data/models/product_model.dart';
+import 'package:billing_app/features/product/domain/entities/product.dart';
 import 'package:billing_app/features/reports/data/models/sale_model.dart';
 import 'package:billing_app/features/reports/data/repositories/reports_repository_impl.dart';
 import 'package:billing_app/features/reports/domain/entities/sale_record.dart';
@@ -119,5 +120,52 @@ void main() {
     expect(result.isLeft(), isTrue);
     expect(HiveDatabase.productBox.get('product-1')?.stock, 1);
     expect(HiveDatabase.salesBox.values, isEmpty);
+  });
+
+  test('deducts fractional stock from the selected product variation', () async {
+    const variant = ProductVariant(
+      id: 'coffee-500g',
+      attributes: {'Peso': '500 g'},
+      price: 4.5,
+      stock: 2.75,
+      unitLabel: 'kg',
+    );
+    await HiveDatabase.productBox.put(
+      'product-variant',
+      const ProductModel(
+        id: 'product-variant',
+        name: 'Café',
+        barcode: '123',
+        price: 4.5,
+        stock: 2.75,
+        variants: [variant],
+      ),
+    );
+    final sale = SaleRecord(
+      id: 'sale-weight',
+      soldAt: DateTime(2026, 11, 1),
+      total: 3.375,
+      lines: const [
+        SaleLine(
+          productId: 'product-variant',
+          productName: 'Café',
+          variantId: 'coffee-500g',
+          variantAttributes: {'Peso': '500 g'},
+          quantity: .75,
+          unitPrice: 4.5,
+          unitLabel: 'kg',
+        ),
+      ],
+    );
+
+    final result = await ReportsRepositoryImpl().recordSale(sale);
+
+    expect(result.isRight(), isTrue);
+    final savedProduct = HiveDatabase.productBox.get('product-variant')!;
+    expect(savedProduct.stock, 2.0);
+    expect(savedProduct.variants.single.stock, 2.0);
+    final savedSale = HiveDatabase.salesBox.get('sale-weight')!.toEntity();
+    expect(savedSale.lines.single.quantity, .75);
+    expect(savedSale.lines.single.variationLabel, 'Peso: 500 g');
   });
 }

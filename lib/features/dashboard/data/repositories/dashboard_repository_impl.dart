@@ -25,7 +25,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
       final amountsByDay = <String, double>{};
       final usdAmountsByDay = <String, double>{};
       final dailyUsdTotals = <String, double>{};
-      final productQuantities = <String, int>{};
+      final productQuantities = <String, double>{};
       final productNames = <String, String>{};
 
       for (final model in HiveDatabase.salesBox.values) {
@@ -135,8 +135,8 @@ class DashboardRepositoryImpl implements DashboardRepository {
           },
           dailyUsdTotals: dailyUsdTotals,
           recentSales: recentSaleRecords,
-          unitsSoldToday: productQuantities.values.fold<int>(
-            0,
+          unitsSoldToday: productQuantities.values.fold<double>(
+            0.0,
             (total, quantity) => total + quantity,
           ),
         ),

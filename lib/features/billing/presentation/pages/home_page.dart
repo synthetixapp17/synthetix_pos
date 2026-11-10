@@ -534,8 +534,8 @@ class _HomePageState extends State<HomePage> {
           // Header
           BlocBuilder<BillingBloc, BillingState>(
             builder: (context, state) {
-              final totalItems = state.cartItems.fold<int>(
-                0,
+              final totalItems = state.cartItems.fold<double>(
+                0.0,
                 (sum, i) => sum + i.quantity,
               );
               return Padding(
@@ -743,11 +743,14 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () {
                     if (item.quantity > 1) {
                       context.read<BillingBloc>().add(
-                        UpdateQuantityEvent(item.product.id, item.quantity - 1),
+                        UpdateQuantityEvent(
+                          item.product.cartKey,
+                          item.quantity - 1,
+                        ),
                       );
                     } else {
                       context.read<BillingBloc>().add(
-                        RemoveProductFromCartEvent(item.product.id),
+                        RemoveProductFromCartEvent(item.product.cartKey),
                       );
                     }
                   },
@@ -755,7 +758,7 @@ class _HomePageState extends State<HomePage> {
                 SizedBox(
                   width: 32,
                   child: Text(
-                    '${item.quantity}',
+                    '${item.quantity} ${item.product.selectedVariant?.unitLabel ?? 'ud.'}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -764,7 +767,10 @@ class _HomePageState extends State<HomePage> {
                   icon: Icons.add,
                   onPressed: () {
                     context.read<BillingBloc>().add(
-                      UpdateQuantityEvent(item.product.id, item.quantity + 1),
+                      UpdateQuantityEvent(
+                        item.product.cartKey,
+                        item.quantity + 1,
+                      ),
                     );
                   },
                 ),

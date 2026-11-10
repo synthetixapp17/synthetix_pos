@@ -15,9 +15,10 @@ class ScanBarcodeEvent extends BillingEvent {
 
 class AddProductToCartEvent extends BillingEvent {
   final Product product;
-  const AddProductToCartEvent(this.product);
+  final double quantity;
+  const AddProductToCartEvent(this.product, {this.quantity = 1});
   @override
-  List<Object> get props => [product];
+  List<Object> get props => [product, quantity];
 }
 
 class RemoveProductFromCartEvent extends BillingEvent {
@@ -29,7 +30,7 @@ class RemoveProductFromCartEvent extends BillingEvent {
 
 class UpdateQuantityEvent extends BillingEvent {
   final String productId;
-  final int quantity;
+  final double quantity;
   const UpdateQuantityEvent(this.productId, this.quantity);
   @override
   List<Object> get props => [productId, quantity];

@@ -5,10 +5,13 @@ import 'package:equatable/equatable.dart';
 class SaleLine extends Equatable {
   final String productId;
   final String productName;
-  final int quantity;
+  final double quantity;
   final double unitPrice;
   final String category;
   final String barcode;
+  final String? variantId;
+  final Map<String, String> variantAttributes;
+  final String unitLabel;
 
   const SaleLine({
     required this.productId,
@@ -17,26 +20,45 @@ class SaleLine extends Equatable {
     required this.unitPrice,
     this.category = '',
     this.barcode = '',
+    this.variantId,
+    this.variantAttributes = const {},
+    this.unitLabel = 'ud.',
   });
 
   double get total => quantity * unitPrice;
+  String get displayQuantity => quantity == quantity.roundToDouble()
+      ? '${quantity.toInt()}'
+      : '$quantity';
 
-  Map<String, Object> toJson() => {
+  String get variationLabel => variantAttributes.entries
+      .map((entry) => '${entry.key}: ${entry.value}')
+      .join(' · ');
+
+  Map<String, Object?> toJson() => {
     'productId': productId,
     'productName': productName,
     'quantity': quantity,
     'unitPrice': unitPrice,
     'category': category,
     'barcode': barcode,
+    'variantId': variantId,
+    'variantAttributes': variantAttributes,
+    'unitLabel': unitLabel,
   };
 
   factory SaleLine.fromJson(Map<String, dynamic> json) => SaleLine(
     productId: json['productId'] as String,
     productName: json['productName'] as String,
-    quantity: json['quantity'] as int,
+    quantity: (json['quantity'] as num).toDouble(),
     unitPrice: (json['unitPrice'] as num).toDouble(),
     category: json['category'] as String? ?? '',
     barcode: json['barcode'] as String? ?? '',
+    variantId: json['variantId'] as String?,
+    variantAttributes:
+        (json['variantAttributes'] as Map<String, dynamic>? ?? {}).map(
+          (key, value) => MapEntry(key, value.toString()),
+        ),
+    unitLabel: json['unitLabel'] as String? ?? 'ud.',
   );
 
   @override
@@ -47,6 +69,9 @@ class SaleLine extends Equatable {
     unitPrice,
     category,
     barcode,
+    variantId,
+    variantAttributes,
+    unitLabel,
   ];
 }
 

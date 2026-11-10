@@ -64,7 +64,8 @@ class CreditPdf {
       for (final line in sale.lines)
         {
           'cantidad': line.quantity,
-          'descripcion': line.productName,
+          'descripcion':
+              '${line.productName}${line.variationLabel.isEmpty ? '' : ' · ${line.variationLabel}'}',
           'precioUnitario': line.unitPrice,
         },
     ],
@@ -742,7 +743,7 @@ pw.Widget _signatureBlock({
 );
 
 class _CreditProduct {
-  final int quantity;
+  final double quantity;
   final String description;
   final double unitPrice;
 
@@ -780,10 +781,10 @@ List<_CreditProduct> _requiredProducts(Map<String, dynamic> datos) {
       );
     }
     final product = value.map((key, value) => MapEntry('$key', value));
-    final quantity = _integer(product['cantidad']);
+    final quantity = _number(product['cantidad']);
     final description = _text(product['descripcion']);
     final unitPrice = _number(product['precioUnitario']);
-    if (quantity < 1 || description.isEmpty || unitPrice < 0) {
+    if (quantity <= 0 || description.isEmpty || unitPrice < 0) {
       throw ArgumentError.value(
         value,
         'productos',

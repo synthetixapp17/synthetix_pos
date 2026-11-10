@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:hive/hive.dart';
+
 import '../../domain/entities/product.dart';
 
 part 'product_model.g.dart'; // Hive generator
@@ -19,7 +22,7 @@ class ProductModel extends Product {
   final double price;
   @override
   @HiveField(4)
-  final int stock;
+  final double stock;
   @HiveField(5, defaultValue: '')
   @override
   final String description;
@@ -32,6 +35,8 @@ class ProductModel extends Product {
   @HiveField(8, defaultValue: '')
   @override
   final String category;
+  @HiveField(9, defaultValue: '[]')
+  final String variantsJson;
 
   const ProductModel({
     required this.id,
@@ -43,6 +48,8 @@ class ProductModel extends Product {
     this.imageData,
     this.currencyCode = 'USD',
     this.category = '',
+    this.variantsJson = '[]',
+    List<ProductVariant> variants = const [],
   }) : super(
          id: id,
          name: name,
@@ -53,6 +60,7 @@ class ProductModel extends Product {
          imageData: imageData,
          currencyCode: currencyCode,
          category: category,
+         variants: variants,
        );
 
   ProductModel copyWith({
@@ -60,11 +68,12 @@ class ProductModel extends Product {
     String? name,
     String? barcode,
     double? price,
-    int? stock,
+    double? stock,
     String? description,
     String? imageData,
     String? currencyCode,
     String? category,
+    List<ProductVariant>? variants,
   }) => ProductModel(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -75,7 +84,20 @@ class ProductModel extends Product {
     imageData: imageData ?? this.imageData,
     currencyCode: currencyCode ?? this.currencyCode,
     category: category ?? this.category,
+    variantsJson: variants == null
+        ? variantsJson
+        : jsonEncode(variants.map((variant) => variant.toJson()).toList()),
+    variants: variants ?? this.variants,
   );
+
+  @override
+  List<ProductVariant> get variants {
+    final decoded = decodeProductVariants(variantsJson);
+    return decoded.isEmpty ? super.variants : decoded;
+  }
+
+  static List<ProductVariant> decodeVariants(String source) =>
+      decodeProductVariants(source);
 
   factory ProductModel.fromEntity(Product product) {
     return ProductModel(
@@ -88,8 +110,17 @@ class ProductModel extends Product {
       imageData: product.imageData,
       currencyCode: product.currencyCode,
       category: product.category,
+      variantsJson: jsonEncode(
+        product.variants.map((variant) => variant.toJson()).toList(),
+      ),
+      variants: product.variants,
     );
   }
+
+  static List<ProductVariant> decodeProductVariants(String source) =>
+      (jsonDecode(source) as List<dynamic>)
+          .map((item) => ProductVariant.fromJson(item as Map<String, dynamic>))
+          .toList();
 
   Product toEntity() {
     return Product(
@@ -102,6 +133,7 @@ class ProductModel extends Product {
       imageData: imageData,
       currencyCode: currencyCode,
       category: category,
+      variants: variants,
     );
   }
 }

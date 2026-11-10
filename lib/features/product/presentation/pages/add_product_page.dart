@@ -14,6 +14,7 @@ import '../../../../core/utils/barcode_generator.dart';
 import '../../../../core/utils/product_categories.dart';
 import '../../domain/entities/product.dart';
 import '../bloc/product_bloc.dart';
+import '../widgets/product_variants_form.dart';
 
 class AddProductPage extends StatefulWidget {
   const AddProductPage({super.key});
@@ -34,6 +35,8 @@ class _AddProductPageState extends State<AddProductPage> {
   String? _imageData;
   late List<String> _categories;
   bool _isPickingImage = false;
+  bool _hasVariants = false;
+  final _variantsFormKey = GlobalKey<ProductVariantsFormState>();
 
   @override
   void initState() {
@@ -95,6 +98,10 @@ class _AddProductPageState extends State<AddProductPage> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
+    final variants = _hasVariants
+        ? _variantsFormKey.currentState?.readVariants()
+        : null;
+    if (_hasVariants && variants == null) return;
     if (_imageData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -104,8 +111,26 @@ class _AddProductPageState extends State<AddProductPage> {
       return;
     }
     final barcode = _barcodeController.text.trim();
+    final incomingBarcodeList = [
+      barcode,
+      ...?variants
+          ?.map((variant) => variant.barcode)
+          .where((value) => value.isNotEmpty),
+    ];
+    final incomingBarcodes = incomingBarcodeList.toSet();
+    if (incomingBarcodes.length != incomingBarcodeList.length) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No repitas códigos de barras entre variaciones.'),
+        ),
+      );
+      return;
+    }
     final duplicate = context.read<ProductBloc>().state.products.any(
-      (product) => product.barcode == barcode,
+      (product) => {
+        product.barcode,
+        ...product.variants.map((variant) => variant.barcode),
+      }.intersection(incomingBarcodes).isNotEmpty,
     );
     if (duplicate) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -123,13 +148,19 @@ class _AddProductPageState extends State<AddProductPage> {
           name: _nameController.text.trim(),
           description: _descriptionController.text.trim(),
           barcode: barcode,
-          price: double.parse(
-            _priceController.text.trim().replaceAll(',', '.'),
-          ),
-          stock: int.parse(_stockController.text.trim()),
+          price:
+              variants?.first.price ??
+              double.parse(_priceController.text.trim().replaceAll(',', '.')),
+          stock:
+              variants?.fold<double>(
+                0,
+                (total, variant) => total + variant.stock,
+              ) ??
+              double.parse(_stockController.text.trim().replaceAll(',', '.')),
           imageData: _imageData,
           currencyCode: _currencyCode,
           category: _categoryController.text.trim(),
+          variants: variants ?? const [],
         ),
       ),
     );
@@ -224,63 +255,82 @@ class _AddProductPageState extends State<AddProductPage> {
                 const SizedBox(height: 16),
                 _QrPreview(value: _barcodeController.text.trim()),
               ],
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _priceController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Precio',
-                        hintText: '0,00',
-                        prefixIcon: Icon(Icons.payments_outlined),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Indica el precio.';
-                        }
-                        final normalized = value.trim().replaceAll(',', '.');
-                        final amount = double.tryParse(normalized);
-                        if (amount == null || amount < 0) {
-                          return 'Indica un precio válido.';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Moneda de referencia',
-                        prefixIcon: Icon(Icons.currency_exchange),
-                      ),
-                      child: Text(
-                        '${AppCurrency.symbolFor(AppCurrency.baseCode)} '
-                        '${AppCurrency.baseCode}',
-                      ),
-                    ),
-                  ),
-                ],
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Este producto tiene variaciones'),
+                subtitle: const Text('Tallas, colores o presentaciones/pesos'),
+                value: _hasVariants,
+                onChanged: (value) => setState(() => _hasVariants = value),
               ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _stockController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Existencias iniciales',
-                  prefixIcon: Icon(Icons.warehouse_outlined),
+              Visibility(
+                visible: _hasVariants,
+                maintainState: true,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: ProductVariantsForm(key: _variantsFormKey),
                 ),
-                validator: (value) {
-                  final stock = int.tryParse(value ?? '');
-                  return stock == null || stock < 0
-                      ? 'Indica una cantidad válida.'
-                      : null;
-                },
               ),
+              if (!_hasVariants) ...[
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _priceController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Precio',
+                          hintText: '0,00',
+                          prefixIcon: Icon(Icons.payments_outlined),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Indica el precio.';
+                          }
+                          final normalized = value.trim().replaceAll(',', '.');
+                          final amount = double.tryParse(normalized);
+                          if (amount == null || amount < 0) {
+                            return 'Indica un precio válido.';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Moneda de referencia',
+                          prefixIcon: Icon(Icons.currency_exchange),
+                        ),
+                        child: Text(
+                          '${AppCurrency.symbolFor(AppCurrency.baseCode)} '
+                          '${AppCurrency.baseCode}',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _stockController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Existencias iniciales',
+                    prefixIcon: Icon(Icons.warehouse_outlined),
+                  ),
+                  validator: (value) {
+                    final stock = double.tryParse(
+                      (value ?? '').trim().replaceAll(',', '.'),
+                    );
+                    return stock == null || !stock.isFinite || stock < 0
+                        ? 'Indica una cantidad válida.'
+                        : null;
+                  },
+                ),
+              ],
               const SizedBox(height: 28),
               FilledButton.icon(
                 onPressed: _submit,

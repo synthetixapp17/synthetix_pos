@@ -1057,7 +1057,7 @@ class _WebBalanceCard extends StatelessWidget {
 class _WebActivityCard extends StatelessWidget {
   final int transactions;
   final int lowStockCount;
-  final int bestSellerUnits;
+  final double bestSellerUnits;
   final VoidCallback onInventory;
 
   const _WebActivityCard({
@@ -1515,8 +1515,8 @@ class _BestSellerMetrics extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
-    final totalUnits = products.fold<int>(
-      0,
+    final totalUnits = products.fold<double>(
+      0.0,
       (total, product) => total + product.quantity,
     );
     final maxQuantity = products.first.quantity;
@@ -1752,8 +1752,8 @@ class _WebBestSellers extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _WebDashboardColors.of(context);
-    final totalUnits = products.fold<int>(
-      0,
+    final totalUnits = products.fold<double>(
+      0.0,
       (total, product) => total + product.quantity,
     );
     final maxQuantity = products.isEmpty ? 1 : products.first.quantity;

@@ -446,7 +446,7 @@ class _ProductListPageState extends State<ProductListPage> {
     final available = products
         .where((product) => product.stock >= threshold)
         .length;
-    final units = products.fold<int>(
+    final units = products.fold<double>(
       0,
       (total, product) => total + product.stock,
     );

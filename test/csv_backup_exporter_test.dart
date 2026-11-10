@@ -7,6 +7,7 @@ import 'package:billing_app/core/data/models/app_settings.dart';
 import 'package:billing_app/features/customer/data/models/customer_model.dart';
 import 'package:billing_app/features/credit/domain/entities/credit_record.dart';
 import 'package:billing_app/features/product/data/models/product_model.dart';
+import 'package:billing_app/features/product/domain/entities/product.dart';
 import 'package:billing_app/features/reports/data/models/sale_model.dart';
 import 'package:billing_app/features/reports/domain/entities/sale_record.dart';
 import 'package:billing_app/features/settings/data/csv_backup_exporter.dart';
@@ -71,7 +72,8 @@ void main() {
       });
       await HiveDatabase.productBox.put(
         'product-1',
-        const ProductModel(
+        ProductModel.fromEntity(
+          Product(
           id: 'product-1',
           name: 'Café, "Especial"',
           barcode: '123',
@@ -80,6 +82,16 @@ void main() {
           description: 'Molido\nartesanal',
           category: 'Bebidas',
           imageData: 'aW1hZ2U=',
+          variants: const [
+            ProductVariant(
+              id: 'coffee-500g',
+              attributes: {'Peso': '500 g'},
+              price: 25,
+              stock: 2.5,
+              unitLabel: 'kg',
+            ),
+          ],
+          ),
         ),
       );
       await HiveDatabase.shopBox.put(
@@ -118,6 +130,9 @@ void main() {
                 barcode: '123',
                 quantity: 2,
                 unitPrice: 100,
+                variantId: 'coffee-500g',
+                variantAttributes: {'Peso': '500 g'},
+                unitLabel: 'kg',
               ),
             ],
           ),
@@ -177,6 +192,8 @@ void main() {
       expect(backup, hasLength(6));
       expect(contents['productos'], contains('Café'));
       expect(contents['productos'], contains('aW1hZ2U='));
+      expect(contents['productos'], contains('coffee-500g'));
+      expect(contents['ventas'], contains('variacion_id'));
       expect(contents['categorias'], contains('"Bebidas"'));
       expect(
         contents['categorias'],
@@ -235,6 +252,19 @@ void main() {
       expect(
         HiveDatabase.productBox.get('product-1')?.description,
         'Molido\nartesanal',
+      );
+      expect(
+        HiveDatabase.productBox.get('product-1')?.variants.single.stock,
+        2.5,
+      );
+      expect(
+        HiveDatabase.salesBox
+            .get('sale-1')
+            ?.toEntity()
+            .lines
+            .single
+            .variantAttributes,
+        {'Peso': '500 g'},
       );
       expect(
         HiveDatabase.customerBox.get('customer-1')?.identityNumber,

@@ -5,7 +5,7 @@ import '../../../reports/domain/entities/sale_record.dart';
 
 class ProductSales extends Equatable {
   final String name;
-  final int quantity;
+  final double quantity;
 
   const ProductSales({required this.name, required this.quantity});
 
@@ -40,7 +40,7 @@ class DashboardSummary extends Equatable {
   final Map<String, double> dailyTotals;
   final Map<String, double> dailyUsdTotals;
   final List<SaleRecord> recentSales;
-  final int unitsSoldToday;
+  final double unitsSoldToday;
 
   const DashboardSummary({
     required this.dailyTotal,

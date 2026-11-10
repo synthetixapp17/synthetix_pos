@@ -36,6 +36,7 @@ class CsvBackupExporter {
         'moneda',
         'existencias',
         'imagen_base64',
+        'variaciones_json',
       ],
       for (final product in HiveDatabase.productBox.values)
         [
@@ -48,6 +49,7 @@ class CsvBackupExporter {
           product.currencyCode,
           product.stock,
           product.imageData ?? '',
+          product.variantsJson,
         ],
     ];
     final customers = <List<Object?>>[
@@ -97,6 +99,9 @@ class CsvBackupExporter {
         'forma_pago',
         'efectivo_recibido',
         'vuelto',
+        'variacion_id',
+        'variaciones_json',
+        'unidad',
       ],
     ];
     for (final model in HiveDatabase.salesBox.values) {
@@ -121,6 +126,9 @@ class CsvBackupExporter {
           sale.paymentMethod,
           sale.amountTendered,
           sale.changeAmount,
+          '',
+          '',
+          '',
         ]);
         continue;
       }
@@ -144,6 +152,9 @@ class CsvBackupExporter {
           sale.paymentMethod,
           sale.amountTendered,
           sale.changeAmount,
+          line.variantId ?? '',
+          jsonEncode(line.variantAttributes),
+          line.unitLabel,
         ]);
       }
     }

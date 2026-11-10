@@ -157,10 +157,22 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
   Future<void> _scanProduct() async {
     final barcode = await context.push<String>('/scan-code');
     if (!mounted || barcode == null || barcode.isEmpty) return;
-    final matches = context.read<ProductBloc>().state.products.where(
-      (product) => product.barcode == barcode,
-    );
-    if (matches.isEmpty) {
+    final products = context.read<ProductBloc>().state.products;
+    Product? match;
+    for (final product in products) {
+      if (product.barcode == barcode) {
+        match = product;
+        break;
+      }
+      for (final variant in product.variants) {
+        if (variant.barcode == barcode) {
+          match = product.forVariant(variant);
+          break;
+        }
+      }
+      if (match != null) break;
+    }
+    if (match == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('No se encontró un producto con el código $barcode.'),
@@ -169,10 +181,20 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
       return;
     }
 
-    final product = matches.first;
+    final product = match;
+    if (product.hasVariants && product.selectedVariantId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Escanea el código de la variación o selecciónala en el catálogo.',
+          ),
+        ),
+      );
+      return;
+    }
     final billingBloc = context.read<BillingBloc>();
     final currentItems = billingBloc.state.cartItems;
-    if (product.stock <= 0) {
+    if (product.availableStock <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('No hay existencias disponibles de "${product.name}".'),
@@ -192,9 +214,9 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
       return;
     }
     final currentQuantity = currentItems
-        .where((item) => item.product.id == product.id)
-        .fold<int>(0, (total, item) => total + item.quantity);
-    if (currentQuantity >= product.stock) {
+        .where((item) => item.product.cartKey == product.cartKey)
+        .fold<double>(0, (total, item) => total + item.quantity);
+    if (currentQuantity >= product.availableStock) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No hay más existencias disponibles.')),
       );
@@ -262,8 +284,8 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
               )
               ? _category
               : 'Todas';
-          final allTimeSales = <String, int>{};
-          final recentSales = <String, int>{};
+          final allTimeSales = <String, double>{};
+          final recentSales = <String, double>{};
           final lastSoldAt = <String, DateTime>{};
           final recentSalesStart = DateTime.now().subtract(
             const Duration(days: 30),
@@ -556,8 +578,8 @@ class _ProductCatalogPageState extends State<ProductCatalogPage> {
       bottomNavigationBar: BlocBuilder<BillingBloc, BillingState>(
         builder: (context, state) {
           if (state.cartItems.isEmpty) return const SizedBox.shrink();
-          final quantity = state.cartItems.fold<int>(
-            0,
+          final quantity = state.cartItems.fold<double>(
+            0.0,
             (total, item) => total + item.quantity,
           );
           return SafeArea(
@@ -711,7 +733,7 @@ class _CategoryButton extends StatelessWidget {
 class _CatalogProductCard extends StatelessWidget {
   final Product product;
   final int threshold;
-  final int soldCount;
+  final double soldCount;
 
   const _CatalogProductCard({
     required this.product,
@@ -721,11 +743,11 @@ class _CatalogProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final available = product.stock > 0;
+    final available = product.availableStock > 0;
     final colors = Theme.of(context).colorScheme;
     final stockColor = !available
         ? colors.error
-        : product.stock < threshold
+        : product.availableStock < threshold
         ? colors.tertiary
         : colors.primary;
 
@@ -735,8 +757,11 @@ class _CatalogProductCard extends StatelessWidget {
           (item) => item.product.id == product.id,
         );
         final quantity = matchingItems.isEmpty
-            ? 0
-            : matchingItems.first.quantity;
+            ? 0.0
+            : matchingItems.fold<double>(
+                0,
+                (total, item) => total + item.quantity,
+              );
         return Card(
           clipBehavior: Clip.antiAlias,
           elevation: 0,
@@ -887,7 +912,7 @@ class _CatalogProductCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      available ? '${product.stock} disponibles' : '',
+                      available ? '${product.availableStock} disponibles' : '',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -898,7 +923,7 @@ class _CatalogProductCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                if (quantity > 0)
+                if (quantity > 0 && !product.hasVariants)
                   Row(
                     children: [
                       Expanded(
@@ -912,7 +937,10 @@ class _CatalogProductCard extends StatelessWidget {
                         visualDensity: VisualDensity.compact,
                         tooltip: 'Quitar una unidad',
                         onPressed: () => context.read<BillingBloc>().add(
-                          UpdateQuantityEvent(product.id, quantity - 1),
+                          UpdateQuantityEvent(
+                            matchingItems.first.product.cartKey,
+                            quantity - 1,
+                          ),
                         ),
                         icon: const Icon(Icons.remove, size: 18),
                       ),
@@ -920,10 +948,9 @@ class _CatalogProductCard extends StatelessWidget {
                       IconButton.filledTonal(
                         visualDensity: VisualDensity.compact,
                         tooltip: 'Agregar una unidad',
-                        onPressed: available && quantity < product.stock
-                            ? () => context.read<BillingBloc>().add(
-                                AddProductToCartEvent(product),
-                              )
+                        onPressed:
+                            available && quantity < product.availableStock
+                            ? () => _addProduct(context, product)
                             : null,
                         icon: const Icon(Icons.add, size: 18),
                       ),
@@ -935,15 +962,17 @@ class _CatalogProductCard extends StatelessWidget {
                     height: 38,
                     child: FilledButton(
                       onPressed: available
-                          ? () => context.read<BillingBloc>().add(
-                              AddProductToCartEvent(product),
-                            )
+                          ? () => _addProduct(context, product)
                           : null,
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         visualDensity: VisualDensity.compact,
                       ),
-                      child: const Text('Agregar al carrito'),
+                      child: Text(
+                        product.hasVariants
+                            ? 'Elegir variación'
+                            : 'Agregar al carrito',
+                      ),
                     ),
                   ),
               ],
@@ -951,6 +980,91 @@ class _CatalogProductCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _addProduct(BuildContext context, Product product) async {
+    if (!product.hasVariants) {
+      context.read<BillingBloc>().add(AddProductToCartEvent(product));
+      return;
+    }
+    final quantityController = TextEditingController(text: '1');
+    ProductVariant selectedVariant = product.variants.first;
+    final quantity = await showDialog<double>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Elegir variación · ${product.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<ProductVariant>(
+                initialValue: selectedVariant,
+                decoration: const InputDecoration(labelText: 'Variación'),
+                items: [
+                  for (final variant in product.variants)
+                    DropdownMenuItem(
+                      value: variant,
+                      child: Text(
+                        '${variant.label} · ${variant.stock} ${variant.unitLabel}',
+                      ),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setDialogState(() => selectedVariant = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Precio: ${AppCurrency.format(selectedVariant.price, code: product.currencyCode)}',
+                ),
+              ),
+              TextField(
+                controller: quantityController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Cantidad (${selectedVariant.unitLabel})',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = double.tryParse(
+                  quantityController.text.trim().replaceAll(',', '.'),
+                );
+                if (value == null ||
+                    !value.isFinite ||
+                    value <= 0 ||
+                    value > selectedVariant.stock) {
+                  return;
+                }
+                Navigator.pop(dialogContext, value);
+              },
+              child: const Text('Agregar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    quantityController.dispose();
+    if (quantity == null || !context.mounted) return;
+    context.read<BillingBloc>().add(
+      AddProductToCartEvent(
+        product.forVariant(selectedVariant),
+        quantity: quantity,
+      ),
     );
   }
 
@@ -1039,12 +1153,12 @@ class _CatalogProductCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            product.stock > 0
-                                ? '${product.stock} disponibles'
+                            product.availableStock > 0
+                                ? '${product.availableStock} disponibles'
                                 : 'Agotado',
                             style: Theme.of(context).textTheme.labelLarge
                                 ?.copyWith(
-                                  color: product.stock > 0
+                                  color: product.availableStock > 0
                                       ? colors.primary
                                       : colors.error,
                                   fontWeight: FontWeight.w700,
@@ -1078,16 +1192,18 @@ class _CatalogProductCard extends StatelessWidget {
                     Expanded(
                       flex: 2,
                       child: FilledButton.icon(
-                        onPressed: product.stock <= 0
+                        onPressed: product.availableStock <= 0
                             ? null
                             : () {
-                                context.read<BillingBloc>().add(
-                                  AddProductToCartEvent(product),
-                                );
                                 Navigator.pop(dialogContext);
+                                _addProduct(context, product);
                               },
                         icon: const Icon(Icons.add_shopping_cart_rounded),
-                        label: const Text('Agregar al carrito'),
+                        label: Text(
+                          product.hasVariants
+                              ? 'Elegir variación'
+                              : 'Agregar al carrito',
+                        ),
                       ),
                     ),
                   ],

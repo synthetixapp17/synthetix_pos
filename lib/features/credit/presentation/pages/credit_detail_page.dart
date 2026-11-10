@@ -219,8 +219,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
             (record.total - record.initialPayment).clamp(0, record.total),
             installmentCount,
           );
-    final visibleInstallments = _showAllInstallments ||
-            installments.length <= 6
+    final visibleInstallments = _showAllInstallments || installments.length <= 6
         ? installments.length
         : 6;
 
@@ -286,7 +285,9 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                     value: paymentProgress,
                     minHeight: 8,
                     backgroundColor: colors.surface.withValues(alpha: .5),
-                    color: record.isPaid ? const Color(0xFF16865B) : colors.primary,
+                    color: record.isPaid
+                        ? const Color(0xFF16865B)
+                        : colors.primary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -344,7 +345,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
-                                '${line.quantity}',
+                                line.displayQuantity,
                                 style: TextStyle(
                                   color: colors.primary,
                                   fontWeight: FontWeight.w800,
@@ -357,7 +358,8 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    line.productName,
+                                    '${line.productName}'
+                                    '${line.variantAttributes.isEmpty ? '' : ' · ${line.variantAttributes.entries.map((entry) => '${entry.key}: ${entry.value}').join(' · ')}'}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -370,7 +372,9 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                                         'Código ${line.barcode}',
                                       '${AppCurrency.format(line.unitPrice, code: record.currencyCode)} c/u',
                                     ].join(' · '),
-                                    style: Theme.of(context).textTheme.bodySmall,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
                                   ),
                                 ],
                               ),
@@ -410,8 +414,7 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                 amount: financedPrincipal,
                 code: record.currencyCode,
               ),
-              if (record.interestPercentage > 0 ||
-                  record.interestAmount > 0)
+              if (record.interestPercentage > 0 || record.interestAmount > 0)
                 _MoneyRow(
                   label:
                       'Interés (${record.interestPercentage.toStringAsFixed(2)}%)',
@@ -445,72 +448,72 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
           const SizedBox(height: 12),
           if (installments.isNotEmpty && daysBetweenPayments != null)
             _DetailCard(
-                title: 'Calendario de cuotas',
-                icon: Icons.event_note_outlined,
-                children: [
-                  Text(
-                    '$installmentCount cuotas · cada $daysBetweenPayments días',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 12),
-                  for (var index = 0; index < visibleInstallments; index++)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 15,
-                            backgroundColor: colors.primaryContainer,
-                            foregroundColor: colors.primary,
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
+              title: 'Calendario de cuotas',
+              icon: Icons.event_note_outlined,
+              children: [
+                Text(
+                  '$installmentCount cuotas · cada $daysBetweenPayments días',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                for (var index = 0; index < visibleInstallments; index++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 15,
+                          backgroundColor: colors.primaryContainer,
+                          foregroundColor: colors.primary,
+                          child: Text(
+                            '${index + 1}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Vence ${_date(record.createdAt.add(Duration(days: daysBetweenPayments * (index + 1))))}',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ),
-                          Text(
-                            AppCurrency.format(
-                              installments[index],
-                              code: record.currencyCode,
-                            ),
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (visibleInstallments < installments.length)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        onPressed: () =>
-                            setState(() => _showAllInstallments = true),
-                        icon: const Icon(Icons.expand_more_rounded),
-                        label: Text(
-                          'Ver ${installments.length - visibleInstallments} cuotas más',
                         ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Vence ${_date(record.createdAt.add(Duration(days: daysBetweenPayments * (index + 1))))}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        Text(
+                          AppCurrency.format(
+                            installments[index],
+                            code: record.currencyCode,
+                          ),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (visibleInstallments < installments.length)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () =>
+                          setState(() => _showAllInstallments = true),
+                      icon: const Icon(Icons.expand_more_rounded),
+                      label: Text(
+                        'Ver ${installments.length - visibleInstallments} cuotas más',
                       ),
                     ),
-                ],
+                  ),
+              ],
             )
           else
             _DetailCard(
-                title: 'Calendario de cuotas',
-                icon: Icons.event_note_outlined,
-                children: const [
-                  Text(
-                    'Este crédito se registró antes de guardar el plan de cuotas. '
-                    'El PDF adjunto conserva las condiciones originales.',
-                  ),
-                ],
+              title: 'Calendario de cuotas',
+              icon: Icons.event_note_outlined,
+              children: const [
+                Text(
+                  'Este crédito se registró antes de guardar el plan de cuotas. '
+                  'El PDF adjunto conserva las condiciones originales.',
+                ),
+              ],
             ),
           const SizedBox(height: 12),
           _DetailCard(
@@ -539,12 +542,11 @@ class _CreditDetailPageState extends State<CreditDetailPage> {
                                   Text(
                                     [
                                       payment.method,
-                                      if (payment.note.isNotEmpty)
-                                        payment.note,
+                                      if (payment.note.isNotEmpty) payment.note,
                                     ].join(' · '),
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
                                   ),
                                 ],
                               ),

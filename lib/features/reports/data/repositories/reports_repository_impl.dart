@@ -3,6 +3,7 @@ import 'package:fpdart/fpdart.dart';
 import '../../../../core/data/hive_database.dart';
 import '../../../../core/error/failure.dart';
 import '../../../product/data/models/product_model.dart';
+import '../../../product/domain/entities/product.dart';
 import '../../domain/entities/sale_record.dart';
 import '../../domain/repositories/reports_repository.dart';
 import '../models/sale_model.dart';
@@ -14,12 +15,15 @@ class ReportsRepositoryImpl implements ReportsRepository {
     required DateTime to,
   }) async {
     try {
-      final sales = HiveDatabase.salesBox.values
-          .where((sale) =>
-              !sale.soldAt.isBefore(from) && !sale.soldAt.isAfter(to))
-          .map((sale) => sale.toEntity())
-          .toList()
-        ..sort((a, b) => a.soldAt.compareTo(b.soldAt));
+      final sales =
+          HiveDatabase.salesBox.values
+              .where(
+                (sale) =>
+                    !sale.soldAt.isBefore(from) && !sale.soldAt.isAfter(to),
+              )
+              .map((sale) => sale.toEntity())
+              .toList()
+            ..sort((a, b) => a.soldAt.compareTo(b.soldAt));
       return Right(sales);
     } catch (error) {
       return Left(CacheFailure(error.toString()));
@@ -37,7 +41,8 @@ class ReportsRepositoryImpl implements ReportsRepository {
     try {
       if (isNewSale) {
         for (final line in sale.lines) {
-          final product = productsToUpdate[line.productId] ??
+          final product =
+              productsToUpdate[line.productId] ??
               productsBox.get(line.productId);
           if (product == null) {
             return Left(
@@ -47,25 +52,48 @@ class ReportsRepositoryImpl implements ReportsRepository {
               ),
             );
           }
-          if (product.stock < line.quantity) {
+          final variant = line.variantId == null
+              ? null
+              : product.variants.where((item) => item.id == line.variantId);
+          if (line.variantId != null && (variant == null || variant.isEmpty)) {
+            return Left(
+              CacheFailure(
+                'No se encontró la variación de "${line.productName}"; '
+                'no se registró la venta.',
+              ),
+            );
+          }
+          final availableStock = variant == null
+              ? product.stock
+              : variant.first.stock;
+          if (availableStock < line.quantity) {
             return Left(
               CacheFailure(
                 'Existencia insuficiente para "${line.productName}". '
-                'Disponible: ${product.stock}; solicitado: ${line.quantity}.',
+                'Disponible: $availableStock; solicitado: ${line.quantity}.',
               ),
             );
           }
           previousProducts.putIfAbsent(line.productId, () => product);
-          productsToUpdate[line.productId] = ProductModel(
-            id: product.id,
-            name: product.name,
-            barcode: product.barcode,
-            price: product.price,
+          final updatedVariants = variant == null
+              ? null
+              : product.variants
+                    .map(
+                      (item) => item.id == line.variantId
+                          ? ProductVariant(
+                              id: item.id,
+                              attributes: item.attributes,
+                              price: item.price,
+                              stock: item.stock - line.quantity,
+                              barcode: item.barcode,
+                              unitLabel: item.unitLabel,
+                            )
+                          : item,
+                    )
+                    .toList();
+          productsToUpdate[line.productId] = product.copyWith(
             stock: product.stock - line.quantity,
-            description: product.description,
-            imageData: product.imageData,
-            currencyCode: product.currencyCode,
-            category: product.category,
+            variants: updatedVariants,
           );
         }
         await productsBox.putAll(productsToUpdate);

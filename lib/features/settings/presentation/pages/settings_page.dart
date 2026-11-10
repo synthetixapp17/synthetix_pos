@@ -303,22 +303,23 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final selectedFile = await FilePicker.pickFile(
         dialogTitle: choice == _BackupScopeChoice.complete
-            ? 'Seleccionar CSV o paquete ZIP'
+            ? 'Seleccionar paquete ZIP completo'
             : 'Seleccionar CSV de ${choice.label.toLowerCase()}',
         type: FileType.custom,
         allowedExtensions: choice == _BackupScopeChoice.complete
-            ? ['csv', 'zip']
+            ? ['zip']
             : ['csv'],
       );
       if (selectedFile == null) return;
       final bytes = await selectedFile.readAsBytes();
       final importer = CsvBackupImporter();
       final plan = switch (selectedFile.extension?.toLowerCase()) {
-        'csv' => importer.parseCsvFile(selectedFile.name, bytes),
         'zip' when choice == _BackupScopeChoice.complete =>
           importer.parsePackage(bytes),
+        'csv' when choice != _BackupScopeChoice.complete =>
+          importer.parseCsvFile(selectedFile.name, bytes),
         _ => throw const FormatException(
-          'Selecciona un archivo CSV o ZIP de respaldo.',
+          'Para una copia completa selecciona el ZIP; para una copia parcial, el CSV de su tipo de datos.',
         ),
       };
       final expectedScope = choice.csvScope;

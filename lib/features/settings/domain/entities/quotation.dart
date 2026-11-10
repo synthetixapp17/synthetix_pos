@@ -1,7 +1,7 @@
 class QuotationLine {
   final String productName;
   final String barcode;
-  final int quantity;
+  final double quantity;
   final double unitPrice;
 
   const QuotationLine({
@@ -23,7 +23,7 @@ class QuotationLine {
   factory QuotationLine.fromJson(Map<String, dynamic> json) => QuotationLine(
     productName: json['productName'] as String,
     barcode: json['barcode'] as String? ?? '',
-    quantity: json['quantity'] as int,
+    quantity: (json['quantity'] as num).toDouble(),
     unitPrice: (json['unitPrice'] as num).toDouble(),
   );
 }

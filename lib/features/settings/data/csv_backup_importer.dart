@@ -8,6 +8,7 @@ import '../../../core/data/hive_database.dart';
 import '../../../core/data/models/app_settings.dart';
 import '../../credit/domain/entities/credit_record.dart';
 import '../../customer/data/models/customer_model.dart';
+import '../../product/domain/entities/product.dart';
 import '../../product/data/models/product_model.dart';
 import '../../reports/data/models/sale_model.dart';
 import '../../shop/data/models/shop_model.dart';
@@ -373,8 +374,10 @@ class CsvBackupImporter {
           barcode: row['código'] ?? '',
           price: _double(row, 'precio', 'productos'),
           currencyCode: _required(row, 'moneda', 'productos'),
-          stock: _int(row, 'existencias', 'productos'),
+          stock: _double(row, 'existencias', 'productos'),
           imageData: _optional(row['imagen_base64']),
+          variantsJson: _optional(row['variaciones_json']) ?? '[]',
+          variants: _parseVariants(row['variaciones_json']),
         ),
       );
     }
@@ -509,8 +512,11 @@ class CsvBackupImporter {
             productName: _required(row, 'producto', 'ventas'),
             category: row['categoría'] ?? '',
             barcode: row['codigo_producto'] ?? '',
-            quantity: _int(row, 'cantidad', 'ventas'),
+            quantity: _double(row, 'cantidad', 'ventas'),
             unitPrice: _double(row, 'precio_unitario', 'ventas'),
+            variantId: _optional(row['variacion_id']),
+            variantAttributes: _parseAttributes(row['variaciones_json']),
+            unitLabel: _optional(row['unidad']) ?? 'ud.',
           ),
         );
       }
@@ -538,6 +544,9 @@ class CsvBackupImporter {
                 'barcode': line.barcode,
                 'quantity': line.quantity,
                 'unitPrice': line.unitPrice,
+                'variantId': line.variantId,
+                'variantAttributes': line.variantAttributes,
+                'unitLabel': line.unitLabel,
               },
           ]),
         ),
@@ -906,11 +915,46 @@ class CsvBackupImporter {
   }
 
   double _double(Map<String, String> row, String key, String label) {
-    final value = double.tryParse(_required(row, key, label));
+    final value = double.tryParse(
+      _required(row, key, label).replaceAll(',', '.'),
+    );
     if (value == null || !value.isFinite) {
       throw FormatException('Número inválido "$key" en el CSV de $label.');
     }
     return value;
+  }
+
+  List<ProductVariant> _parseVariants(String? source) {
+    if (source == null || source.trim().isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(source);
+      if (decoded is! List) {
+        throw const FormatException('Se esperaba una lista.');
+      }
+      return decoded
+          .map(
+            (item) =>
+                ProductVariant.fromJson((item as Map).cast<String, dynamic>()),
+          )
+          .toList();
+    } on Object catch (error) {
+      throw FormatException('JSON de variaciones inválido: $error');
+    }
+  }
+
+  Map<String, String> _parseAttributes(String? source) {
+    if (source == null || source.trim().isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(source);
+      if (decoded is! Map) {
+        throw const FormatException('Se esperaba un objeto.');
+      }
+      return decoded.map(
+        (key, value) => MapEntry(key.toString(), value.toString()),
+      );
+    } on Object catch (error) {
+      throw FormatException('Atributos de variación inválidos: $error');
+    }
   }
 
   double _optionalDouble(String? source, String key) {
@@ -1033,8 +1077,11 @@ class _SaleLineRow {
   final String productName;
   final String category;
   final String barcode;
-  final int quantity;
+  final double quantity;
   final double unitPrice;
+  final String? variantId;
+  final Map<String, String> variantAttributes;
+  final String unitLabel;
 
   const _SaleLineRow({
     required this.productId,
@@ -1043,5 +1090,8 @@ class _SaleLineRow {
     required this.barcode,
     required this.quantity,
     required this.unitPrice,
+    required this.variantId,
+    required this.variantAttributes,
+    required this.unitLabel,
   });
 }

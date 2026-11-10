@@ -35,8 +35,11 @@ class CreditLineItem {
   final String productName;
   final String category;
   final String barcode;
-  final int quantity;
+  final double quantity;
   final double unitPrice;
+  final String? variantId;
+  final Map<String, String> variantAttributes;
+  final String unitLabel;
 
   const CreditLineItem({
     required this.productId,
@@ -45,17 +48,26 @@ class CreditLineItem {
     required this.unitPrice,
     this.category = '',
     this.barcode = '',
+    this.variantId,
+    this.variantAttributes = const {},
+    this.unitLabel = 'ud.',
   });
 
   double get total => quantity * unitPrice;
+  String get displayQuantity => quantity == quantity.roundToDouble()
+      ? '${quantity.toInt()}'
+      : '$quantity';
 
-  Map<String, Object> toJson() => {
+  Map<String, Object?> toJson() => {
     'productId': productId,
     'productName': productName,
     'category': category,
     'barcode': barcode,
     'quantity': quantity,
     'unitPrice': unitPrice,
+    'variantId': variantId,
+    'variantAttributes': variantAttributes,
+    'unitLabel': unitLabel,
   };
 
   factory CreditLineItem.fromJson(Map<String, dynamic> json) => CreditLineItem(
@@ -63,8 +75,14 @@ class CreditLineItem {
     productName: json['productName'] as String,
     category: json['category'] as String? ?? '',
     barcode: json['barcode'] as String? ?? '',
-    quantity: json['quantity'] as int,
+    quantity: (json['quantity'] as num).toDouble(),
     unitPrice: (json['unitPrice'] as num).toDouble(),
+    variantId: json['variantId'] as String?,
+    variantAttributes:
+        (json['variantAttributes'] as Map<String, dynamic>? ?? {}).map(
+          (key, value) => MapEntry(key, value.toString()),
+        ),
+    unitLabel: json['unitLabel'] as String? ?? 'ud.',
   );
 }
 

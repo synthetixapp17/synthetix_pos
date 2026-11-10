@@ -58,7 +58,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     AddProductToCartEvent event,
     Emitter<BillingState> emit,
   ) async {
-    if (event.product.stock <= 0) {
+    if (event.product.availableStock <= 0) {
       emit(
         state.copyWith(
           error: 'No hay existencias disponibles de "${event.product.name}".',
@@ -81,14 +81,15 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     final cleanState = state.copyWith(error: null);
 
     final existingIndex = cleanState.cartItems.indexWhere(
-      (item) => item.product.id == event.product.id,
+      (item) => item.product.cartKey == event.product.cartKey,
     );
     if (existingIndex >= 0) {
       final existingItem = cleanState.cartItems[existingIndex];
-      if (existingItem.quantity >= event.product.stock) {
-        final stockMessage = event.product.stock == 1
+      if (existingItem.quantity + event.quantity >
+          event.product.availableStock) {
+        final stockMessage = event.product.availableStock == 1
             ? 'Solo hay 1 unidad disponible'
-            : 'Solo hay ${event.product.stock} unidades disponibles';
+            : 'Solo hay ${event.product.availableStock} disponibles';
         emit(
           cleanState.copyWith(
             error:
@@ -100,7 +101,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       }
       final backendItems = List<CartItem>.from(cleanState.cartItems);
       backendItems[existingIndex] = existingItem.copyWith(
-        quantity: existingItem.quantity + 1,
+        quantity: existingItem.quantity + event.quantity,
       );
       emit(
         cleanState.copyWith(
@@ -112,7 +113,20 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       );
       await _playCartAddSound();
     } else {
-      final newItem = CartItem(product: event.product);
+      if (event.quantity > event.product.availableStock) {
+        emit(
+          cleanState.copyWith(
+            error:
+                'La cantidad supera la existencia disponible '
+                '(${event.product.availableStock}).',
+          ),
+        );
+        return;
+      }
+      final newItem = CartItem(
+        product: event.product,
+        quantity: event.quantity,
+      );
       emit(
         cleanState.copyWith(
           cartItems: [...cleanState.cartItems, newItem],
@@ -130,7 +144,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     Emitter<BillingState> emit,
   ) {
     final updatedList = state.cartItems
-        .where((item) => item.product.id != event.productId)
+        .where((item) => item.product.cartKey != event.productId)
         .toList();
     emit(
       state.copyWith(
@@ -151,11 +165,11 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     }
 
     final index = state.cartItems.indexWhere(
-      (item) => item.product.id == event.productId,
+      (item) => item.product.cartKey == event.productId,
     );
     if (index >= 0) {
       final currentItem = state.cartItems[index];
-      if (event.quantity > currentItem.product.stock) {
+      if (event.quantity > currentItem.product.availableStock) {
         emit(
           state.copyWith(
             error:
@@ -251,9 +265,13 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
               productId: item.product.id,
               productName: item.product.name,
               quantity: item.quantity,
+              variantId: item.product.selectedVariantId,
+              variantAttributes:
+                  item.product.selectedVariant?.attributes ?? const {},
+              unitLabel: item.product.selectedVariant?.unitLabel ?? 'ud.',
               unitPrice: item.product.price * event.exchangeRate,
               category: item.product.category,
-              barcode: item.product.barcode,
+              barcode: item.product.saleBarcode,
             ),
           )
           .toList(),
@@ -370,8 +388,10 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       final items = state.cartItems
           .map(
             (item) => {
-              'name': item.product.name,
-              'qty': item.quantity,
+              'name':
+                  '${item.product.name}${item.product.variationLabel.isEmpty ? '' : ' · ${item.product.variationLabel}'}',
+              'qty':
+                  '${item.quantity} ${item.product.selectedVariant?.unitLabel ?? 'ud.'}',
               'price': item.product.price * event.exchangeRate,
               'total': item.total * event.exchangeRate,
               'barcode': item.product.barcode,

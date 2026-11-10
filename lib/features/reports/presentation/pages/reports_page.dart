@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:zxing2/zxing2.dart' show NotFoundException;
 
 import '../../../../core/data/hive_database.dart';
@@ -14,6 +15,9 @@ import '../../../../core/utils/receipt_qr.dart';
 import '../../../../core/utils/receipt_qr_image_decoder.dart';
 import '../../../../core/widgets/metric_chart_card.dart';
 import '../../../shop/data/repositories/shop_repository_impl.dart';
+import '../../../billing/data/whatsapp_sale_receipt_message.dart';
+import '../../../billing/data/receipt_image.dart';
+import '../../../shop/domain/entities/shop.dart';
 import '../../domain/entities/sale_record.dart';
 import '../bloc/reports_bloc.dart';
 
@@ -138,11 +142,15 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Future<void> _reprintSale(SaleRecord sale) async {
-    final confirmed = await showDialog<bool>(
+    final action = await showDialog<_SaleAction>(
       context: context,
-      builder: (context) => _SaleInvoicePreviewDialog(sale: sale),
+      builder: (context) => _SaleDetailsDialog(sale: sale),
     );
-    if (!mounted || confirmed != true || _isPrinting) return;
+    if (!mounted || action == null || _isPrinting) return;
+    if (action == _SaleAction.whatsapp) {
+      await _shareSaleOnWhatsApp(sale);
+      return;
+    }
 
     setState(() => _isPrinting = true);
     try {
@@ -155,16 +163,15 @@ class _ReportsPageState extends State<ReportsPage> {
         address2: shop?.addressLine2 ?? '',
         phone: shop?.phoneNumber ?? '',
         rif: shop?.rif ?? '',
-        qrData: ReceiptPreferences.showInvoiceQr
-            ? ReceiptQr.saleQrData(sale.id)
-            : null,
+        qrData: ReceiptQr.saleQrData(sale.id),
         customerName: sale.customerName,
         logoData: shop?.logoData,
         items: sale.lines
             .map(
               (line) => {
-                'name': line.productName,
-                'qty': line.quantity,
+                'name':
+                    '${line.productName}${line.variationLabel.isEmpty ? '' : ' · ${line.variationLabel}'}',
+                'qty': '${line.displayQuantity} ${line.unitLabel}',
                 'price': line.unitPrice,
                 'total': line.total,
                 'barcode': line.barcode,
@@ -202,6 +209,50 @@ class _ReportsPageState extends State<ReportsPage> {
     }
   }
 
+  Future<void> _shareSaleOnWhatsApp(SaleRecord sale) async {
+    try {
+      final shop = HiveDatabase.shopBox.get(ShopRepositoryImpl.shopKey);
+      final image = await ReceiptImage.build(
+        sale: sale,
+        shopName: shop == null || shop.name.isEmpty ? 'MI TIENDA' : shop.name,
+        address: [
+          shop?.addressLine1 ?? '',
+          shop?.addressLine2 ?? '',
+        ].where((line) => line.trim().isNotEmpty).join(', '),
+        shopPhone: shop?.phoneNumber ?? '',
+        rif: shop?.rif ?? '',
+        qrData: ReceiptQr.saleQrData(sale.id),
+        logoData: shop?.logoData,
+        footer: ReceiptPreferences.footerText ?? shop?.footerText ?? '',
+        showAddress: ReceiptPreferences.showAddress,
+        showPhone: ReceiptPreferences.showPhone,
+        showRif: ReceiptPreferences.showRif,
+        showInvoiceQr: ReceiptPreferences.showInvoiceQr,
+        showDate: ReceiptPreferences.showDate,
+        showBarcode: ReceiptPreferences.showBarcode,
+        showUnitPrices: ReceiptPreferences.showUnitPrices,
+      );
+      final filename =
+          'ticket-${sale.id.substring(0, sale.id.length > 8 ? 8 : sale.id.length)}.png';
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          title: 'Comprobante de venta',
+          text: buildWhatsappSaleReceiptMessage(
+            sale: sale,
+            shop: shop ?? const Shop(),
+          ),
+          files: [XFile.fromData(image, name: filename, mimeType: 'image/png')],
+          fileNameOverrides: [filename],
+        ),
+      );
+      if (result.status == ShareResultStatus.unavailable) {
+        _showMessage('El sistema no pudo abrir WhatsApp para compartir.');
+      }
+    } catch (error) {
+      _showMessage('No se pudo preparar el ticket para compartir: $error');
+    }
+  }
+
   Future<void> _printCashClosing() async {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day);
@@ -228,7 +279,7 @@ class _ReportsPageState extends State<ReportsPage> {
       await _ensurePrinterConnected(printer);
       final totalsByCurrency = <String, double>{};
       final salesByCurrency = <String, int>{};
-      var unitsSold = 0;
+      var unitsSold = 0.0;
       var totalUsd = 0.0;
       for (final sale in sales) {
         totalsByCurrency.update(
@@ -241,8 +292,8 @@ class _ReportsPageState extends State<ReportsPage> {
           (count) => count + 1,
           ifAbsent: () => 1,
         );
-        unitsSold += sale.lines.fold<int>(
-          0,
+        unitsSold += sale.lines.fold<double>(
+          0.0,
           (total, line) => total + line.quantity,
         );
         totalUsd += sale.total / sale.exchangeRate;
@@ -382,8 +433,8 @@ class _ReportsPageState extends State<ReportsPage> {
           final groupedSales = _groupSales(reportSales);
           final products = _topProducts(reportSales);
           final categoryStats = _categoryStats(reportSales);
-          final totalCategoryUnits = categoryStats.fold<int>(
-            0,
+          final totalCategoryUnits = categoryStats.fold<double>(
+            0.0,
             (total, category) => total + category.units,
           );
           final currencyCodes =
@@ -428,12 +479,12 @@ class _ReportsPageState extends State<ReportsPage> {
                       );
                     })
                     .join('\n');
-          final unitsSold = reportSales.fold<int>(
-            0,
+          final unitsSold = reportSales.fold<double>(
+            0.0,
             (total, sale) =>
                 total +
-                sale.lines.fold<int>(
-                  0,
+                sale.lines.fold<double>(
+                  0.0,
                   (saleUnits, line) => saleUnits + line.quantity,
                 ),
           );
@@ -476,6 +527,12 @@ class _ReportsPageState extends State<ReportsPage> {
                   onScan: _scanSaleQr,
                   onPickImage: _pickSaleQrImage,
                   onReprint: _reprintSale,
+                  isPrinting: _isPrinting,
+                ),
+                const SizedBox(height: 16),
+                _SalesHistoryCard(
+                  sales: reportSales,
+                  onSaleTap: _reprintSale,
                   isPrinting: _isPrinting,
                 ),
                 const SizedBox(height: 16),
@@ -1133,12 +1190,12 @@ class _ReportsPageState extends State<ReportsPage> {
     return [for (final date in dates) counts[date]!];
   }
 
-  List<int> _groupUnitCounts(List<SaleRecord> sales) {
-    final counts = <DateTime, int>{};
+  List<double> _groupUnitCounts(List<SaleRecord> sales) {
+    final counts = <DateTime, double>{};
     for (final sale in sales) {
       final date = _bucketDate(sale.soldAt);
-      final units = sale.lines.fold<int>(
-        0,
+      final units = sale.lines.fold<double>(
+        0.0,
         (total, line) => total + line.quantity,
       );
       counts.update(date, (count) => count + units, ifAbsent: () => units);
@@ -1158,7 +1215,7 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   List<_ProductTotal> _topProducts(List<SaleRecord> sales) {
-    final quantities = <String, int>{};
+    final quantities = <String, double>{};
     final names = <String, String>{};
     for (final sale in sales) {
       for (final line in sale.lines) {
@@ -1540,7 +1597,7 @@ class _ReportMetricDetailsSheet extends StatelessWidget {
                                   dense: true,
                                   title: Text(line.productName),
                                   subtitle: Text(
-                                    '${line.quantity} × '
+                                    '${line.displayQuantity} ${line.unitLabel} × '
                                     '${AppCurrency.format(line.unitPrice, code: sale.currencyCode)} · '
                                     '${AppCurrency.formatReference(line.unitPrice / sale.exchangeRate)}',
                                   ),
@@ -1684,7 +1741,7 @@ class _SaleLookupCard extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                '${line.quantity} × ${line.productName}',
+                                '${line.displayQuantity} ${line.unitLabel} × ${line.productName}',
                               ),
                             ),
                             Text(
@@ -1741,14 +1798,82 @@ class _SaleLookupCard extends StatelessWidget {
   }
 }
 
-class _SaleInvoicePreviewDialog extends StatelessWidget {
+enum _SaleAction { reprint, whatsapp }
+
+class _SalesHistoryCard extends StatelessWidget {
+  final List<SaleRecord> sales;
+  final ValueChanged<SaleRecord> onSaleTap;
+  final bool isPrinting;
+
+  const _SalesHistoryCard({
+    required this.sales,
+    required this.onSaleTap,
+    required this.isPrinting,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sortedSales = sales.toList()
+      ..sort((first, second) => second.soldAt.compareTo(first.soldAt));
+    return _ReportCard(
+      title: 'Ventas y reimpresión de tickets',
+      child: sortedSales.isEmpty
+          ? const _NoData()
+          : Column(
+              children: [
+                for (final sale in sortedSales)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer,
+                      child: const Icon(Icons.receipt_long_outlined),
+                    ),
+                    title: Text(
+                      sale.customerName?.trim().isNotEmpty == true
+                          ? sale.customerName!
+                          : 'Venta sin cliente',
+                    ),
+                    subtitle: Text(
+                      '${DateFormat('dd/MM/yyyy HH:mm', 'es').format(sale.soldAt)}'
+                      ' · ${sale.id} · ${sale.paymentMethod}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          AppCurrency.format(
+                            sale.total,
+                            code: sale.currencyCode,
+                          ),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          '${sale.lines.length} productos',
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                      ],
+                    ),
+                    onTap: isPrinting ? null : () => onSaleTap(sale),
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+class _SaleDetailsDialog extends StatelessWidget {
   final SaleRecord sale;
 
-  const _SaleInvoicePreviewDialog({required this.sale});
+  const _SaleDetailsDialog({required this.sale});
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text('Factura · ${sale.id}'),
+    title: const Text('Detalle de la compra'),
     content: SizedBox(
       width: 420,
       child: SingleChildScrollView(
@@ -1757,6 +1882,7 @@ class _SaleInvoicePreviewDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(DateFormat('dd/MM/yyyy HH:mm', 'es').format(sale.soldAt)),
+            Text('Folio: ${sale.id}'),
             Text('Cliente: ${sale.customerName ?? 'Venta sin cliente'}'),
             Text('Pago: ${sale.paymentMethod}'),
             Text('Tasa: 1 USD = ${sale.exchangeRate} ${sale.currencyCode}'),
@@ -1768,7 +1894,10 @@ class _SaleInvoicePreviewDialog extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text('${line.quantity} × ${line.productName}'),
+                      child: Text(
+                        '${line.displayQuantity} ${line.unitLabel} × ${line.productName}'
+                        '${line.variationLabel.isEmpty ? '' : '\n${line.variationLabel}'}',
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -1804,13 +1933,18 @@ class _SaleInvoicePreviewDialog extends StatelessWidget {
     ),
     actions: [
       TextButton(
-        onPressed: () => Navigator.pop(context, false),
-        child: const Text('Cancelar'),
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cerrar'),
+      ),
+      OutlinedButton.icon(
+        onPressed: () => Navigator.pop(context, _SaleAction.whatsapp),
+        icon: const Icon(Icons.chat_outlined),
+        label: const Text('WhatsApp'),
       ),
       FilledButton.icon(
-        onPressed: () => Navigator.pop(context, true),
+        onPressed: () => Navigator.pop(context, _SaleAction.reprint),
         icon: const Icon(Icons.print_outlined),
-        label: const Text('Imprimir'),
+        label: const Text('Reimprimir'),
       ),
     ],
   );
@@ -1859,7 +1993,7 @@ class _CashClosingPreviewDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalsByCurrency = <String, double>{};
     final salesByCurrency = <String, int>{};
-    var unitsSold = 0;
+    var unitsSold = 0.0;
     var totalUsd = 0.0;
     for (final sale in sales) {
       totalsByCurrency.update(
@@ -1872,8 +2006,8 @@ class _CashClosingPreviewDialog extends StatelessWidget {
         (count) => count + 1,
         ifAbsent: () => 1,
       );
-      unitsSold += sale.lines.fold<int>(
-        0,
+      unitsSold += sale.lines.fold<double>(
+        0.0,
         (total, line) => total + line.quantity,
       );
       totalUsd += sale.total / sale.exchangeRate;
@@ -1954,7 +2088,7 @@ class _CashClosingPreviewDialog extends StatelessWidget {
 class _DetailedProduct {
   final String name;
   final String currencyCode;
-  int quantity = 0;
+  double quantity = 0;
   double amount = 0;
   double usdAmount = 0;
 
@@ -2105,8 +2239,8 @@ class _ReportCard extends StatelessWidget {
 class _RankedProductBar extends StatelessWidget {
   final int rank;
   final String name;
-  final int quantity;
-  final int maximum;
+  final double quantity;
+  final double maximum;
   final Color color;
 
   const _RankedProductBar({
@@ -2348,7 +2482,7 @@ class _SalesBucket {
 
 class _ProductTotal {
   final String name;
-  final int quantity;
+  final double quantity;
   const _ProductTotal({required this.name, required this.quantity});
 }
 
@@ -2356,7 +2490,7 @@ class _CategoryTotal {
   final String name;
   final Map<String, double> amounts = {};
   final Set<String> transactions = {};
-  int units = 0;
+  double units = 0;
   double usdAmount = 0;
 
   _CategoryTotal(this.name);

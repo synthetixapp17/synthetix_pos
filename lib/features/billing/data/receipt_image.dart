@@ -165,7 +165,8 @@ class ReceiptImage {
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
                             pw.Text(
-                              line.productName,
+                              '${line.productName}'
+                              '${line.variationLabel.isEmpty ? '' : ' · ${line.variationLabel}'}',
                               style: pw.TextStyle(
                                 color: _navy,
                                 fontSize: 10,
@@ -175,8 +176,8 @@ class ReceiptImage {
                             pw.SizedBox(height: 3),
                             pw.Text(
                               showUnitPrices
-                                  ? '${line.quantity} × ${_moneyWithReference(line.unitPrice, sale.currencyCode, sale.exchangeRate)}'
-                                  : '${line.quantity} unidades',
+                                  ? '${line.displayQuantity} ${line.unitLabel} × ${_moneyWithReference(line.unitPrice, sale.currencyCode, sale.exchangeRate)}'
+                                  : '${line.displayQuantity} ${line.unitLabel}',
                               style: const pw.TextStyle(
                                 color: _muted,
                                 fontSize: 9,

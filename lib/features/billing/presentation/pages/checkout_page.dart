@@ -266,7 +266,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       return TableRow(
                                         children: [
                                           _buildDataCell(
-                                            '${item.quantity} x ${item.product.name}',
+                                            '${item.quantity} ${item.product.selectedVariant?.unitLabel ?? 'ud.'} x '
+                                            '${item.product.name}'
+                                            '${item.product.variationLabel.isEmpty ? '' : ' · ${item.product.variationLabel}'}',
                                             TextAlign.left,
                                           ),
                                           _buildDataCell(
@@ -852,6 +854,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 barcode: line.barcode,
                 quantity: line.quantity,
                 unitPrice: line.unitPrice,
+                variantId: line.variantId,
+                variantAttributes: line.variantAttributes,
+                unitLabel: line.unitLabel,
               ),
             )
             .toList(),
@@ -987,8 +992,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
         lines: billingState.cartItems
             .map(
               (item) => QuotationLine(
-                productName: item.product.name,
-                barcode: item.product.barcode,
+                productName:
+                    '${item.product.name}${item.product.variationLabel.isEmpty ? '' : ' · ${item.product.variationLabel}'}',
+                barcode: item.product.saleBarcode,
                 quantity: item.quantity,
                 unitPrice: item.product.price * exchangeRate,
               ),
@@ -1746,15 +1752,16 @@ class _ReceiptPreviewDialog extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              line.productName,
+                              '${line.productName}'
+                              '${line.variationLabel.isEmpty ? '' : ' · ${line.variationLabel}'}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             Text(
                               ReceiptPreferences.showUnitPrices
-                                  ? '${line.quantity} × ${AppCurrency.formatWithUsdReference(line.unitPrice, code: sale.currencyCode, exchangeRate: sale.exchangeRate)}'
-                                  : '${line.quantity} unidades',
+                                  ? '${line.displayQuantity} ${line.unitLabel} × ${AppCurrency.formatWithUsdReference(line.unitPrice, code: sale.currencyCode, exchangeRate: sale.exchangeRate)}'
+                                  : '${line.displayQuantity} ${line.unitLabel}',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                             if (ReceiptPreferences.showBarcode)

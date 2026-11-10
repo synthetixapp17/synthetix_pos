@@ -12,23 +12,26 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
+    final variantsJson = fields[9] == null ? '[]' : fields[9] as String;
     return ProductModel(
       id: fields[0] as String,
       name: fields[1] as String,
       barcode: fields[2] as String,
       price: fields[3] as double,
-      stock: fields[4] as int,
+      stock: (fields[4] as num).toDouble(),
       description: fields[5] == null ? '' : fields[5] as String,
       imageData: fields[6] as String?,
       currencyCode: fields[7] == null ? 'USD' : fields[7] as String,
       category: fields[8] == null ? '' : fields[8] as String,
+      variantsJson: variantsJson,
+      variants: ProductModel.decodeVariants(variantsJson),
     );
   }
 
   @override
   void write(BinaryWriter writer, ProductModel obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -46,7 +49,9 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       ..writeByte(7)
       ..write(obj.currencyCode)
       ..writeByte(8)
-      ..write(obj.category);
+      ..write(obj.category)
+      ..writeByte(9)
+      ..write(obj.variantsJson);
   }
 
   @override

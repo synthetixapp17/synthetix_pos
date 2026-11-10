@@ -19,9 +19,13 @@ String buildWhatsappSaleReceiptMessage({
 
   for (final line in sale.lines) {
     message
-      ..writeln('• ${line.productName.trim()}')
       ..writeln(
-        '  ${line.quantity} × ${AppCurrency.format(line.unitPrice, code: sale.currencyCode)}',
+        '• ${line.productName.trim()}'
+        '${line.variationLabel.isEmpty ? '' : ' · ${line.variationLabel}'}',
+      )
+      ..writeln(
+        '  ${line.displayQuantity}${line.unitLabel == 'ud.' ? '' : ' ${line.unitLabel}'} × '
+        '${AppCurrency.format(line.unitPrice, code: sale.currencyCode)}',
       )
       ..writeln(
         '  Subtotal: ${AppCurrency.format(line.total, code: sale.currencyCode)}'

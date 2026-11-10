@@ -11,6 +11,7 @@ import '../../../../core/utils/app_validators.dart';
 import '../../../../core/utils/product_categories.dart';
 import '../../domain/entities/product.dart';
 import '../bloc/product_bloc.dart';
+import '../widgets/product_variants_form.dart';
 
 class EditProductPage extends StatefulWidget {
   final Product product;
@@ -38,6 +39,8 @@ class _EditProductPageState extends State<EditProductPage> {
   final String _currencyCode = AppCurrency.baseCode;
   late String? _imageData = widget.product.imageData;
   late List<String> _categories;
+  late bool _hasVariants = widget.product.hasVariants;
+  final _variantsFormKey = GlobalKey<ProductVariantsFormState>();
 
   @override
   void initState() {
@@ -89,9 +92,35 @@ class _EditProductPageState extends State<EditProductPage> {
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;
-    final amount = double.parse(
-      _priceController.text.trim().replaceAll(',', '.'),
-    );
+    final variants = _hasVariants
+        ? _variantsFormKey.currentState?.readVariants()
+        : null;
+    if (_hasVariants && variants == null) return;
+    final barcodes = [
+      widget.product.barcode,
+      ...?variants
+          ?.map((variant) => variant.barcode)
+          .where((barcode) => barcode.isNotEmpty),
+    ];
+    if (barcodes.toSet().length != barcodes.length ||
+        context.read<ProductBloc>().state.products.any(
+          (product) =>
+              product.id != widget.product.id &&
+              {
+                product.barcode,
+                ...product.variants.map((variant) => variant.barcode),
+              }.intersection(barcodes.toSet()).isNotEmpty,
+        )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Los códigos de barras deben ser únicos.'),
+        ),
+      );
+      return;
+    }
+    final amount =
+        variants?.first.price ??
+        double.parse(_priceController.text.trim().replaceAll(',', '.'));
     context.read<ProductBloc>().add(
       UpdateProduct(
         Product(
@@ -100,10 +129,16 @@ class _EditProductPageState extends State<EditProductPage> {
           description: _descriptionController.text.trim(),
           barcode: widget.product.barcode,
           price: amount,
-          stock: int.parse(_stockController.text.trim()),
+          stock:
+              variants?.fold<double>(
+                0,
+                (total, variant) => total + variant.stock,
+              ) ??
+              double.parse(_stockController.text.trim().replaceAll(',', '.')),
           imageData: _imageData,
           currencyCode: _currencyCode,
           category: _categoryController.text.trim(),
+          variants: variants ?? const [],
         ),
       ),
     );
@@ -213,57 +248,79 @@ class _EditProductPageState extends State<EditProductPage> {
               ),
             ),
             const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _priceController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Precio',
-                      prefixIcon: Icon(Icons.payments_outlined),
-                    ),
-                    validator: (value) {
-                      final amount = double.tryParse(
-                        (value ?? '').trim().replaceAll(',', '.'),
-                      );
-                      return amount == null || amount < 0
-                          ? 'Indica un precio válido.'
-                          : null;
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Moneda de referencia',
-                    ),
-                    child: Text(
-                      '${AppCurrency.symbolFor(AppCurrency.baseCode)} '
-                      '${AppCurrency.baseCode}',
-                    ),
-                  ),
-                ),
-              ],
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Este producto tiene variaciones'),
+              subtitle: const Text('Tallas, colores o presentaciones/pesos'),
+              value: _hasVariants,
+              onChanged: (value) => setState(() => _hasVariants = value),
             ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _stockController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Existencias',
-                prefixIcon: Icon(Icons.warehouse_outlined),
+            Visibility(
+              visible: _hasVariants,
+              maintainState: true,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: ProductVariantsForm(
+                  key: _variantsFormKey,
+                  initialVariants: widget.product.variants,
+                ),
               ),
-              validator: (value) {
-                final stock = int.tryParse(value ?? '');
-                return stock == null || stock < 0
-                    ? 'Indica una cantidad válida.'
-                    : null;
-              },
             ),
+            if (!_hasVariants) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _priceController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Precio',
+                        prefixIcon: Icon(Icons.payments_outlined),
+                      ),
+                      validator: (value) {
+                        final amount = double.tryParse(
+                          (value ?? '').trim().replaceAll(',', '.'),
+                        );
+                        return amount == null || amount < 0
+                            ? 'Indica un precio válido.'
+                            : null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Moneda de referencia',
+                      ),
+                      child: Text(
+                        '${AppCurrency.symbolFor(AppCurrency.baseCode)} '
+                        '${AppCurrency.baseCode}',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _stockController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Existencias',
+                  prefixIcon: Icon(Icons.warehouse_outlined),
+                ),
+                validator: (value) {
+                  final stock = double.tryParse(
+                    (value ?? '').trim().replaceAll(',', '.'),
+                  );
+                  return stock == null || !stock.isFinite || stock < 0
+                      ? 'Indica una cantidad válida.'
+                      : null;
+                },
+              ),
+            ],
             const SizedBox(height: 28),
             FilledButton.icon(
               onPressed: _save,
