@@ -161,26 +161,47 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
     AppCurrencyScope.of(context);
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: const Color(0xFFF5F8F6),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         titleSpacing: 20,
         title: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 46,
+              height: 46,
               decoration: BoxDecoration(
-                color: const Color(0xFFE7F7EF),
-                borderRadius: BorderRadius.circular(13),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF16885A), Color(0xFF0B6742)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF138A55).withValues(alpha: .18),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.scale_rounded, color: Color(0xFF138A55)),
+              child: const Icon(Icons.scale_rounded, color: Colors.white),
             ),
             const SizedBox(width: 12),
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Balanza digital'),
                 Text(
-                  'Pesaje manual · teclado táctil',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+                  'Balanza digital',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  'Venta por peso · Entrada manual',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF73817A),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -478,8 +499,20 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0xFF101A22),
-              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF14251F), Color(0xFF0B1512)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFF284437)),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF10251B).withValues(alpha: .16),
+                  blurRadius: 20,
+                  offset: const Offset(0, 9),
+                ),
+              ],
             ),
             child: Column(
               children: [
@@ -495,11 +528,11 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                     ),
                     const SizedBox(width: 8),
                     const Text(
-                      'PESAJE MANUAL',
+                      'ENTRADA MANUAL ACTIVA',
                       style: TextStyle(
-                        color: Color(0xFFC9D4DC),
+                        color: Color(0xFFD8E6DE),
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 1.1,
+                        letterSpacing: 1,
                         fontSize: 11,
                       ),
                     ),
@@ -519,7 +552,17 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 10),
+                const Text(
+                  'PESO DEL PRODUCTO',
+                  style: TextStyle(
+                    color: Color(0xFF92A79B),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -531,10 +574,11 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                         child: Text(
                           _weightInput,
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 58,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -1.5,
+                            color: Color(0xFF70E5A7),
+                            fontSize: 68,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -2,
+                            fontFeatures: [FontFeature.tabularFigures()],
                           ),
                         ),
                       ),
@@ -543,9 +587,9 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                     Text(
                       inputUnit,
                       style: const TextStyle(
-                        color: Color(0xFF9FB0BC),
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFB4C5BB),
+                        fontSize: 21,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -567,10 +611,11 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                   onSelectionChanged: (selection) =>
                       _changeInputUnit(selection.first),
                   style: SegmentedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    selectedForegroundColor: const Color(0xFF101A22),
-                    selectedBackgroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFF34444F)),
+                  foregroundColor: const Color(0xFFD2DED7),
+                  selectedForegroundColor: const Color(0xFF10251B),
+                  selectedBackgroundColor: const Color(0xFF70E5A7),
+                  side: const BorderSide(color: Color(0xFF344A3F)),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],

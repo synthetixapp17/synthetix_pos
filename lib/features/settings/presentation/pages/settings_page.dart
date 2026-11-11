@@ -75,39 +75,11 @@ extension on _BackupScopeChoice {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  final _generalSectionKey = GlobalKey();
-  final _catalogSectionKey = GlobalKey();
-  final _analyticsSectionKey = GlobalKey();
-  final _documentsSectionKey = GlobalKey();
-  final _preferencesSectionKey = GlobalKey();
-  final _devicesSectionKey = GlobalKey();
-  final _backupSectionKey = GlobalKey();
   late String _currencyCode;
   late int _stockThreshold;
   int _currencyDropdownVersion = 0;
-  int _selectedSection = 0;
   bool _isExportingBackup = false;
   bool _isRestoringBackup = false;
-
-  static const _settingsSections = [
-    ('General', Icons.storefront_outlined),
-    ('Catálogo', Icons.inventory_2_outlined),
-    ('Análisis', Icons.bar_chart_outlined),
-    ('Documentos', Icons.description_outlined),
-    ('Preferencias', Icons.tune_rounded),
-    ('Dispositivos', Icons.print_outlined),
-    ('Respaldo', Icons.backup_outlined),
-  ];
-
-  List<GlobalKey> get _sectionKeys => [
-    _generalSectionKey,
-    _catalogSectionKey,
-    _analyticsSectionKey,
-    _documentsSectionKey,
-    _preferencesSectionKey,
-    _devicesSectionKey,
-    _backupSectionKey,
-  ];
 
   @override
   void initState() {
@@ -117,18 +89,6 @@ class _SettingsPageState extends State<SettingsPage> {
         HiveDatabase.settingsBox.get('low_stock_threshold', defaultValue: 5)
             as int;
     context.read<ShopBloc>().add(LoadShopEvent());
-  }
-
-  Future<void> _navigateToSection(int index) async {
-    setState(() => _selectedSection = index);
-    final targetContext = _sectionKeys[index].currentContext;
-    if (targetContext == null) return;
-    await Scrollable.ensureVisible(
-      targetContext,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOut,
-      alignment: 0.06,
-    );
   }
 
   Future<void> _saveCurrency(String? code) async {
@@ -432,51 +392,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Configuración'),
-        centerTitle: false,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(58),
-          child: SizedBox(
-            height: 58,
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-              scrollDirection: Axis.horizontal,
-              itemCount: _settingsSections.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final section = _settingsSections[index];
-                final selected = _selectedSection == index;
-                return ChoiceChip(
-                  avatar: Icon(
-                    section.$2,
-                    size: 18,
-                    color: selected ? colors.onSecondaryContainer : null,
-                  ),
-                  label: Text(section.$1),
-                  selected: selected,
-                  showCheckmark: false,
-                  onSelected: (_) => _navigateToSection(index),
-                  backgroundColor: colors.surface,
-                  selectedColor: colors.secondaryContainer,
-                  side: BorderSide(
-                    color: selected
-                        ? colors.secondary.withValues(alpha: .25)
-                        : colors.outlineVariant,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: selected ? colors.onSecondaryContainer : null,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Configuración'), centerTitle: false),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1120),
@@ -484,7 +400,6 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
             children: [
               Container(
-                key: _generalSectionKey,
                 margin: const EdgeInsets.only(bottom: 22),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -550,7 +465,6 @@ class _SettingsPageState extends State<SettingsPage> {
               _BusinessProfileCard(onTap: () => context.push('/shop')),
               const SizedBox(height: 22),
               _SectionTitle(
-                key: _catalogSectionKey,
                 title: 'Catálogo y clientes',
                 subtitle: 'Administra productos, existencias y contactos.',
               ),
@@ -594,7 +508,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 18),
               _SectionTitle(
-                key: _documentsSectionKey,
                 title: 'Documentos y etiquetas',
                 subtitle: 'Personaliza lo que compartes e imprimes.',
               ),
@@ -638,7 +551,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 18),
               _SectionTitle(
-                key: _analyticsSectionKey,
                 title: 'Análisis del negocio',
                 subtitle: 'Revisa ventas y rendimiento de tu operación.',
               ),
@@ -654,7 +566,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 22),
               _SectionTitle(
-                key: _preferencesSectionKey,
                 title: 'Preferencias del negocio',
                 subtitle:
                     'Ajusta moneda, inventario y apariencia de la aplicación.',
@@ -945,7 +856,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 22),
               _SectionTitle(
-                key: _devicesSectionKey,
                 title: 'Dispositivos',
                 subtitle: 'Gestiona la conexión y el formato de impresión.',
               ),
@@ -962,7 +872,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 22),
               _SectionTitle(
-                key: _backupSectionKey,
                 title: 'Copia de seguridad',
                 subtitle:
                     'Exporta tus datos locales para guardarlos o compartirlos.',
@@ -1545,7 +1454,7 @@ class _BusinessProfileCard extends StatelessWidget {
 class _SectionTitle extends StatelessWidget {
   final String title;
   final String subtitle;
-  const _SectionTitle({super.key, required this.title, required this.subtitle});
+  const _SectionTitle({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) => Padding(

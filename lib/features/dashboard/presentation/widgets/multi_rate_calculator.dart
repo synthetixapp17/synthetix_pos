@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/data/hive_database.dart';
+import '../../data/exchange_rates_service.dart';
 
 const _rateStorageKey = 'multi_rate_calculator_rates';
 
 const _rateSources = [
   _RateSource('BCV', 'USD'),
   _RateSource('Paralelo', 'USD'),
-  _RateSource('USDT', 'USDT'),
+  _RateSource('USDT', 'USDT', automaticAvailable: false),
   _RateSource('Euro', 'EUR'),
 ];
 
@@ -46,22 +47,119 @@ class MultiRateCalculator extends StatefulWidget {
 }
 
 class _MultiRateCalculatorState extends State<MultiRateCalculator> {
+  final _ratesService = ExchangeRatesService();
   int _selectedRate = 0;
   String _display = '0';
   double? _storedOperand;
   String? _pendingOperator;
   bool _startNewNumber = false;
+  bool _isRefreshingRates = false;
+  String? _rateError;
   late Map<String, _SavedRate> _rates;
 
   @override
   void initState() {
     super.initState();
     _rates = _readRates();
+    _refreshRates(showMessage: false);
+  }
+
+  @override
+  void dispose() {
+    _ratesService.close();
+    super.dispose();
   }
 
   _RateSource get _source => _rateSources[_selectedRate];
   _SavedRate? get _savedRate => _rates[_source.name];
   double get _amount => double.tryParse(_display.replaceAll(',', '.')) ?? 0;
+
+  Future<void> _refreshRates({bool showMessage = true}) async {
+    if (_isRefreshingRates) return;
+    setState(() {
+      _isRefreshingRates = true;
+      _rateError = null;
+    });
+    try {
+      final liveRates = await _ratesService.fetchRates();
+      final updated = Map<String, _SavedRate>.from(_rates);
+      var updatedCount = 0;
+      for (final entry in liveRates.entries) {
+        if (updated[entry.key]?.isManual == true) continue;
+        updated[entry.key] = _SavedRate(
+          entry.value.vesPerUnit,
+          entry.value.updatedAt,
+          isManual: false,
+        );
+        updatedCount++;
+      }
+      await HiveDatabase.settingsBox.put(_rateStorageKey, {
+        for (final entry in updated.entries) entry.key: entry.value.toMap(),
+      });
+      if (!mounted) return;
+      setState(() {
+        _rates = updated;
+        _rateError = null;
+      });
+      if (showMessage) {
+        final message = updatedCount == 0
+            ? 'Las tasas actuales están fijadas manualmente.'
+            : 'Tasas oficiales actualizadas desde DolarApi.';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(
+        () => _rateError =
+            'No se pudieron consultar las tasas en línea. Se conservan las tasas guardadas.',
+      );
+      if (showMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar tasas: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRefreshingRates = false);
+    }
+  }
+
+  Future<void> _useAutomaticRate() async {
+    final source = _source.name;
+    setState(() {
+      _isRefreshingRates = true;
+      _rateError = null;
+    });
+    try {
+      final liveRate = (await _ratesService.fetchRates())[source];
+      if (liveRate == null) {
+        throw StateError('No hay una tasa automática para $source.');
+      }
+      final updated = Map<String, _SavedRate>.from(_rates)
+        ..[source] = _SavedRate(
+          liveRate.vesPerUnit,
+          liveRate.updatedAt,
+          isManual: false,
+        );
+      await HiveDatabase.settingsBox.put(_rateStorageKey, {
+        for (final entry in updated.entries) entry.key: entry.value.toMap(),
+      });
+      if (!mounted) return;
+      setState(() => _rates = updated);
+    } catch (error) {
+      if (!mounted) return;
+      setState(
+        () => _rateError =
+            'No se pudo restaurar la tasa automática. Inténtalo nuevamente.',
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al consultar la tasa: $error')));
+    } finally {
+      if (mounted) setState(() => _isRefreshingRates = false);
+    }
+  }
 
   Map<String, _SavedRate> _readRates() {
     final stored = HiveDatabase.settingsBox.get(_rateStorageKey);
@@ -221,7 +319,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
     controller.dispose();
     if (rate == null || !mounted) return;
     final updated = Map<String, _SavedRate>.from(_rates)
-      ..[_source.name] = _SavedRate(rate, DateTime.now());
+      ..[_source.name] = _SavedRate(rate, DateTime.now(), isManual: true);
     await HiveDatabase.settingsBox.put(_rateStorageKey, {
       for (final entry in updated.entries)
         entry.key: entry.value.toMap(),
@@ -281,6 +379,19 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Actualizar tasas en línea',
+                    onPressed: _isRefreshingRates
+                        ? null
+                        : () => _refreshRates(),
+                    icon: _isRefreshingRates
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.sync_rounded),
+                  ),
+                  IconButton(
                     tooltip: 'Cerrar',
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close_rounded),
@@ -309,6 +420,24 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                 ],
               ),
               const SizedBox(height: 12),
+              if (_rateError != null) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF4E5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _rateError!,
+                    style: const TextStyle(
+                      color: Color(0xFF8A4B08),
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(16, 13, 16, 14),
@@ -378,27 +507,58 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                         Expanded(
                           child: Text(
                             _savedRate == null
-                                ? 'Tasa sin configurar'
-                                : 'Actualizada ${DateFormat('dd/MM/yy HH:mm', 'es').format(_savedRate!.updatedAt)} · manual',
+                                ? _source.automaticAvailable
+                                      ? 'Esperando tasa en línea'
+                                      : 'Sin fuente automática verificada'
+                                : '${_savedRate!.isManual ? 'Manual' : 'DolarApi'} · ${DateFormat('dd/MM/yy HH:mm', 'es').format(_savedRate!.updatedAt)}',
                             style: const TextStyle(
                               color: Color(0xFF7C8795),
                               fontSize: 10,
                             ),
                           ),
                         ),
-                        TextButton.icon(
-                          onPressed: _editRate,
-                          icon: const Icon(Icons.edit_outlined, size: 15),
-                          label: Text(
-                            _savedRate == null ? 'Definir' : 'Editar tasa',
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          style: TextButton.styleFrom(
-                            visualDensity: VisualDensity.compact,
-                          ),
+                        Wrap(
+                          spacing: 4,
+                          children: [
+                            if (_savedRate?.isManual == true &&
+                                _source.automaticAvailable)
+                              TextButton(
+                                onPressed: _isRefreshingRates
+                                    ? null
+                                    : _useAutomaticRate,
+                                child: const Text(
+                                  'Automática',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                              ),
+                            TextButton.icon(
+                              onPressed: _editRate,
+                              icon: const Icon(Icons.edit_outlined, size: 15),
+                              label: Text(
+                                _savedRate == null ? 'Definir' : 'Editar',
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
+                    if (!_source.automaticAvailable) ...[
+                      const SizedBox(height: 4),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'USDT requiere una tasa manual; no se usa el dólar como sustituto.',
+                          style: TextStyle(
+                            color: Color(0xFF7C8795),
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -479,19 +639,26 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
 class _RateSource {
   final String name;
   final String unit;
+  final bool automaticAvailable;
 
-  const _RateSource(this.name, this.unit);
+  const _RateSource(
+    this.name,
+    this.unit, {
+    this.automaticAvailable = true,
+  });
 }
 
 class _SavedRate {
   final double value;
   final DateTime updatedAt;
+  final bool isManual;
 
-  const _SavedRate(this.value, this.updatedAt);
+  const _SavedRate(this.value, this.updatedAt, {required this.isManual});
 
   Map<String, Object> toMap() => {
     'value': value,
     'updatedAt': updatedAt.toIso8601String(),
+    'isManual': isManual,
   };
 
   factory _SavedRate.fromMap(Map map) {
@@ -503,7 +670,11 @@ class _SavedRate {
         updatedAt == null) {
       throw const FormatException('La tasa guardada no es válida.');
     }
-    return _SavedRate(value.toDouble(), updatedAt);
+    return _SavedRate(
+      value.toDouble(),
+      updatedAt,
+      isManual: map['isManual'] as bool? ?? true,
+    );
   }
 }
 
