@@ -255,23 +255,18 @@ class _ReportsPageState extends State<ReportsPage> {
 
   Future<void> _printCashClosing() async {
     final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day);
-    final end = start.add(const Duration(days: 1));
-    final sales =
-        HiveDatabase.salesBox.values
-            .map((sale) => sale.toEntity())
-            .where(
-              (sale) =>
-                  !sale.soldAt.isBefore(start) && sale.soldAt.isBefore(end),
-            )
-            .toList()
-          ..sort((first, second) => first.soldAt.compareTo(second.soldAt));
-    final confirmed = await showDialog<bool>(
+    final allSales = HiveDatabase.salesBox.values
+        .map((sale) => sale.toEntity())
+        .toList();
+    final closing = await showDialog<_CashClosingSelection>(
       context: context,
-      builder: (context) =>
-          _CashClosingPreviewDialog(sales: sales, date: start),
+      builder: (context) => _CashClosingPreviewDialog(
+        sales: allSales,
+        initialDate: DateTime(now.year, now.month, now.day),
+      ),
     );
-    if (!mounted || confirmed != true || _isPrinting) return;
+    if (!mounted || closing == null || _isPrinting) return;
+    final sales = closing.sales;
 
     setState(() => _isPrinting = true);
     try {
@@ -279,6 +274,8 @@ class _ReportsPageState extends State<ReportsPage> {
       await _ensurePrinterConnected(printer);
       final totalsByCurrency = <String, double>{};
       final salesByCurrency = <String, int>{};
+      final totalsByPaymentMethod = <String, double>{};
+      final salesByPaymentMethod = <String, int>{};
       var unitsSold = 0.0;
       var totalUsd = 0.0;
       for (final sale in sales) {
@@ -297,6 +294,16 @@ class _ReportsPageState extends State<ReportsPage> {
           (total, line) => total + line.quantity,
         );
         totalUsd += sale.total / sale.exchangeRate;
+        totalsByPaymentMethod.update(
+          sale.paymentMethod,
+          (total) => total + sale.total / sale.exchangeRate,
+          ifAbsent: () => sale.total / sale.exchangeRate,
+        );
+        salesByPaymentMethod.update(
+          sale.paymentMethod,
+          (count) => count + 1,
+          ifAbsent: () => 1,
+        );
       }
 
       final shop = HiveDatabase.shopBox.get(ShopRepositoryImpl.shopKey);
@@ -304,7 +311,7 @@ class _ReportsPageState extends State<ReportsPage> {
       final buffer = StringBuffer()
         ..writeln('CIERRE DE CAJA')
         ..writeln(shop == null || shop.name.isEmpty ? 'MI TIENDA' : shop.name)
-        ..writeln(DateFormat('dd/MM/yyyy', 'es').format(start))
+        ..writeln(DateFormat('dd/MM/yyyy', 'es').format(closing.date))
         ..writeln(separator)
         ..writeln('VENTAS: ${sales.length}  UNIDADES: $unitsSold')
         ..writeln(separator);
@@ -325,6 +332,15 @@ class _ReportsPageState extends State<ReportsPage> {
         buffer.writeln(
           '${AppCurrency.format(entry.value, code: entry.key)} '
           '(${salesByCurrency[entry.key]} ventas)',
+        );
+      }
+      buffer
+        ..writeln(separator)
+        ..writeln('VENTAS POR METODO DE PAGO (REF. USD)');
+      for (final entry in totalsByPaymentMethod.entries) {
+        buffer.writeln(
+          '${entry.key}: ${AppCurrency.formatReference(entry.value)} '
+          '(${salesByPaymentMethod[entry.key]} ventas)',
         );
       }
       buffer
@@ -1983,16 +1999,89 @@ class _InvoiceAmountRow extends StatelessWidget {
   );
 }
 
-class _CashClosingPreviewDialog extends StatelessWidget {
-  final List<SaleRecord> sales;
+class _CashClosingSelection {
   final DateTime date;
+  final List<SaleRecord> sales;
 
-  const _CashClosingPreviewDialog({required this.sales, required this.date});
+  const _CashClosingSelection({required this.date, required this.sales});
+}
+
+class _CashClosingPreviewDialog extends StatefulWidget {
+  final List<SaleRecord> sales;
+  final DateTime initialDate;
+
+  const _CashClosingPreviewDialog({
+    required this.sales,
+    required this.initialDate,
+  });
+
+  @override
+  State<_CashClosingPreviewDialog> createState() =>
+      _CashClosingPreviewDialogState();
+}
+
+class _CashClosingPreviewDialogState extends State<_CashClosingPreviewDialog> {
+  late DateTime _selectedDate;
+  late final DateTime _today;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate;
+    final now = DateTime.now();
+    _today = DateTime(now.year, now.month, now.day);
+  }
+
+  List<SaleRecord> get _selectedSales {
+    final start = _selectedDate;
+    final end = start.add(const Duration(days: 1));
+    return widget.sales
+        .where(
+          (sale) =>
+              !sale.soldAt.isBefore(start) && sale.soldAt.isBefore(end),
+        )
+        .toList()
+      ..sort((first, second) => first.soldAt.compareTo(second.soldAt));
+  }
+
+  DateTime get _firstDate {
+    if (widget.sales.isEmpty) return DateTime(2020);
+    final earliest = widget.sales
+        .map((sale) => sale.soldAt)
+        .reduce((first, second) => first.isBefore(second) ? first : second);
+    final date = DateTime(earliest.year, earliest.month, earliest.day);
+    return date.isAfter(_today) ? _today : date;
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: _firstDate,
+      lastDate: _today,
+      helpText: 'Selecciona el día del cierre',
+      cancelText: 'Cancelar',
+      confirmText: 'Aplicar',
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _selectedDate = DateTime(picked.year, picked.month, picked.day);
+    });
+  }
+
+  void _moveDate(int days) {
+    final nextDate = _selectedDate.add(Duration(days: days));
+    if (nextDate.isAfter(_today) || nextDate.isBefore(_firstDate)) return;
+    setState(() => _selectedDate = nextDate);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final sales = _selectedSales;
     final totalsByCurrency = <String, double>{};
     final salesByCurrency = <String, int>{};
+    final totalsByPaymentMethod = <String, double>{};
+    final salesByPaymentMethod = <String, int>{};
     var unitsSold = 0.0;
     var totalUsd = 0.0;
     for (final sale in sales) {
@@ -2011,78 +2100,452 @@ class _CashClosingPreviewDialog extends StatelessWidget {
         (total, line) => total + line.quantity,
       );
       totalUsd += sale.total / sale.exchangeRate;
+      totalsByPaymentMethod.update(
+        sale.paymentMethod,
+        (total) => total + sale.total / sale.exchangeRate,
+        ifAbsent: () => sale.total / sale.exchangeRate,
+      );
+      salesByPaymentMethod.update(
+        sale.paymentMethod,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
     }
 
-    return AlertDialog(
-      title: const Text('Cierre de caja'),
-      content: SizedBox(
-        width: 440,
-        child: SingleChildScrollView(
+    final colors = Theme.of(context).colorScheme;
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: 520,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(22, 20, 12, 20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [colors.primary, colors.primary.withValues(alpha: .8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .16),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.point_of_sale_rounded,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Cierre de caja',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Resumen de ventas por día',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Cerrar',
+                    onPressed: () => Navigator.pop(context),
+                    color: Colors.white,
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.surfaceContainerHighest.withValues(
+                          alpha: .45,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            tooltip: 'Día anterior',
+                            onPressed: _selectedDate.isAfter(_firstDate)
+                                ? () => _moveDate(-1)
+                                : null,
+                            icon: const Icon(Icons.chevron_left_rounded),
+                          ),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _selectDate,
+                              icon: const Icon(
+                                Icons.calendar_month_rounded,
+                                size: 18,
+                              ),
+                              label: Text(
+                                DateFormat(
+                                  'EEEE d \'de\' MMMM, yyyy',
+                                  'es',
+                                ).format(_selectedDate),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: colors.onSurface,
+                                side: BorderSide(
+                                  color: colors.outlineVariant,
+                                ),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Día siguiente',
+                            onPressed: _selectedDate.isBefore(_today)
+                                ? () => _moveDate(1)
+                                : null,
+                            icon: const Icon(Icons.chevron_right_rounded),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _CashClosingMetric(
+                            icon: Icons.receipt_long_outlined,
+                            label: 'VENTAS',
+                            value: '${sales.length}',
+                            color: colors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _CashClosingMetric(
+                            icon: Icons.inventory_2_outlined,
+                            label: 'UNIDADES',
+                            value: NumberFormat('#,##0.##', 'es').format(
+                              unitsSold,
+                            ),
+                            color: const Color(0xFF16856B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Totales por moneda',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (sales.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 22,
+                          horizontal: 16,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceContainerHighest.withValues(
+                            alpha: .35,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(
+                              Icons.event_busy_rounded,
+                              size: 28,
+                              color: Color(0xFF7C8795),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'No hay ventas registradas para este día.',
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      )
+                    else ...[
+                      for (final entry in totalsByCurrency.entries)
+                        _CashClosingTotalRow(
+                          label: '${salesByCurrency[entry.key]} ventas',
+                          currencyCode: entry.key,
+                          amount: entry.value,
+                        ),
+                      const SizedBox(height: 4),
+                      _CashClosingTotalRow(
+                        label: 'Total de referencia',
+                        currencyCode: 'USD',
+                        amount: totalUsd,
+                        emphasized: true,
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        'Ventas por método de pago · referencia USD',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      for (final entry in totalsByPaymentMethod.entries)
+                        _CashClosingPaymentRow(
+                          label: entry.key,
+                          count: salesByPaymentMethod[entry.key]!,
+                          amount: entry.value,
+                        ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Detalle de ventas',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          Text(
+                            '${sales.length} registros',
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      for (final sale in sales)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          leading: CircleAvatar(
+                            radius: 17,
+                            backgroundColor: colors.surfaceContainerHighest,
+                            child: Text(
+                              DateFormat('HH:mm', 'es').format(sale.soldAt),
+                              style: const TextStyle(fontSize: 9),
+                            ),
+                          ),
+                          title: Text(
+                            sale.id,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${sale.paymentMethod} · '
+                            '${sale.customerName ?? 'Sin cliente'}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: Text(
+                            AppCurrency.format(
+                              sale.total,
+                              code: sale.currencyCode,
+                            ),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => Navigator.pop(
+                        context,
+                        _CashClosingSelection(
+                          date: _selectedDate,
+                          sales: sales,
+                        ),
+                      ),
+                      icon: const Icon(Icons.print_outlined),
+                      label: const Text('Imprimir cierre'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CashClosingMetric extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _CashClosingMetric({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .08),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: color.withValues(alpha: .15)),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(DateFormat('dd/MM/yyyy', 'es').format(date)),
-              const SizedBox(height: 8),
-              Text('${sales.length} ventas · $unitsSold unidades vendidas'),
-              const Divider(height: 24),
-              if (sales.isEmpty)
-                const Text('No hay ventas registradas para este día.')
-              else ...[
-                for (final sale in sales)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    title: Text(
-                      '${DateFormat('HH:mm', 'es').format(sale.soldAt)} · '
-                      '${sale.id}',
-                    ),
-                    subtitle: Text(
-                      '${sale.paymentMethod} · '
-                      '${sale.customerName ?? 'Sin cliente'}',
-                    ),
-                    trailing: Text(
-                      AppCurrency.format(sale.total, code: sale.currencyCode),
-                    ),
-                  ),
-                const Divider(height: 24),
-                Text(
-                  'Totales por moneda',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .5,
                 ),
-                for (final entry in totalsByCurrency.entries)
-                  _InvoiceAmountRow(
-                    label: '${salesByCurrency[entry.key]} ventas',
-                    amount: entry.value,
-                    currencyCode: entry.key,
-                  ),
-                const SizedBox(height: 8),
-                _InvoiceAmountRow(
-                  label: 'Total de referencia USD',
-                  amount: totalUsd,
-                  currencyCode: 'USD',
-                  emphasized: true,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
                 ),
-              ],
+              ),
             ],
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancelar'),
+      ],
+    ),
+  );
+}
+
+class _CashClosingTotalRow extends StatelessWidget {
+  final String label;
+  final String currencyCode;
+  final double amount;
+  final bool emphasized;
+
+  const _CashClosingTotalRow({
+    required this.label,
+    required this.currencyCode,
+    required this.amount,
+    this.emphasized = false,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: emphasized ? null : Theme.of(context).hintColor,
+              fontWeight: emphasized ? FontWeight.w800 : FontWeight.w500,
+            ),
+          ),
         ),
-        FilledButton.icon(
-          onPressed: () => Navigator.pop(context, true),
-          icon: const Icon(Icons.print_outlined),
-          label: const Text('Imprimir cierre'),
+        Text(
+          AppCurrency.format(amount, code: currencyCode),
+          style: TextStyle(
+            fontWeight: emphasized ? FontWeight.w900 : FontWeight.w700,
+            color: emphasized ? Theme.of(context).colorScheme.primary : null,
+          ),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
+
+class _CashClosingPaymentRow extends StatelessWidget {
+  final String label;
+  final int count;
+  final double amount;
+
+  const _CashClosingPaymentRow({
+    required this.label,
+    required this.count,
+    required this.amount,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      children: [
+        const Icon(
+          Icons.payments_outlined,
+          size: 17,
+          color: Color(0xFF748194),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            '$label · $count ${count == 1 ? 'venta' : 'ventas'}',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+        Text(
+          AppCurrency.formatReference(amount),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+      ],
+    ),
+  );
 }
 
 class _DetailedProduct {

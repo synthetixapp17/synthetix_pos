@@ -43,4 +43,60 @@ void main() {
       throwsFormatException,
     );
   });
+
+  test(
+    'calculates the Binance P2P midpoint from median buy and sell offers',
+    () {
+      final rate = ExchangeRatesService.parseBinanceResponses(
+        buy: {
+          'code': '000000',
+          'data': [
+            {
+              'adv': {'price': '100'},
+            },
+            {
+              'adv': {'price': '102'},
+            },
+            {
+              'adv': {'price': '104'},
+            },
+          ],
+        },
+        sell: {
+          'code': '000000',
+          'data': [
+            {
+              'adv': {'price': '110'},
+            },
+            {
+              'adv': {'price': '112'},
+            },
+            {
+              'adv': {'price': '114'},
+            },
+          ],
+        },
+      );
+
+      expect(rate.source, 'Binance P2P');
+      expect(rate.vesPerUnit, 107);
+    },
+  );
+
+  test('rejects Binance P2P responses without valid USDT/VES offers', () {
+    expect(
+      () => ExchangeRatesService.parseBinanceResponses(
+        buy: {
+          'code': '000000',
+          'data': [
+            {
+              'adv': {'price': '0'},
+            },
+          ],
+        },
+        sell: {'code': '000000', 'data': []},
+      ),
+      throwsFormatException,
+    );
+  });
 }

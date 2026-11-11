@@ -9,7 +9,7 @@ const _rateStorageKey = 'multi_rate_calculator_rates';
 const _rateSources = [
   _RateSource('BCV', 'USD'),
   _RateSource('Paralelo', 'USD'),
-  _RateSource('USDT', 'USDT', automaticAvailable: false),
+  _RateSource('Binance', 'USDT', key: 'USDT'),
   _RateSource('Euro', 'EUR'),
 ];
 
@@ -71,7 +71,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
   }
 
   _RateSource get _source => _rateSources[_selectedRate];
-  _SavedRate? get _savedRate => _rates[_source.name];
+  _SavedRate? get _savedRate => _rates[_source.storageKey];
   double get _amount => double.tryParse(_display.replaceAll(',', '.')) ?? 0;
 
   Future<void> _refreshRates({bool showMessage = true}) async {
@@ -81,7 +81,21 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
       _rateError = null;
     });
     try {
-      final liveRates = await _ratesService.fetchRates();
+      final liveRates = <String, LiveExchangeRate>{};
+      final failedSources = <String>[];
+      try {
+        liveRates.addAll(await _ratesService.fetchRates());
+      } catch (_) {
+        failedSources.add('DolarApi');
+      }
+      try {
+        liveRates['USDT'] = await _ratesService.fetchBinanceRate();
+      } catch (_) {
+        failedSources.add('Binance P2P');
+      }
+      if (liveRates.isEmpty) {
+        throw StateError('No se pudo consultar ninguna fuente de tasas.');
+      }
       final updated = Map<String, _SavedRate>.from(_rates);
       var updatedCount = 0;
       for (final entry in liveRates.entries) {
@@ -90,6 +104,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
           entry.value.vesPerUnit,
           entry.value.updatedAt,
           isManual: false,
+          source: entry.value.source,
         );
         updatedCount++;
       }
@@ -99,12 +114,16 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
       if (!mounted) return;
       setState(() {
         _rates = updated;
-        _rateError = null;
+        _rateError = failedSources.isEmpty
+            ? null
+            : 'No se pudo consultar ${failedSources.join(' ni ')}. Se conservan las tasas guardadas para esas fuentes.';
       });
       if (showMessage) {
-        final message = updatedCount == 0
+        final message = failedSources.isNotEmpty
+            ? 'Actualización parcial. Se conservaron las tasas guardadas donde no hubo conexión.'
+            : updatedCount == 0
             ? 'Las tasas actuales están fijadas manualmente.'
-            : 'Tasas oficiales actualizadas desde DolarApi.';
+            : 'Tasas actualizadas desde sus fuentes en línea.';
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(message)));
@@ -126,13 +145,15 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
   }
 
   Future<void> _useAutomaticRate() async {
-    final source = _source.name;
+    final source = _source.storageKey;
     setState(() {
       _isRefreshingRates = true;
       _rateError = null;
     });
     try {
-      final liveRate = (await _ratesService.fetchRates())[source];
+      final liveRate = source == 'USDT'
+          ? await _ratesService.fetchBinanceRate()
+          : (await _ratesService.fetchRates())[source];
       if (liveRate == null) {
         throw StateError('No hay una tasa automática para $source.');
       }
@@ -141,6 +162,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
           liveRate.vesPerUnit,
           liveRate.updatedAt,
           isManual: false,
+          source: liveRate.source,
         );
       await HiveDatabase.settingsBox.put(_rateStorageKey, {
         for (final entry in updated.entries) entry.key: entry.value.toMap(),
@@ -153,9 +175,9 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
         () => _rateError =
             'No se pudo restaurar la tasa automática. Inténtalo nuevamente.',
       );
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error al consultar la tasa: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al consultar la tasa: $error')),
+      );
     } finally {
       if (mounted) setState(() => _isRefreshingRates = false);
     }
@@ -273,9 +295,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Indica cuántos bolívares equivalen a 1 ${_source.unit}.',
-            ),
+            Text('Indica cuántos bolívares equivalen a 1 ${_source.unit}.'),
             const SizedBox(height: 14),
             TextField(
               controller: controller,
@@ -319,10 +339,14 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
     controller.dispose();
     if (rate == null || !mounted) return;
     final updated = Map<String, _SavedRate>.from(_rates)
-      ..[_source.name] = _SavedRate(rate, DateTime.now(), isManual: true);
+      ..[_source.storageKey] = _SavedRate(
+        rate,
+        DateTime.now(),
+        isManual: true,
+        source: 'Manual',
+      );
     await HiveDatabase.settingsBox.put(_rateStorageKey, {
-      for (final entry in updated.entries)
-        entry.key: entry.value.toMap(),
+      for (final entry in updated.entries) entry.key: entry.value.toMap(),
     });
     if (!mounted) return;
     setState(() => _rates = updated);
@@ -331,9 +355,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final equivalent = _savedRate == null
-        ? null
-        : _amount * _savedRate!.value;
+    final equivalent = _savedRate == null ? null : _amount * _savedRate!.value;
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(24),
@@ -370,12 +392,25 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
-                    child: Text(
-                      'Calculadora Multi-Tasa',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Calculadora Multi-Tasa',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Tasas en vivo y conversión a bolívares',
+                          style: TextStyle(
+                            color: Color(0xFF788596),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -399,25 +434,25 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                 ],
               ),
               const SizedBox(height: 14),
-              Row(
-                children: [
-                  for (var index = 0; index < _rateSources.length; index++)
-                    Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.only(
-                          right: index == _rateSources.length - 1 ? 0 : 7,
-                        ),
-                        child: _RatePill(
-                          source: _rateSources[index],
-                          selected: _selectedRate == index,
-                          configured: _rates.containsKey(
-                            _rateSources[index].name,
-                          ),
-                          onTap: () => setState(() => _selectedRate = index),
-                        ),
+              SizedBox(
+                height: 57,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _rateSources.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 8),
+                  itemBuilder: (context, index) => SizedBox(
+                    width: 88,
+                    child: _RatePill(
+                      source: _rateSources[index],
+                      selected: _selectedRate == index,
+                      configured: _rates.containsKey(
+                        _rateSources[index].storageKey,
                       ),
+                      onTap: () => setState(() => _selectedRate = index),
                     ),
-                ],
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
               if (_rateError != null) ...[
@@ -444,19 +479,31 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFF3F5F8),
                   borderRadius: BorderRadius.circular(17),
+                  border: Border.all(color: const Color(0xFFE7ECF2)),
                 ),
                 child: Column(
                   children: [
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        '${_source.unit} ${NumberFormat('#,##0.########', 'es').format(_amount)}',
-                        style: const TextStyle(
-                          color: Color(0xFF596779),
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'MONTO',
+                          style: TextStyle(
+                            color: Color(0xFF788596),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: .5,
+                          ),
                         ),
-                      ),
+                        Text(
+                          '${_source.unit} ${NumberFormat('#,##0.########', 'es').format(_amount)}',
+                          style: const TextStyle(
+                            color: Color(0xFF35465A),
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
                     Row(
@@ -466,7 +513,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'EQUIVALENTE (${_source.name.toUpperCase()})',
+                                'RESULTADO ESTIMADO · VES',
                                 style: const TextStyle(
                                   color: Color(0xFF788596),
                                   fontSize: 10,
@@ -477,7 +524,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                               const SizedBox(height: 4),
                               Text(
                                 _savedRate == null
-                                    ? 'Configura la tasa para calcular'
+                                    ? 'Define una tasa para calcular'
                                     : '1 ${_source.unit} = ${_savedRate!.value.toString()} VES',
                                 style: const TextStyle(
                                   color: Color(0xFF596779),
@@ -507,10 +554,8 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                         Expanded(
                           child: Text(
                             _savedRate == null
-                                ? _source.automaticAvailable
-                                      ? 'Esperando tasa en línea'
-                                      : 'Sin fuente automática verificada'
-                                : '${_savedRate!.isManual ? 'Manual' : 'DolarApi'} · ${DateFormat('dd/MM/yy HH:mm', 'es').format(_savedRate!.updatedAt)}',
+                                ? 'Esperando tasa en línea'
+                                : '${_savedRate!.source} · ${DateFormat('dd/MM/yy HH:mm', 'es').format(_savedRate!.updatedAt)}',
                             style: const TextStyle(
                               color: Color(0xFF7C8795),
                               fontSize: 10,
@@ -520,8 +565,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                         Wrap(
                           spacing: 4,
                           children: [
-                            if (_savedRate?.isManual == true &&
-                                _source.automaticAvailable)
+                            if (_savedRate?.isManual == true)
                               TextButton(
                                 onPressed: _isRefreshingRates
                                     ? null
@@ -546,12 +590,12 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                         ),
                       ],
                     ),
-                    if (!_source.automaticAvailable) ...[
+                    if (_source.name == 'Binance') ...[
                       const SizedBox(height: 4),
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'USDT requiere una tasa manual; no se usa el dólar como sustituto.',
+                          'Referencia basada en ofertas P2P de compra y venta de Binance.',
                           style: TextStyle(
                             color: Color(0xFF7C8795),
                             fontSize: 10,
@@ -639,26 +683,30 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
 class _RateSource {
   final String name;
   final String unit;
-  final bool automaticAvailable;
+  final String storageKey;
 
-  const _RateSource(
-    this.name,
-    this.unit, {
-    this.automaticAvailable = true,
-  });
+  const _RateSource(this.name, this.unit, {String? key})
+    : storageKey = key ?? name;
 }
 
 class _SavedRate {
   final double value;
   final DateTime updatedAt;
   final bool isManual;
+  final String source;
 
-  const _SavedRate(this.value, this.updatedAt, {required this.isManual});
+  const _SavedRate(
+    this.value,
+    this.updatedAt, {
+    required this.isManual,
+    required this.source,
+  });
 
   Map<String, Object> toMap() => {
     'value': value,
     'updatedAt': updatedAt.toIso8601String(),
     'isManual': isManual,
+    'source': source,
   };
 
   factory _SavedRate.fromMap(Map map) {
@@ -670,10 +718,12 @@ class _SavedRate {
         updatedAt == null) {
       throw const FormatException('La tasa guardada no es válida.');
     }
+    final isManual = map['isManual'] as bool? ?? true;
     return _SavedRate(
       value.toDouble(),
       updatedAt,
-      isManual: map['isManual'] as bool? ?? true,
+      isManual: isManual,
+      source: map['source'] as String? ?? (isManual ? 'Manual' : 'DolarApi'),
     );
   }
 }
@@ -718,25 +768,57 @@ class _RatePill extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Text(
-              source.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: selected
-                    ? const Color(0xFF2768D7)
-                    : const Color(0xFF596779),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (source.name == 'Binance')
+                  const Padding(
+                    padding: EdgeInsets.only(right: 3),
+                    child: Icon(
+                      Icons.currency_exchange_rounded,
+                      size: 12,
+                      color: Color(0xFFF0A900),
+                    ),
+                  ),
+                Flexible(
+                  child: Text(
+                    source.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selected
+                          ? const Color(0xFF2768D7)
+                          : const Color(0xFF596779),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 3),
-            Icon(
-              configured ? Icons.check_circle : Icons.circle_outlined,
-              size: 10,
-              color: configured
-                  ? const Color(0xFF2D9B6F)
-                  : const Color(0xFFA8B1BC),
+            const SizedBox(height: 2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  source.unit,
+                  style: TextStyle(
+                    color: selected
+                        ? const Color(0xFF2768D7)
+                        : const Color(0xFF788596),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  configured ? Icons.check_circle : Icons.circle_outlined,
+                  size: 9,
+                  color: configured
+                      ? const Color(0xFF2D9B6F)
+                      : const Color(0xFFA8B1BC),
+                ),
+              ],
             ),
           ],
         ),
@@ -764,9 +846,7 @@ class _CalcKey extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color:
-        background ??
-        (emphasized ? const Color(0xFFEAF1FC) : Colors.white),
+    color: background ?? (emphasized ? const Color(0xFFEAF1FC) : Colors.white),
     borderRadius: BorderRadius.circular(14),
     child: InkWell(
       onTap: onTap,
