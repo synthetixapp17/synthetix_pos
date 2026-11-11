@@ -12,6 +12,7 @@ import '../../../reports/domain/entities/sale_record.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../../domain/entities/dashboard_summary.dart';
 import '../utils/dashboard_greeting.dart';
+import '../widgets/multi_rate_calculator.dart';
 
 final _dashboardDateFormat = DateFormat('EEE d', 'es');
 
@@ -48,6 +49,11 @@ class _DashboardPageState extends State<DashboardPage> {
           : AppBar(
               title: const Text('Resumen'),
               actions: [
+                IconButton(
+                  tooltip: 'Calculadora Multi-Tasa',
+                  onPressed: () => showMultiRateCalculator(context),
+                  icon: const Icon(Icons.calculate_outlined),
+                ),
                 IconButton(
                   tooltip: 'Cambiar tema',
                   onPressed: AppThemeController.toggle,
@@ -393,6 +399,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   lowStockCount: lowStockCount,
                   lowStockThreshold: state.threshold,
                   onNavigate: (route) => context.go(route),
+                  onOpenCalculator: () => showMultiRateCalculator(context),
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
@@ -672,11 +679,13 @@ class _WebDashboardHeader extends StatelessWidget {
   final int lowStockCount;
   final int lowStockThreshold;
   final ValueChanged<String> onNavigate;
+  final VoidCallback onOpenCalculator;
 
   const _WebDashboardHeader({
     required this.lowStockCount,
     required this.lowStockThreshold,
     required this.onNavigate,
+    required this.onOpenCalculator,
   });
 
   @override
@@ -748,6 +757,12 @@ class _WebDashboardHeader extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              _WebHeaderAction(
+                tooltip: 'Calculadora Multi-Tasa',
+                icon: Icons.calculate_outlined,
+                onPressed: onOpenCalculator,
+              ),
+              const SizedBox(width: 8),
               _WebHeaderAction(
                 tooltip: 'Buscar productos',
                 icon: Icons.search_rounded,
