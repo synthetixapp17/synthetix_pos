@@ -1,4 +1,5 @@
 import 'package:billing_app/features/restaurant/domain/entities/restaurant_state.dart';
+import 'package:billing_app/features/restaurant/domain/entities/restaurant_menu.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -61,6 +62,63 @@ void main() {
         'unitPrice': 1,
       }),
       throwsFormatException,
+    );
+  });
+
+  test('round-trips an independent restaurant menu', () {
+    const menu = RestaurantMenuState(
+      categories: [
+        RestaurantMenuCategory(
+          id: 'drinks',
+          name: 'Bebidas',
+          description: 'Frías y calientes',
+        ),
+      ],
+      products: [
+        RestaurantMenuProduct(
+          id: 'lemonade',
+          categoryId: 'drinks',
+          name: 'Limonada',
+          description: 'Limón natural',
+          price: 3.5,
+          currencyCode: 'USD',
+          isAvailable: false,
+        ),
+      ],
+    );
+
+    final decoded = RestaurantMenuState.fromMap(menu.toMap());
+
+    expect(decoded.categories.single.name, 'Bebidas');
+    expect(decoded.products.single.name, 'Limonada');
+    expect(decoded.products.single.price, 3.5);
+    expect(decoded.products.single.isAvailable, isFalse);
+  });
+
+  test('new restaurant menu order lines do not track POS inventory', () {
+    const line = TableOrderLine(
+      productId: 'restaurant-menu:lemonade',
+      variantId: null,
+      name: 'Limonada',
+      currencyCode: 'USD',
+      quantity: 2,
+      unitPrice: 3.5,
+      category: 'Bebidas',
+      inventoryTracked: false,
+    );
+
+    final decoded = TableOrderLine.fromMap(line.toMap());
+
+    expect(decoded.inventoryTracked, isFalse);
+    expect(decoded.category, 'Bebidas');
+    expect(
+      TableOrderLine.fromMap({
+        'productId': 'legacy-product',
+        'name': 'Producto anterior',
+        'quantity': 1,
+        'unitPrice': 1,
+      }).inventoryTracked,
+      isTrue,
     );
   });
 }

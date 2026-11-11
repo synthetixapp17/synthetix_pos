@@ -59,6 +59,7 @@ class Product extends Equatable {
   final String unitLabel;
   final List<ProductVariant> variants;
   final String? selectedVariantId;
+  final bool inventoryTracked;
 
   const Product({
     required this.id,
@@ -73,6 +74,7 @@ class Product extends Equatable {
     this.unitLabel = 'ud.',
     this.variants = const [],
     this.selectedVariantId,
+    this.inventoryTracked = true,
   });
 
   ProductVariant? get selectedVariant {
@@ -108,6 +110,7 @@ class Product extends Equatable {
     unitLabel: variant.unitLabel,
     variants: variants,
     selectedVariantId: variant.id,
+    inventoryTracked: inventoryTracked,
   );
 
   @override
@@ -124,5 +127,6 @@ class Product extends Equatable {
     unitLabel,
     variants,
     selectedVariantId,
+    inventoryTracked,
   ];
 }

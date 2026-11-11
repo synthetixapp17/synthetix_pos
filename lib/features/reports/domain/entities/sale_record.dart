@@ -12,6 +12,7 @@ class SaleLine extends Equatable {
   final String? variantId;
   final Map<String, String> variantAttributes;
   final String unitLabel;
+  final bool inventoryTracked;
 
   const SaleLine({
     required this.productId,
@@ -23,6 +24,7 @@ class SaleLine extends Equatable {
     this.variantId,
     this.variantAttributes = const {},
     this.unitLabel = 'ud.',
+    this.inventoryTracked = true,
   });
 
   double get total => quantity * unitPrice;
@@ -44,6 +46,7 @@ class SaleLine extends Equatable {
     'variantId': variantId,
     'variantAttributes': variantAttributes,
     'unitLabel': unitLabel,
+    'inventoryTracked': inventoryTracked,
   };
 
   factory SaleLine.fromJson(Map<String, dynamic> json) => SaleLine(
@@ -59,6 +62,7 @@ class SaleLine extends Equatable {
           (key, value) => MapEntry(key, value.toString()),
         ),
     unitLabel: json['unitLabel'] as String? ?? 'ud.',
+    inventoryTracked: json['inventoryTracked'] as bool? ?? true,
   );
 
   @override
@@ -72,6 +76,7 @@ class SaleLine extends Equatable {
     variantId,
     variantAttributes,
     unitLabel,
+    inventoryTracked,
   ];
 }
 

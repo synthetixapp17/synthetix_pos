@@ -76,6 +76,41 @@ void main() {
     expect(rejected.error, contains('existencias suficientes'));
   });
 
+  test('loads restaurant menu items without POS inventory tracking', () async {
+    final bloc = BillingBloc(
+      getProductByBarcodeUseCase: GetProductByBarcodeUseCase(
+        _FakeProductRepository(),
+      ),
+      recordSaleUseCase: RecordSaleUseCase(_FakeReportsRepository()),
+      playCartAddSound: () async {},
+    );
+    addTearDown(bloc.close);
+
+    bloc.add(
+      const LoadTableOrderEvent([
+        CartItem(
+          product: Product(
+            id: 'restaurant-menu:lemonade',
+            name: 'Limonada',
+            barcode: '',
+            price: 3.5,
+            stock: double.infinity,
+            inventoryTracked: false,
+          ),
+          quantity: 4,
+        ),
+      ]),
+    );
+
+    final loaded = await bloc.stream.firstWhere(
+      (state) => state.cartItems.isNotEmpty,
+    );
+
+    expect(loaded.cartItems.single.product.name, 'Limonada');
+    expect(loaded.cartItems.single.quantity, 4);
+    expect(loaded.error, isNull);
+  });
+
   test('cart does not allow quantities above available stock', () async {
     final bloc = BillingBloc(
       getProductByBarcodeUseCase: GetProductByBarcodeUseCase(

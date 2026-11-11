@@ -11,9 +11,7 @@ class RestaurantState {
       throw const FormatException('La configuración de mesas no es válida.');
     }
     return RestaurantState(
-      tables: tables
-          .map((item) => DiningTable.fromMap(item as Map))
-          .toList(),
+      tables: tables.map((item) => DiningTable.fromMap(item as Map)).toList(),
       reservations: reservations
           .map((item) => TableReservation.fromMap(item as Map))
           .toList(),
@@ -90,7 +88,9 @@ class DiningTable {
       name: name,
       seats: seats,
       openedAt: openedAt,
-      order: rawOrder.map((item) => TableOrderLine.fromMap(item as Map)).toList(),
+      order: rawOrder
+          .map((item) => TableOrderLine.fromMap(item as Map))
+          .toList(),
     );
   }
 }
@@ -102,6 +102,8 @@ class TableOrderLine {
   final String currencyCode;
   final double quantity;
   final double unitPrice;
+  final String category;
+  final bool inventoryTracked;
 
   const TableOrderLine({
     required this.productId,
@@ -110,6 +112,8 @@ class TableOrderLine {
     required this.currencyCode,
     required this.quantity,
     required this.unitPrice,
+    this.category = '',
+    this.inventoryTracked = true,
   });
 
   double get total => quantity * unitPrice;
@@ -121,6 +125,8 @@ class TableOrderLine {
     'currencyCode': currencyCode,
     'quantity': quantity,
     'unitPrice': unitPrice,
+    'category': category,
+    'inventoryTracked': inventoryTracked,
   };
 
   factory TableOrderLine.fromMap(Map map) {
@@ -130,6 +136,8 @@ class TableOrderLine {
     final currencyCode = map['currencyCode'] ?? 'USD';
     final quantity = map['quantity'];
     final unitPrice = map['unitPrice'];
+    final category = map['category'] ?? '';
+    final inventoryTracked = map['inventoryTracked'] ?? true;
     if (productId is! String ||
         productId.isEmpty ||
         (variantId != null && variantId is! String) ||
@@ -140,7 +148,9 @@ class TableOrderLine {
         quantity <= 0 ||
         unitPrice is! num ||
         !unitPrice.toDouble().isFinite ||
-        unitPrice < 0) {
+        unitPrice < 0 ||
+        category is! String ||
+        inventoryTracked is! bool) {
       throw const FormatException('Un producto de un pedido no es válido.');
     }
     return TableOrderLine(
@@ -150,6 +160,8 @@ class TableOrderLine {
       currencyCode: currencyCode,
       quantity: quantity.toDouble(),
       unitPrice: unitPrice.toDouble(),
+      category: category,
+      inventoryTracked: inventoryTracked,
     );
   }
 }

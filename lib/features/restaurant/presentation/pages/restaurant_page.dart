@@ -13,6 +13,8 @@ import '../../../billing/presentation/bloc/billing_bloc.dart';
 import '../../../product/domain/entities/product.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../data/restaurant_repository.dart';
+import '../../data/restaurant_menu_repository.dart';
+import '../../domain/entities/restaurant_menu.dart';
 import '../../domain/entities/restaurant_state.dart';
 
 enum _TableFilter { all, available, reserved, occupied }
@@ -26,7 +28,9 @@ class RestaurantPage extends StatefulWidget {
 
 class _RestaurantPageState extends State<RestaurantPage> {
   final _repository = RestaurantRepository();
+  final _menuRepository = RestaurantMenuRepository();
   RestaurantState _data = const RestaurantState();
+  RestaurantMenuState _menu = const RestaurantMenuState();
   _TableFilter _filter = _TableFilter.all;
   bool _isLoading = true;
   String? _loadError;
@@ -40,9 +44,11 @@ class _RestaurantPageState extends State<RestaurantPage> {
   Future<void> _load() async {
     try {
       final data = _repository.load();
+      final menu = _menuRepository.load();
       if (!mounted) return;
       setState(() {
         _data = data;
+        _menu = menu;
         _loadError = null;
         _isLoading = false;
       });
@@ -82,18 +88,19 @@ class _RestaurantPageState extends State<RestaurantPage> {
     return DateTime(now.year, now.month, now.day);
   }
 
-  List<TableReservation> get _activeReservations => _data.reservations
-      .where(
-        (reservation) =>
-            reservation.isActive &&
-            !DateTime(
-              reservation.startsAt.year,
-              reservation.startsAt.month,
-              reservation.startsAt.day,
-            ).isBefore(_today),
-      )
-      .toList()
-    ..sort((first, second) => first.startsAt.compareTo(second.startsAt));
+  List<TableReservation> get _activeReservations =>
+      _data.reservations
+          .where(
+            (reservation) =>
+                reservation.isActive &&
+                !DateTime(
+                  reservation.startsAt.year,
+                  reservation.startsAt.month,
+                  reservation.startsAt.day,
+                ).isBefore(_today),
+          )
+          .toList()
+        ..sort((first, second) => first.startsAt.compareTo(second.startsAt));
 
   TableReservation? _reservationFor(DiningTable table) {
     for (final reservation in _data.reservations) {
@@ -154,13 +161,16 @@ class _RestaurantPageState extends State<RestaurantPage> {
         else
           item,
     ];
-    await _save(RestaurantState(tables: tables, reservations: _data.reservations));
+    await _save(
+      RestaurantState(tables: tables, reservations: _data.reservations),
+    );
   }
 
   Future<void> _deleteTable(DiningTable table) async {
     if (table.isOpen ||
         _data.reservations.any(
-          (reservation) => reservation.isActive && reservation.tableId == table.id,
+          (reservation) =>
+              reservation.isActive && reservation.tableId == table.id,
         )) {
       _showMessage(
         'Libera la mesa y cancela sus reservas activas antes de eliminarla.',
@@ -192,9 +202,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
     final reservations = _data.reservations
         .where((item) => item.tableId != table.id)
         .toList();
-    await _save(
-      RestaurantState(tables: tables, reservations: reservations),
-    );
+    await _save(RestaurantState(tables: tables, reservations: reservations));
   }
 
   Future<void> _createReservation({String? tableId}) async {
@@ -266,7 +274,12 @@ class _RestaurantPageState extends State<RestaurantPage> {
       orElse: () => initialTable,
     );
     final reservation = _reservationFor(table);
-    final products = context.read<ProductBloc>().state.products;
+    final menu = _menuRepository.load();
+    if (mounted) setState(() => _menu = menu);
+    final products = menu.products
+        .where((product) => product.isAvailable)
+        .map((product) => _asMenuCartProduct(product, menu))
+        .toList();
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => _DiningTableDialog(
@@ -277,9 +290,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
           final index = _data.tables.indexWhere((item) => item.id == table.id);
           if (index < 0) return false;
           final tables = [..._data.tables]
-            ..[index] = _data.tables[index].copyWith(
-              openedAt: DateTime.now(),
-            );
+            ..[index] = _data.tables[index].copyWith(openedAt: DateTime.now());
           final reservations = reservation == null
               ? _data.reservations
               : [
@@ -290,10 +301,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
                       item,
                 ];
           return _save(
-            RestaurantState(
-              tables: tables,
-              reservations: reservations,
-            ),
+            RestaurantState(tables: tables, reservations: reservations),
           );
         },
         onAddProduct: (product) => _addProductToTable(table, product),
@@ -326,7 +334,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
           line.variantId == product.selectedVariantId,
     );
     final quantity = (index < 0 ? 0.0 : latest.order[index].quantity) + 1;
-    if (quantity > product.availableStock) {
+    if (product.inventoryTracked && quantity > product.availableStock) {
       _showMessage('No hay existencias suficientes de "${product.name}".');
       return false;
     }
@@ -340,6 +348,8 @@ class _RestaurantPageState extends State<RestaurantPage> {
       currencyCode: product.currencyCode,
       quantity: quantity,
       unitPrice: product.price,
+      category: product.category,
+      inventoryTracked: product.inventoryTracked,
     );
     if (index < 0) {
       lines.add(line);
@@ -365,7 +375,8 @@ class _RestaurantPageState extends State<RestaurantPage> {
     } else {
       final line = lines[lineIndex];
       final product = _findProduct(line);
-      if (product == null || quantity > product.availableStock) {
+      if (line.inventoryTracked &&
+          (product == null || quantity > product.availableStock)) {
         _showMessage(
           'No hay existencias suficientes para actualizar la cantidad.',
         );
@@ -378,12 +389,15 @@ class _RestaurantPageState extends State<RestaurantPage> {
         currencyCode: line.currencyCode,
         quantity: quantity,
         unitPrice: line.unitPrice,
+        category: line.category,
+        inventoryTracked: line.inventoryTracked,
       );
     }
     return _replaceTable(latest.copyWith(order: lines));
   }
 
   Product? _findProduct(TableOrderLine line) {
+    if (!line.inventoryTracked) return null;
     final products = context.read<ProductBloc>().state.products;
     for (final product in products) {
       if (product.id != line.productId) continue;
@@ -454,6 +468,24 @@ class _RestaurantPageState extends State<RestaurantPage> {
     final catalog = context.read<ProductBloc>().state.products;
     final cartItems = <CartItem>[];
     for (final line in latest.order) {
+      if (!line.inventoryTracked) {
+        cartItems.add(
+          CartItem(
+            product: Product(
+              id: line.productId,
+              name: line.name,
+              barcode: '',
+              price: line.unitPrice,
+              stock: double.infinity,
+              currencyCode: line.currencyCode,
+              category: line.category,
+              inventoryTracked: false,
+            ),
+            quantity: line.quantity,
+          ),
+        );
+        continue;
+      }
       Product? current;
       for (final product in catalog) {
         if (product.id == line.productId) {
@@ -512,6 +544,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
             unitLabel: source.unitLabel,
             variants: source.variants,
             selectedVariantId: source.selectedVariantId,
+            inventoryTracked: source.inventoryTracked,
           ),
           quantity: line.quantity,
         ),
@@ -524,9 +557,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
     );
     billing.add(LoadTableOrderEvent(cartItems));
     try {
-      final loadedState = await cartChanged.timeout(
-        const Duration(seconds: 5),
-      );
+      final loadedState = await cartChanged.timeout(const Duration(seconds: 5));
       if (loadedState.error != null || loadedState.cartItems.isEmpty) {
         _showMessage(loadedState.error ?? 'No se pudo preparar el pedido.');
         return;
@@ -539,6 +570,40 @@ class _RestaurantPageState extends State<RestaurantPage> {
       }
     } on TimeoutException {
       _showMessage('La caja no respondió a tiempo. El pedido sigue guardado.');
+    }
+  }
+
+  Product _asMenuCartProduct(
+    RestaurantMenuProduct item,
+    RestaurantMenuState menu,
+  ) {
+    RestaurantMenuCategory? category;
+    for (final candidate in menu.categories) {
+      if (candidate.id == item.categoryId) {
+        category = candidate;
+        break;
+      }
+    }
+    return Product(
+      id: 'restaurant-menu:${item.id}',
+      name: item.name,
+      barcode: '',
+      price: item.price,
+      stock: double.infinity,
+      description: item.description,
+      currencyCode: item.currencyCode,
+      category: category?.name ?? 'Menú',
+      inventoryTracked: false,
+    );
+  }
+
+  Future<void> _openRestaurantMenu() async {
+    await context.push('/restaurant/menu');
+    if (!mounted) return;
+    try {
+      setState(() => _menu = _menuRepository.load());
+    } catch (error) {
+      _showMessage('No se pudo actualizar el menú: $error');
     }
   }
 
@@ -580,26 +645,42 @@ class _RestaurantPageState extends State<RestaurantPage> {
         )
         .length;
     final occupiedCount = _data.tables.where((table) => table.isOpen).length;
-    final filteredTables = _data.tables.where((table) {
-      return switch (_filter) {
-        _TableFilter.all => true,
-        _TableFilter.available =>
-          !table.isOpen && _reservationFor(table) == null,
-        _TableFilter.reserved =>
-          !table.isOpen && _reservationFor(table) != null,
-        _TableFilter.occupied => table.isOpen,
-      };
-    }).toList()..sort(
-      (first, second) => first.name.toLowerCase().compareTo(
-        second.name.toLowerCase(),
-      ),
-    );
+    final filteredTables =
+        _data.tables.where((table) {
+          return switch (_filter) {
+            _TableFilter.all => true,
+            _TableFilter.available =>
+              !table.isOpen && _reservationFor(table) == null,
+            _TableFilter.reserved =>
+              !table.isOpen && _reservationFor(table) != null,
+            _TableFilter.occupied => table.isOpen,
+          };
+        }).toList()..sort(
+          (first, second) =>
+              first.name.toLowerCase().compareTo(second.name.toLowerCase()),
+        );
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
       appBar: AppBar(
         title: const Text('Restaurante'),
         actions: [
+          PopupMenuButton<String>(
+            tooltip: 'Opciones del restaurante',
+            onSelected: (value) {
+              if (value == 'menu') _openRestaurantMenu();
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'menu',
+                child: ListTile(
+                  leading: Icon(Icons.restaurant_menu_rounded),
+                  title: Text('Menú del restaurante'),
+                  subtitle: Text('Productos y categorías'),
+                ),
+              ),
+            ],
+          ),
           IconButton(
             tooltip: 'Actualizar',
             onPressed: _isLoading ? null : _load,
@@ -628,8 +709,10 @@ class _RestaurantPageState extends State<RestaurantPage> {
                     tableCount: _data.tables.length,
                     occupiedCount: occupiedCount,
                     reservationCount: reservedToday,
+                    menuProductCount: _menu.products.length,
                     onCreateTable: _createTable,
                     onCreateReservation: () => _createReservation(),
+                    onManageMenu: _openRestaurantMenu,
                   ),
                   const SizedBox(height: 22),
                   Row(
@@ -699,9 +782,8 @@ class _RestaurantPageState extends State<RestaurantPage> {
                                   status: _tableStatus(table),
                                   statusColor: _statusColor(context, table),
                                   onTap: () => _openTable(table),
-                                  onReserve: () => _createReservation(
-                                    tableId: table.id,
-                                  ),
+                                  onReserve: () =>
+                                      _createReservation(tableId: table.id),
                                   onEdit: () => _editTable(table),
                                   onDelete: () => _deleteTable(table),
                                 ),
@@ -736,14 +818,10 @@ class _RestaurantPageState extends State<RestaurantPage> {
                         child: _ReservationCard(
                           reservation: reservation,
                           table: _tableById(reservation.tableId),
-                          onSeat: () => _handleReservationAction(
-                            reservation,
-                            true,
-                          ),
-                          onCancel: () => _handleReservationAction(
-                            reservation,
-                            false,
-                          ),
+                          onSeat: () =>
+                              _handleReservationAction(reservation, true),
+                          onCancel: () =>
+                              _handleReservationAction(reservation, false),
                         ),
                       ),
                 ],
@@ -764,15 +842,19 @@ class _RestaurantHeader extends StatelessWidget {
   final int tableCount;
   final int occupiedCount;
   final int reservationCount;
+  final int menuProductCount;
   final VoidCallback onCreateTable;
   final VoidCallback onCreateReservation;
+  final VoidCallback onManageMenu;
 
   const _RestaurantHeader({
     required this.tableCount,
     required this.occupiedCount,
     required this.reservationCount,
+    required this.menuProductCount,
     required this.onCreateTable,
     required this.onCreateReservation,
+    required this.onManageMenu,
   });
 
   @override
@@ -835,6 +917,7 @@ class _RestaurantHeader extends StatelessWidget {
               _HeaderStat(label: 'MESAS', value: '$tableCount'),
               _HeaderStat(label: 'EN SERVICIO', value: '$occupiedCount'),
               _HeaderStat(label: 'RESERVAS HOY', value: '$reservationCount'),
+              _HeaderStat(label: 'PRODUCTOS MENÚ', value: '$menuProductCount'),
             ],
           );
           final actions = Wrap(
@@ -861,6 +944,17 @@ class _RestaurantHeader extends StatelessWidget {
                 icon: const Icon(Icons.event_available_rounded),
                 label: const Text('Reservar'),
               ),
+              OutlinedButton.icon(
+                onPressed: onManageMenu,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: colors.onPrimary,
+                  side: BorderSide(
+                    color: colors.onPrimary.withValues(alpha: .5),
+                  ),
+                ),
+                icon: const Icon(Icons.restaurant_menu_rounded),
+                label: const Text('Menú'),
+              ),
             ],
           );
           if (compact) {
@@ -881,11 +975,7 @@ class _RestaurantHeader extends StatelessWidget {
                 flex: 5,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    introduction,
-                    const SizedBox(height: 18),
-                    actions,
-                  ],
+                  children: [introduction, const SizedBox(height: 18), actions],
                 ),
               ),
               const SizedBox(width: 24),
@@ -962,11 +1052,10 @@ class _DiningTableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currency = table.order.isEmpty ? null : table.order.first.currencyCode;
-    final total = table.order.fold<double>(
-      0,
-      (sum, line) => sum + line.total,
-    );
+    final currency = table.order.isEmpty
+        ? null
+        : table.order.first.currencyCode;
+    final total = table.order.fold<double>(0, (sum, line) => sum + line.total);
     final colors = Theme.of(context).colorScheme;
     return Material(
       color: colors.surface,
@@ -1233,7 +1322,9 @@ class _ReservationCard extends StatelessWidget {
 
   bool _isToday(DateTime date) {
     final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 }
 
@@ -1318,15 +1409,14 @@ class _TableFormDialogState extends State<_TableFormDialog> {
       FilledButton.icon(
         onPressed: () {
           if (!_formKey.currentState!.validate()) return;
-          Navigator.pop(
-            context,
-            (
-              name: _nameController.text.trim(),
-              seats: int.parse(_seatsController.text),
-            ),
-          );
+          Navigator.pop(context, (
+            name: _nameController.text.trim(),
+            seats: int.parse(_seatsController.text),
+          ));
         },
-        icon: Icon(widget.table == null ? Icons.add_rounded : Icons.save_rounded),
+        icon: Icon(
+          widget.table == null ? Icons.add_rounded : Icons.save_rounded,
+        ),
         label: Text(widget.table == null ? 'Crear mesa' : 'Guardar cambios'),
       ),
     ],
@@ -1505,7 +1595,9 @@ class _ReservationFormDialogState extends State<_ReservationFormDialog> {
                       child: OutlinedButton.icon(
                         onPressed: _chooseDate,
                         icon: const Icon(Icons.calendar_today_outlined),
-                        label: Text(DateFormat('EEE d MMM', 'es').format(_startsAt)),
+                        label: Text(
+                          DateFormat('EEE d MMM', 'es').format(_startsAt),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -1659,6 +1751,8 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
             currencyCode: product.currencyCode,
             quantity: index < 0 ? 1 : lines[index].quantity + 1,
             unitPrice: product.price,
+            category: product.category,
+            inventoryTracked: product.inventoryTracked,
           );
           if (index < 0) {
             lines.add(line);
@@ -1690,6 +1784,8 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
               currencyCode: line.currencyCode,
               quantity: quantity,
               unitPrice: line.unitPrice,
+              category: line.category,
+              inventoryTracked: line.inventoryTracked,
             );
           }
           _table = _table.copyWith(order: lines);
@@ -1711,10 +1807,7 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
     final currencyCode = _table.order.isEmpty
         ? AppCurrency.baseCode
         : _table.order.first.currencyCode;
-    final total = _table.order.fold<double>(
-      0,
-      (sum, line) => sum + line.total,
-    );
+    final total = _table.order.fold<double>(0, (sum, line) => sum + line.total);
     final elapsed = _table.openedAt == null
         ? null
         : DateTime.now().difference(_table.openedAt!);
@@ -1831,9 +1924,11 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
                             if (_table.order.isEmpty)
                               const _EmptyOrder()
                             else
-                              for (var index = 0;
-                                  index < _table.order.length;
-                                  index++)
+                              for (
+                                var index = 0;
+                                index < _table.order.length;
+                                index++
+                              )
                                 _OrderLineTile(
                                   line: _table.order[index],
                                   onDecrease: () => _setQuantity(
@@ -2049,7 +2144,7 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                 ? Center(
                     child: Text(
                       widget.products.isEmpty
-                          ? 'No hay productos en el inventario.'
+                          ? 'Aún no hay productos disponibles en el menú del restaurante.'
                           : 'No encontramos productos con esa búsqueda.',
                     ),
                   )
@@ -2083,8 +2178,11 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                                 ),
                               ),
                               subtitle: Text(
-                                '${product.category.isEmpty ? 'Menú' : product.category} · '
-                                '${product.stock} ${product.unitLabel} disponibles',
+                                product.inventoryTracked
+                                    ? '${product.category.isEmpty ? 'Menú' : product.category} · '
+                                          '${product.availableStock} ${product.unitLabel} disponibles'
+                                    : '${product.category.isEmpty ? 'Menú' : product.category} · '
+                                          'Menú del restaurante',
                               ),
                               trailing: Text(
                                 AppCurrency.format(
@@ -2097,7 +2195,8 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                               ),
                               onTap: product.hasVariants
                                   ? null
-                                  : product.availableStock <= 0
+                                  : product.inventoryTracked &&
+                                        product.availableStock <= 0
                                   ? null
                                   : () => Navigator.pop(context, product),
                             ),
@@ -2238,9 +2337,9 @@ class _EmptyTables extends StatelessWidget {
           hasTables
               ? 'No hay mesas con este filtro.'
               : 'Configura tu primera mesa',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 5),
         Text(

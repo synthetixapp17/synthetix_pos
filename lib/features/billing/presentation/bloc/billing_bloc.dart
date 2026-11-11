@@ -59,7 +59,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     AddProductToCartEvent event,
     Emitter<BillingState> emit,
   ) async {
-    if (event.product.availableStock <= 0) {
+    if (event.product.inventoryTracked && event.product.availableStock <= 0) {
       emit(
         state.copyWith(
           error: 'No hay existencias disponibles de "${event.product.name}".',
@@ -151,8 +151,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     if (state.cartItems.isNotEmpty) {
       emit(
         state.copyWith(
-          error:
-              'Finaliza o limpia la venta actual antes de cobrar una mesa.',
+          error: 'Finaliza o limpia la venta actual antes de cobrar una mesa.',
         ),
       );
       return;
@@ -168,7 +167,8 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
         return;
       }
       if (item.quantity <= 0 ||
-          item.quantity > item.product.availableStock) {
+          (item.product.inventoryTracked &&
+              item.quantity > item.product.availableStock)) {
         emit(
           state.copyWith(
             error:
@@ -219,7 +219,8 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     );
     if (index >= 0) {
       final currentItem = state.cartItems[index];
-      if (event.quantity > currentItem.product.availableStock) {
+      if (currentItem.product.inventoryTracked &&
+          event.quantity > currentItem.product.availableStock) {
         emit(
           state.copyWith(
             error:
@@ -322,6 +323,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
               unitPrice: item.product.price * event.exchangeRate,
               category: item.product.category,
               barcode: item.product.saleBarcode,
+              inventoryTracked: item.product.inventoryTracked,
             ),
           )
           .toList(),
@@ -440,8 +442,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
             (item) => {
               'name':
                   '${item.product.name}${item.product.variationLabel.isEmpty ? '' : ' · ${item.product.variationLabel}'}',
-              'qty':
-                  '${item.quantity} ${item.product.saleUnitLabel}',
+              'qty': '${item.quantity} ${item.product.saleUnitLabel}',
               'price': item.product.price * event.exchangeRate,
               'total': item.total * event.exchangeRate,
               'barcode': item.product.barcode,

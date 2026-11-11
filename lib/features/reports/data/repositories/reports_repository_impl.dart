@@ -41,6 +41,7 @@ class ReportsRepositoryImpl implements ReportsRepository {
     try {
       if (isNewSale) {
         for (final line in sale.lines) {
+          if (!line.inventoryTracked) continue;
           final product =
               productsToUpdate[line.productId] ??
               productsBox.get(line.productId);

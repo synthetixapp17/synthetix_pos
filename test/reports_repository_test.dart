@@ -22,6 +22,7 @@ void main() {
     Hive.init(directory.path);
     await Hive.openBox<ProductModel>(HiveDatabase.productBoxName);
     await Hive.openBox<SaleModel>(HiveDatabase.salesBoxName);
+    await Hive.openBox(HiveDatabase.settingsBoxName);
   });
 
   tearDown(() async {
@@ -121,6 +122,41 @@ void main() {
     expect(HiveDatabase.productBox.get('product-1')?.stock, 1);
     expect(HiveDatabase.salesBox.values, isEmpty);
   });
+
+  test(
+    'records restaurant menu products without changing POS inventory',
+    () async {
+      final sale = SaleRecord(
+        id: 'restaurant-sale-1',
+        soldAt: DateTime(2026, 11, 1),
+        total: 7,
+        lines: [
+          SaleLine(
+            productId: 'restaurant-menu:lemonade',
+            productName: 'Limonada',
+            quantity: 2,
+            unitPrice: 3.5,
+            category: 'Bebidas',
+            inventoryTracked: false,
+          ),
+        ],
+      );
+
+      final result = await ReportsRepositoryImpl().recordSale(sale);
+
+      expect(result.isRight(), isTrue);
+      expect(
+        HiveDatabase.salesBox
+            .get('restaurant-sale-1')
+            ?.toEntity()
+            .lines
+            .single
+            .inventoryTracked,
+        isFalse,
+      );
+      expect(HiveDatabase.productBox.values, isEmpty);
+    },
+  );
 
   test(
     'deducts fractional stock from the selected product variation',

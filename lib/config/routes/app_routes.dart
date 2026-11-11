@@ -29,17 +29,17 @@ import '../../features/credit/presentation/pages/credit_list_page.dart';
 import '../../features/credit/presentation/pages/credit_detail_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
 import '../../features/restaurant/presentation/pages/restaurant_page.dart';
+import '../../features/restaurant/presentation/pages/restaurant_menu_page.dart';
 
 final router = GoRouter(
   initialLocation: '/welcome',
   routes: [
     GoRoute(
       path: '/welcome',
-      builder: (context, state) =>
-          SplashPage(
-            imageData: SplashPreferences.imageData,
-            onContinue: () => context.go('/'),
-          ),
+      builder: (context, state) => SplashPage(
+        imageData: SplashPreferences.imageData,
+        onContinue: () => context.go('/'),
+      ),
     ),
     ShellRoute(
       builder: (context, state, child) =>
@@ -77,6 +77,12 @@ final router = GoRouter(
         GoRoute(
           path: '/restaurant',
           builder: (context, state) => const RestaurantPage(),
+          routes: [
+            GoRoute(
+              path: 'menu',
+              builder: (context, state) => const RestaurantMenuPage(),
+            ),
+          ],
         ),
         GoRoute(
           path: '/scan-code',
