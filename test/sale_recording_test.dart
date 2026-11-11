@@ -1,4 +1,5 @@
 import 'package:billing_app/core/error/failure.dart';
+import 'package:billing_app/features/billing/domain/entities/cart_item.dart';
 import 'package:billing_app/features/billing/presentation/bloc/billing_bloc.dart';
 import 'package:billing_app/features/product/domain/entities/product.dart';
 import 'package:billing_app/features/product/domain/repositories/product_repository.dart';
@@ -11,6 +12,70 @@ import 'package:fpdart/fpdart.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('loads an open table order into the billing cart', () async {
+    final bloc = BillingBloc(
+      getProductByBarcodeUseCase: GetProductByBarcodeUseCase(
+        _FakeProductRepository(),
+      ),
+      recordSaleUseCase: RecordSaleUseCase(_FakeReportsRepository()),
+      playCartAddSound: () async {},
+    );
+    addTearDown(bloc.close);
+
+    const item = CartItem(
+      product: Product(
+        id: 'table-product',
+        name: 'Plato del día',
+        barcode: '12345678',
+        price: 8,
+        stock: 5,
+      ),
+      quantity: 2,
+    );
+    bloc.add(const LoadTableOrderEvent([item]));
+
+    final loaded = await bloc.stream.firstWhere(
+      (state) => state.cartItems.isNotEmpty,
+    );
+
+    expect(loaded.cartItems.single.product.name, 'Plato del día');
+    expect(loaded.cartItems.single.quantity, 2);
+    expect(loaded.totalAmount, 16);
+  });
+
+  test('rejects a table order that exceeds current inventory', () async {
+    final bloc = BillingBloc(
+      getProductByBarcodeUseCase: GetProductByBarcodeUseCase(
+        _FakeProductRepository(),
+      ),
+      recordSaleUseCase: RecordSaleUseCase(_FakeReportsRepository()),
+      playCartAddSound: () async {},
+    );
+    addTearDown(bloc.close);
+
+    bloc.add(
+      const LoadTableOrderEvent([
+        CartItem(
+          product: Product(
+            id: 'limited-table-product',
+            name: 'Plato agotado',
+            barcode: '87654321',
+            price: 8,
+            stock: 1,
+          ),
+          quantity: 2,
+        ),
+      ]),
+    );
+
+    final rejected = await bloc.stream.firstWhere(
+      (state) => state.error != null,
+    );
+
+    expect(rejected.cartItems, isEmpty);
+    expect(rejected.error, contains('existencias suficientes'));
+  });
+
   test('cart does not allow quantities above available stock', () async {
     final bloc = BillingBloc(
       getProductByBarcodeUseCase: GetProductByBarcodeUseCase(

@@ -28,6 +28,7 @@ import '../../features/customer/presentation/pages/customer_form_page.dart';
 import '../../features/credit/presentation/pages/credit_list_page.dart';
 import '../../features/credit/presentation/pages/credit_detail_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
+import '../../features/restaurant/presentation/pages/restaurant_page.dart';
 
 final router = GoRouter(
   initialLocation: '/welcome',
@@ -50,7 +51,16 @@ final router = GoRouter(
           routes: [
             GoRoute(
               path: 'checkout',
-              builder: (context, state) => const CheckoutPage(),
+              builder: (context, state) {
+                final extra = state.extra;
+                final tableId = extra is Map
+                    ? extra['tableId'] as String?
+                    : null;
+                final tableName = extra is Map
+                    ? extra['tableName'] as String?
+                    : null;
+                return CheckoutPage(tableId: tableId, tableName: tableName);
+              },
             ),
           ],
         ),
@@ -63,6 +73,10 @@ final router = GoRouter(
               builder: (context, state) => const ProductCatalogPage(),
             ),
           ],
+        ),
+        GoRoute(
+          path: '/restaurant',
+          builder: (context, state) => const RestaurantPage(),
         ),
         GoRoute(
           path: '/scan-code',

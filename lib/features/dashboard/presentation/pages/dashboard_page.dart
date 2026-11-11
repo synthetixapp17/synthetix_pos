@@ -50,6 +50,11 @@ class _DashboardPageState extends State<DashboardPage> {
               title: const Text('Resumen'),
               actions: [
                 IconButton(
+                  tooltip: 'Gestión de mesas',
+                  onPressed: () => context.push('/restaurant'),
+                  icon: const Icon(Icons.table_restaurant_outlined),
+                ),
+                IconButton(
                   tooltip: 'Calculadora Multi-Tasa',
                   onPressed: () => showMultiRateCalculator(context),
                   icon: const Icon(Icons.calculate_outlined),

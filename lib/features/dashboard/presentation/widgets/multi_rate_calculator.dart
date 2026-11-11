@@ -9,7 +9,7 @@ const _rateStorageKey = 'multi_rate_calculator_rates';
 const _rateSources = [
   _RateSource('BCV', 'USD'),
   _RateSource('Paralelo', 'USD'),
-  _RateSource('Binance', 'USDT', key: 'USDT'),
+  _RateSource('USDT', 'USDT', key: 'USDT'),
   _RateSource('Euro', 'EUR'),
 ];
 
@@ -83,16 +83,22 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
     try {
       final liveRates = <String, LiveExchangeRate>{};
       final failedSources = <String>[];
-      try {
-        liveRates.addAll(await _ratesService.fetchRates());
-      } catch (_) {
-        failedSources.add('DolarApi');
-      }
-      try {
-        liveRates['USDT'] = await _ratesService.fetchBinanceRate();
-      } catch (_) {
-        failedSources.add('Binance P2P');
-      }
+      await Future.wait([
+        () async {
+          try {
+            liveRates.addAll(await _ratesService.fetchRates());
+          } catch (_) {
+            failedSources.add('DolarApi');
+          }
+        }(),
+        () async {
+          try {
+            liveRates['USDT'] = await _ratesService.fetchBinanceRate();
+          } catch (_) {
+            failedSources.add('Binance P2P');
+          }
+        }(),
+      ]);
       if (liveRates.isEmpty) {
         throw StateError('No se pudo consultar ninguna fuente de tasas.');
       }
@@ -290,12 +296,20 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
     final rate = await showDialog<double>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Tasa ${_source.name}'),
+        title: Text(
+          _source.storageKey == 'USDT'
+              ? 'Configurar tasa USDT'
+              : 'Tasa ${_source.name}',
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Indica cuántos bolívares equivalen a 1 ${_source.unit}.'),
+            Text(
+              _source.storageKey == 'USDT'
+                  ? 'Ingresa la tasa en bolívares por cada USDT que utilizas en tu negocio. Esta tasa manual funciona aunque Binance no esté disponible.'
+                  : 'Indica cuántos bolívares equivalen a 1 ${_source.unit}.',
+            ),
             const SizedBox(height: 14),
             TextField(
               controller: controller,
@@ -554,7 +568,9 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                         Expanded(
                           child: Text(
                             _savedRate == null
-                                ? 'Esperando tasa en línea'
+                                ? _source.storageKey == 'USDT'
+                                      ? 'Configura tu tasa o consulta Binance P2P'
+                                      : 'Esperando tasa en línea'
                                 : '${_savedRate!.source} · ${DateFormat('dd/MM/yy HH:mm', 'es').format(_savedRate!.updatedAt)}',
                             style: const TextStyle(
                               color: Color(0xFF7C8795),
@@ -565,13 +581,16 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                         Wrap(
                           spacing: 4,
                           children: [
-                            if (_savedRate?.isManual == true)
+                            if (_savedRate?.isManual == true ||
+                                _source.storageKey == 'USDT')
                               TextButton(
                                 onPressed: _isRefreshingRates
                                     ? null
                                     : _useAutomaticRate,
-                                child: const Text(
-                                  'Automática',
+                                child: Text(
+                                  _source.storageKey == 'USDT'
+                                      ? 'Binance P2P'
+                                      : 'Automática',
                                   style: TextStyle(fontSize: 11),
                                 ),
                               ),
@@ -579,7 +598,11 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                               onPressed: _editRate,
                               icon: const Icon(Icons.edit_outlined, size: 15),
                               label: Text(
-                                _savedRate == null ? 'Definir' : 'Editar',
+                                _savedRate == null
+                                    ? _source.storageKey == 'USDT'
+                                          ? 'Configurar USDT'
+                                          : 'Definir'
+                                    : 'Editar tasa',
                                 style: const TextStyle(fontSize: 11),
                               ),
                               style: TextButton.styleFrom(
@@ -590,12 +613,12 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                         ),
                       ],
                     ),
-                    if (_source.name == 'Binance') ...[
+                    if (_source.storageKey == 'USDT') ...[
                       const SizedBox(height: 4),
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'Referencia basada en ofertas P2P de compra y venta de Binance.',
+                          'La consulta P2P es opcional; la tasa manual guardada se mantiene disponible sin conexión.',
                           style: TextStyle(
                             color: Color(0xFF7C8795),
                             fontSize: 10,
@@ -771,7 +794,7 @@ class _RatePill extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (source.name == 'Binance')
+                if (source.storageKey == 'USDT')
                   const Padding(
                     padding: EdgeInsets.only(right: 3),
                     child: Icon(
@@ -801,7 +824,7 @@ class _RatePill extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  source.unit,
+                  source.storageKey == 'USDT' ? 'P2P · Manual' : source.unit,
                   style: TextStyle(
                     color: selected
                         ? const Color(0xFF2768D7)

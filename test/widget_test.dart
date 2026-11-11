@@ -21,6 +21,7 @@ void main() {
     expect(find.text('Synthetix POS'), findsOneWidget);
     expect(find.text('Resumen'), findsOneWidget);
     expect(find.text('Punto de venta'), findsOneWidget);
+    expect(find.text('Mesas'), findsOneWidget);
     expect(find.text('Inventario'), findsOneWidget);
     expect(find.text('Clientes'), findsOneWidget);
     expect(find.text('Reportes'), findsOneWidget);

@@ -21,6 +21,15 @@ class AddProductToCartEvent extends BillingEvent {
   List<Object> get props => [product, quantity];
 }
 
+class LoadTableOrderEvent extends BillingEvent {
+  final List<CartItem> items;
+
+  const LoadTableOrderEvent(this.items);
+
+  @override
+  List<Object> get props => [items];
+}
+
 class RemoveProductFromCartEvent extends BillingEvent {
   final String productId;
   const RemoveProductFromCartEvent(this.productId);

@@ -28,6 +28,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
        super(const BillingState()) {
     on<ScanBarcodeEvent>(_onScanBarcode);
     on<AddProductToCartEvent>(_onAddProductToCart);
+    on<LoadTableOrderEvent>(_onLoadTableOrder);
     on<RemoveProductFromCartEvent>(_onRemoveProductFromCart);
     on<UpdateQuantityEvent>(_onUpdateQuantity);
     on<ClearCartEvent>(_onClearCart);
@@ -137,6 +138,55 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
       );
       await _playCartAddSound();
     }
+  }
+
+  void _onLoadTableOrder(
+    LoadTableOrderEvent event,
+    Emitter<BillingState> emit,
+  ) {
+    if (event.items.isEmpty) {
+      emit(state.copyWith(error: 'El pedido de la mesa está vacío.'));
+      return;
+    }
+    if (state.cartItems.isNotEmpty) {
+      emit(
+        state.copyWith(
+          error:
+              'Finaliza o limpia la venta actual antes de cobrar una mesa.',
+        ),
+      );
+      return;
+    }
+    final currency = event.items.first.product.currencyCode;
+    for (final item in event.items) {
+      if (item.product.currencyCode != currency) {
+        emit(
+          state.copyWith(
+            error: 'El pedido de la mesa contiene monedas incompatibles.',
+          ),
+        );
+        return;
+      }
+      if (item.quantity <= 0 ||
+          item.quantity > item.product.availableStock) {
+        emit(
+          state.copyWith(
+            error:
+                'No hay existencias suficientes de "${item.product.name}" para cobrar este pedido.',
+          ),
+        );
+        return;
+      }
+    }
+    emit(
+      state.copyWith(
+        cartItems: event.items,
+        clearCustomer: true,
+        clearError: true,
+        saleRecorded: false,
+        clearCompletedSale: true,
+      ),
+    );
   }
 
   void _onRemoveProductFromCart(

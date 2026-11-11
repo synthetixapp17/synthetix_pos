@@ -32,10 +32,14 @@ import '../../../shop/presentation/bloc/shop_bloc.dart';
 import '../../../customer/domain/entities/customer.dart';
 import '../../../customer/presentation/bloc/customer_bloc.dart';
 import '../../../dashboard/presentation/bloc/dashboard_bloc.dart';
+import '../../../restaurant/data/restaurant_repository.dart';
 import '../bloc/billing_bloc.dart';
 
 class CheckoutPage extends StatefulWidget {
-  const CheckoutPage({super.key});
+  final String? tableId;
+  final String? tableName;
+
+  const CheckoutPage({super.key, this.tableId, this.tableName});
 
   @override
   State<CheckoutPage> createState() => _CheckoutPageState();
@@ -84,9 +88,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(
-            'Finalizar venta',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          title: Text(
+            widget.tableName == null
+                ? 'Finalizar venta'
+                : 'Cobrar ${widget.tableName}',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           centerTitle: true,
           backgroundColor: Colors.transparent,
@@ -112,6 +118,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
             if (state.completedSale != null &&
                 state.completedSale!.id != _receiptDialogSaleId) {
               _receiptDialogSaleId = state.completedSale!.id;
+              if (state.saleRecorded && widget.tableId != null) {
+                unawaited(_releaseRestaurantTable());
+              }
               context.read<DashboardBloc>().add(const LoadDashboardEvent());
               if (state.saleRecorded) {
                 context.read<ProductBloc>().add(LoadProducts());
@@ -693,6 +702,21 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _releaseRestaurantTable() async {
+    try {
+      await RestaurantRepository().clearTableSession(widget.tableId!);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'La venta quedó guardada, pero no se pudo liberar la mesa: $error',
+          ),
+        ),
+      );
+    }
   }
 
   bool _validateCreditSale(BillingState billingState, double totalInCurrency) {
