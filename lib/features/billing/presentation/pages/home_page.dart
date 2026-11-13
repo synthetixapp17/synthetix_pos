@@ -5,10 +5,8 @@ import 'package:vibration/vibration.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../billing/presentation/bloc/billing_bloc.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/app_currency.dart';
 import '../../../../core/utils/receipt_qr.dart';
-import '../../../../core/widgets/primary_button.dart';
 import '../../domain/entities/cart_item.dart';
 
 class HomePage extends StatefulWidget {
@@ -129,33 +127,102 @@ class _HomePageState extends State<HomePage> {
         },
         child: isDesktop
             ? _buildDesktopLayout()
-            : Stack(
-                children: [
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: MediaQuery.sizeOf(context).height * 0.4,
-                    child: _buildScannerSection(),
-                  ),
-                  Positioned(
-                    top: (MediaQuery.sizeOf(context).height * 0.4) - 24,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: _buildBottomPanel(),
-                  ),
-                ],
+            : SafeArea(
+                bottom: false,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final scannerHeight = constraints.maxHeight * .42;
+                    return Stack(
+                      children: [
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: scannerHeight,
+                          child: _buildScannerSection(),
+                        ),
+                        Positioned(
+                          top: scannerHeight - 22,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: _buildBottomPanel(),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
       ),
-      bottomSheet: isDesktop
+      bottomNavigationBar: isDesktop
           ? null
           : BlocBuilder<BillingBloc, BillingState>(
               builder: (context, state) {
-                return PrimaryButton(
-                  onPressed: state.cartItems.isEmpty ? null : _openCheckout,
-                  icon: Icons.payment,
-                  label: 'Revisar venta',
+                if (state.cartItems.isEmpty) return const SizedBox.shrink();
+                final colors = Theme.of(context).colorScheme;
+                return SafeArea(
+                  top: false,
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      border: Border(
+                        top: BorderSide(color: colors.outlineVariant),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: .05),
+                          blurRadius: 16,
+                          offset: const Offset(0, -4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'TOTAL',
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: colors.onSurfaceVariant,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 1,
+                                    ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                AppCurrency.formatConfigured(state.totalAmount),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      color: colors.onSurface,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        FilledButton.icon(
+                          onPressed: _openCheckout,
+                          icon: const Icon(Icons.arrow_forward_rounded),
+                          label: const Text('Revisar venta'),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 52),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 );
               },
             ),
@@ -266,7 +333,7 @@ class _HomePageState extends State<HomePage> {
 
           // Overlay Actions (Top Right)
           Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
+            top: 16,
             left: 16,
             child: FilledButton.tonalIcon(
               onPressed: _openCatalog,
@@ -279,7 +346,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
+            top: 16,
             right: 16,
             child: Column(
               children: [
@@ -378,7 +445,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 12),
           DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .08),
+              color: const Color(0xFF5DE1B8).withValues(alpha: .14),
               borderRadius: BorderRadius.circular(30),
             ),
             child: Padding(
@@ -386,7 +453,7 @@ class _HomePageState extends State<HomePage> {
               child: Text(
                 'ESCÁNER EN PAUSA',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Colors.white70,
+                  color: const Color(0xFF8DEBD0),
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1,
                 ),
@@ -404,12 +471,12 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 6),
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
+            padding: EdgeInsets.symmetric(horizontal: 28),
             child: Text(
-              'La cámara permanece apagada. Enciéndela cuando quieras leer un código de barras.',
+              'Activa la cámara para agregar productos al instante.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white70,
+                color: Color(0xFFB8C4D0),
                 fontSize: 12,
                 height: 1.45,
               ),
@@ -418,14 +485,14 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 12),
           FilledButton.icon(
             style: FilledButton.styleFrom(
-              backgroundColor: colors.primary,
-              foregroundColor: AppTheme.onColor(colors.primary),
+              backgroundColor: const Color(0xFF5DE1B8),
+              foregroundColor: const Color(0xFF10221E),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
             ),
-            icon: const Icon(Icons.videocam_rounded),
+            icon: const Icon(Icons.center_focus_strong_rounded),
             label: const Text('Activar cámara'),
             onPressed: () {
               setState(() => _isCameraOn = true);
@@ -469,22 +536,22 @@ class _HomePageState extends State<HomePage> {
             top:
                 (alignment == Alignment.topLeft ||
                     alignment == Alignment.topRight)
-                ? const BorderSide(color: Colors.greenAccent, width: 4)
+                ? const BorderSide(color: Color(0xFF5DE1B8), width: 4)
                 : BorderSide.none,
             bottom:
                 (alignment == Alignment.bottomLeft ||
                     alignment == Alignment.bottomRight)
-                ? const BorderSide(color: Colors.greenAccent, width: 4)
+                ? const BorderSide(color: Color(0xFF5DE1B8), width: 4)
                 : BorderSide.none,
             left:
                 (alignment == Alignment.topLeft ||
                     alignment == Alignment.bottomLeft)
-                ? const BorderSide(color: Colors.greenAccent, width: 4)
+                ? const BorderSide(color: Color(0xFF5DE1B8), width: 4)
                 : BorderSide.none,
             right:
                 (alignment == Alignment.topRight ||
                     alignment == Alignment.bottomRight)
-                ? const BorderSide(color: Colors.greenAccent, width: 4)
+                ? const BorderSide(color: Color(0xFF5DE1B8), width: 4)
                 : BorderSide.none,
           ),
         ),
@@ -496,7 +563,9 @@ class _HomePageState extends State<HomePage> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(desktop ? 22 : 24),
+        borderRadius: desktop
+            ? BorderRadius.circular(22)
+            : const BorderRadius.vertical(top: Radius.circular(28)),
         border: desktop
             ? Border.all(color: Theme.of(context).colorScheme.outlineVariant)
             : null,
@@ -538,33 +607,65 @@ class _HomePageState extends State<HomePage> {
                 0.0,
                 (sum, i) => sum + i.quantity,
               );
+              final itemCountLabel =
+                  '${totalItems == totalItems.roundToDouble() ? totalItems.toStringAsFixed(0) : totalItems} unidades';
               return Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: desktop ? 22 : 24,
-                  vertical: 8,
+                  vertical: desktop ? 8 : 10,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Productos de la venta',
-                          style: TextStyle(
-                            fontSize: desktop ? 20 : 18,
-                            fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              Icons.shopping_bag_outlined,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 21,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '$totalItems unidades en total',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
+                          const SizedBox(width: 11),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Tu venta',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  itemCountLabel,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                      ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -579,11 +680,12 @@ class _HomePageState extends State<HomePage> {
                         ),
                         Text(
                           AppCurrency.formatConfigured(state.totalAmount),
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: Theme.of(context).primaryColor,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontSize: desktop ? 20 : 18,
+                                fontWeight: FontWeight.w900,
+                              ),
                         ),
                       ],
                     ),
@@ -609,7 +711,7 @@ class _HomePageState extends State<HomePage> {
                         desktop ? 20 : 15,
                         16,
                         desktop ? 20 : 15,
-                        desktop ? 16 : 100,
+                        desktop ? 16 : 20,
                       ),
                       itemCount: state.cartItems.length,
                       separatorBuilder: (context, index) =>
@@ -659,31 +761,36 @@ class _HomePageState extends State<HomePage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 80,
-            height: 80,
+            width: 72,
+            height: 72,
             decoration: BoxDecoration(
-              color: colors.surfaceContainerHighest,
-              shape: BoxShape.circle,
+              color: colors.primaryContainer.withValues(alpha: .65),
+              borderRadius: BorderRadius.circular(22),
             ),
             alignment: Alignment.center,
             child: Icon(
-              Icons.shopping_basket,
-              size: 40,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              Icons.shopping_bag_outlined,
+              size: 34,
+              color: colors.primary,
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'La venta está vacía',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          const SizedBox(height: 14),
+          Text(
+            'Empieza una venta',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 40),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              'Escanea un producto o abre el catálogo para agregar artículos a la venta.',
+              'Escanea un producto o explora el catálogo para agregar artículos.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+                height: 1.45,
+              ),
             ),
           ),
         ],
@@ -695,14 +802,13 @@ class _HomePageState extends State<HomePage> {
     final colors = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.outlineVariant),
+        color: colors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: .7)),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        spacing: 1,
         children: [
           Expanded(
             child: Column(
@@ -710,10 +816,9 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Text(
                   item.product.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -722,7 +827,7 @@ class _HomePageState extends State<HomePage> {
                   AppCurrency.formatConfigured(item.product.price),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 13,
                     color: colors.onSurfaceVariant,
                   ),
                 ),
@@ -731,10 +836,10 @@ class _HomePageState extends State<HomePage> {
           ),
           Container(
             decoration: BoxDecoration(
-              color: colors.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
+              color: colors.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(12),
             ),
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(5),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

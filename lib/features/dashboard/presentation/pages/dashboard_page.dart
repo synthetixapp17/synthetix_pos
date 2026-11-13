@@ -7,7 +7,8 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/utils/app_currency.dart';
-import '../../../../core/widgets/metric_chart_card.dart';
+import '../../../restaurant/data/restaurant_repository.dart';
+import '../../../restaurant/domain/entities/restaurant_state.dart';
 import '../../../reports/domain/entities/sale_record.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../../domain/entities/dashboard_summary.dart';
@@ -24,13 +25,46 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
+  final _restaurantRepository = RestaurantRepository();
+  RestaurantState _restaurantState = const RestaurantState();
   late String _metricCurrencyCode;
 
   @override
   void initState() {
     super.initState();
     _metricCurrencyCode = AppCurrency.currentCode;
+    _loadRestaurantSummary();
     context.read<DashboardBloc>().add(const LoadDashboardEvent());
+  }
+
+  void _loadRestaurantSummary() {
+    try {
+      _restaurantState = _restaurantRepository.load();
+    } catch (error) {
+      final message = 'No se pudieron cargar las mesas: $error';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      });
+    }
+  }
+
+  void _refreshRestaurantSummary() {
+    try {
+      final nextState = _restaurantRepository.load();
+      setState(() => _restaurantState = nextState);
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudieron cargar las mesas: $error')),
+      );
+    }
+  }
+
+  Future<void> _openRestaurant() async {
+    await context.push('/restaurant');
+    if (mounted) _refreshRestaurantSummary();
   }
 
   @override
@@ -44,32 +78,7 @@ class _DashboardPageState extends State<DashboardPage> {
       backgroundColor: isWebDesktop
           ? webColors.canvas
           : const Color(0xFFF5F7FA),
-      appBar: isWebDesktop
-          ? null
-          : AppBar(
-              title: const Text('Resumen'),
-              actions: [
-                IconButton(
-                  tooltip: 'Gestión de mesas',
-                  onPressed: () => context.push('/restaurant'),
-                  icon: const Icon(Icons.table_restaurant_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Calculadora Multi-Tasa',
-                  onPressed: () => showMultiRateCalculator(context),
-                  icon: const Icon(Icons.calculate_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Cambiar tema',
-                  onPressed: AppThemeController.toggle,
-                  icon: Icon(
-                    Theme.of(context).brightness == Brightness.dark
-                        ? Icons.light_mode
-                        : Icons.dark_mode,
-                  ),
-                ),
-              ],
-            ),
+      appBar: null,
       body: BlocConsumer<DashboardBloc, DashboardState>(
         listener: (context, state) {
           if (state.status == DashboardStatus.failure &&
@@ -117,96 +126,80 @@ class _DashboardPageState extends State<DashboardPage> {
                 (total, amount) => total + amount,
               ) *
               metricExchangeRate;
+          final occupiedTables = _restaurantState.tables
+              .where((table) => table.isOpen)
+              .length;
           return RefreshIndicator(
-            onRefresh: () async => context.read<DashboardBloc>().add(
-              LoadDashboardEvent(threshold: state.threshold),
-            ),
+            onRefresh: () async {
+              _refreshRestaurantSummary();
+              context.read<DashboardBloc>().add(
+                LoadDashboardEvent(threshold: state.threshold),
+              );
+            },
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
               children: [
-                _WelcomeCard(
-                  onNewSale: () => context.push('/new-sale'),
+                _MobileDashboardHeader(
+                  lowStockCount: summary.lowStock.length,
+                  onLowStock: () => context.push(
+                    '/products?lowStock=1&threshold=${state.threshold}',
+                  ),
+                  onOpenRestaurant: _openRestaurant,
+                  onOpenCalculator: () => showMultiRateCalculator(context),
                   onOpenScale: () => context.push('/scale'),
+                  onToggleTheme: AppThemeController.toggle,
                 ),
-                const SizedBox(height: 16),
-                InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Mostrar métricas en',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 2,
-                    ),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: metricCurrencyCode,
-                      isExpanded: true,
-                      items: [
-                        for (final code in configuredCurrencies)
-                          DropdownMenuItem(
-                            value: code,
-                            child: Text(
-                              '$code - ${AppCurrency.optionFor(code).symbol}',
-                            ),
-                          ),
-                      ],
-                      onChanged: (code) {
-                        if (code != null) {
-                          setState(() => _metricCurrencyCode = code);
-                        }
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                LayoutBuilder(
-                  builder: (context, _) {
-                    final dailyTrend = chartDays
-                        .map((day) => day.amount)
-                        .toList();
-                    final metricCards = <Widget>[
-                      MetricChartCard(
-                        title: 'Ventas del día',
-                        value: AppCurrency.format(
-                          dailyTotal,
-                          code: metricCurrencyCode,
-                        ),
-                        trend: dailyTrend,
-                        subtitle:
-                            '${summary.transactionCount} transacciones hoy · $metricCurrencyCode',
-                        color: const Color(0xFF00E676),
-                        legacyDashboardStyle: true,
-                        onTap: () => context.push('/reports?period=today'),
-                      ),
-                      MetricChartCard(
-                        title: 'Stock bajo',
-                        value: '${summary.lowStock.length}',
-                        trend: summary.lowStock
-                            .map((product) => product.stock.toDouble())
-                            .toList(),
-                        subtitle:
-                            '${summary.lowStock.where((product) => product.stock == 0).length} agotados · umbral ${state.threshold}',
-                        color: const Color(0xFFFF5252),
-                        backgroundColors: const [
-                          Color(0xFF4A1D20),
-                          Color(0xFF170E10),
-                        ],
-                        borderColor: const Color(0xFF6B2B30),
-                        legacyDashboardStyle: true,
-                        onTap: () => context.push(
-                          '/products?lowStock=1&threshold=${state.threshold}',
-                        ),
-                      ),
-                    ];
-                    return Row(
-                      children: [
-                        Expanded(child: metricCards[0]),
-                        const SizedBox(width: 12),
-                        Expanded(child: metricCards[1]),
-                      ],
-                    );
+                const SizedBox(height: 24),
+                _DailySalesCard(
+                  total: dailyTotal,
+                  currencyCode: metricCurrencyCode,
+                  transactionCount: summary.transactionCount,
+                  days: chartDays,
+                  currencies: configuredCurrencies,
+                  onCurrencyChanged: (code) {
+                    setState(() => _metricCurrencyCode = code);
                   },
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Métricas de hoy',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  height: 124,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _PastelMetricCard(
+                          title: 'Stock bajo',
+                          value: '${summary.lowStock.length}',
+                          detail:
+                              '${summary.lowStock.where((product) => product.stock == 0).length} agotados',
+                          color: const Color(0xFFFFE0E0),
+                          icon: Icons.inventory_2_rounded,
+                          onTap: () => context.push(
+                            '/products?lowStock=1&threshold=${state.threshold}',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _PastelMetricCard(
+                          title: 'Mesas ocupadas',
+                          value:
+                              '$occupiedTables / ${_restaurantState.tables.length}',
+                          detail: 'en servicio',
+                          color: const Color(0xFFDDF3E1),
+                          icon: Icons.table_restaurant_rounded,
+                          onTap: _openRestaurant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 18),
                 _SalesPerformanceCard(
@@ -282,48 +275,9 @@ class _DashboardPageState extends State<DashboardPage> {
         },
       ),
       bottomNavigationBar: showBottomNavigation
-          ? NavigationBar(
-              height: 72,
-              selectedIndex: 0,
-              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-              indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
-              onDestinationSelected: (index) {
-                const destinations = [
-                  '/',
-                  '/new-sale',
-                  '/products',
-                  '/customers',
-                  '/settings',
-                ];
-                context.go(destinations[index]);
-              },
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.space_dashboard_outlined),
-                  selectedIcon: Icon(Icons.space_dashboard_rounded),
-                  label: 'Inicio',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.point_of_sale_outlined),
-                  selectedIcon: Icon(Icons.point_of_sale_rounded),
-                  label: 'Venta',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.inventory_2_outlined),
-                  selectedIcon: Icon(Icons.inventory_2_rounded),
-                  label: 'Productos',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.people_outline_rounded),
-                  selectedIcon: Icon(Icons.people_rounded),
-                  label: 'Clientes',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  selectedIcon: Icon(Icons.settings_rounded),
-                  label: 'Ajustes',
-                ),
-              ],
+          ? _DashboardBottomNavigation(
+              onNavigate: (route) => context.go(route),
+              onNewSale: () => context.push('/new-sale'),
             )
           : null,
     );
@@ -501,137 +455,568 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
-class _WelcomeCard extends StatelessWidget {
-  final VoidCallback onNewSale;
+class _MobileDashboardHeader extends StatelessWidget {
+  final int lowStockCount;
+  final VoidCallback onLowStock;
+  final VoidCallback onOpenRestaurant;
+  final VoidCallback onOpenCalculator;
   final VoidCallback onOpenScale;
+  final VoidCallback onToggleTheme;
 
-  const _WelcomeCard({
-    required this.onNewSale,
+  const _MobileDashboardHeader({
+    required this.lowStockCount,
+    required this.onLowStock,
+    required this.onOpenRestaurant,
+    required this.onOpenCalculator,
     required this.onOpenScale,
+    required this.onToggleTheme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final now = DateTime.now();
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'PANEL DE CONTROL',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                '¡${dashboardGreeting(now)}!',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -.5,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                DateFormat('EEEE, d MMMM', 'es').format(now),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            _RoundHeaderButton(
+              tooltip: lowStockCount == 0
+                  ? 'Notificaciones'
+                  : '$lowStockCount productos con stock bajo',
+              icon: Icons.notifications_none_rounded,
+              onPressed: onLowStock,
+            ),
+            if (lowStockCount > 0)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 17,
+                    minHeight: 17,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE24B5B),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$lowStockCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(width: 8),
+        PopupMenuButton<String>(
+          tooltip: 'Más opciones',
+          onSelected: (action) {
+            switch (action) {
+              case 'restaurant':
+                onOpenRestaurant();
+              case 'calculator':
+                onOpenCalculator();
+              case 'scale':
+                onOpenScale();
+              case 'theme':
+                onToggleTheme();
+              case 'low_stock':
+                onLowStock();
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'restaurant',
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.table_restaurant_outlined),
+                title: Text('Gestión de mesas'),
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'calculator',
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.calculate_outlined),
+                title: Text('Calculadora Multi-Tasa'),
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'scale',
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.scale_outlined),
+                title: Text('Balanza digital'),
+              ),
+            ),
+            PopupMenuItem(
+              value: 'theme',
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  theme.brightness == Brightness.dark
+                      ? Icons.light_mode_outlined
+                      : Icons.dark_mode_outlined,
+                ),
+                title: const Text('Cambiar tema'),
+              ),
+            ),
+            if (lowStockCount > 0)
+              PopupMenuItem(
+                value: 'low_stock',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.inventory_2_outlined),
+                  title: Text('Productos con stock bajo ($lowStockCount)'),
+                ),
+              ),
+          ],
+          child: const _RoundHeaderButton(
+            tooltip: 'Más opciones',
+            icon: Icons.more_horiz_rounded,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RoundHeaderButton extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  const _RoundHeaderButton({
+    required this.tooltip,
+    required this.icon,
+    this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surface,
+      shape: CircleBorder(side: BorderSide(color: colors.outlineVariant)),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(icon),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+}
+
+class _DailySalesCard extends StatelessWidget {
+  final double total;
+  final String currencyCode;
+  final int transactionCount;
+  final List<DailySales> days;
+  final List<String> currencies;
+  final ValueChanged<String> onCurrencyChanged;
+
+  const _DailySalesCard({
+    required this.total,
+    required this.currencyCode,
+    required this.transactionCount,
+    required this.days,
+    required this.currencies,
+    required this.onCurrencyChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const textColor = Color(0xFF1E1E1E);
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colors.primary,
-            Color.lerp(colors.primary, const Color(0xFF102A43), 0.38)!,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: colors.primary.withValues(alpha: 0.2),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        color: const Color(0xFFD8E7FF),
+        borderRadius: BorderRadius.circular(30),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned(
-            right: -14,
-            top: -25,
-            child: Icon(
-              Icons.insights_rounded,
-              size: 150,
-              color: colors.onPrimary.withValues(alpha: 0.08),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Ventas del día',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.only(left: 10, right: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .7),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: currencyCode,
+                    isDense: true,
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                    ),
+                    style: const TextStyle(
+                      color: textColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    items: [
+                      for (final code in currencies)
+                        DropdownMenuItem(
+                          value: code,
+                          child: Text(
+                            '$code · ${AppCurrency.optionFor(code).symbol}',
+                          ),
+                        ),
+                    ],
+                    onChanged: (code) {
+                      if (code != null) onCurrencyChanged(code);
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: colors.onPrimary.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 6,
-                    ),
-                    child: Text(
-                      'PANEL DE CONTROL',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colors.onPrimary,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '¡${dashboardGreeting(DateTime.now())}!',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: colors.onPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Bienvenido a tu panel de negocio. Revisa tus resultados y gestiona tus ventas desde aquí.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colors.onPrimary.withValues(alpha: 0.82),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    FilledButton.icon(
-                      onPressed: onNewSale,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: colors.onPrimary,
-                        foregroundColor: colors.primary,
-                        minimumSize: const Size(170, 48),
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      icon: const Icon(Icons.add_shopping_cart_rounded),
-                      label: const Text(
-                        'Nueva venta',
-                        style: TextStyle(fontWeight: FontWeight.w800),
+                    Text(
+                      AppCurrency.format(total, code: currencyCode),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: textColor,
+                        fontSize: 29,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -1,
+                        height: 1.1,
                       ),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: onOpenScale,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: colors.onPrimary,
-                        side: BorderSide(
-                          color: colors.onPrimary.withValues(alpha: .55),
-                        ),
-                        minimumSize: const Size(180, 48),
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      icon: const Icon(Icons.scale_rounded),
-                      label: const Text(
-                        'Balanza digital',
-                        style: TextStyle(fontWeight: FontWeight.w800),
+                    const SizedBox(height: 7),
+                    Text(
+                      '$transactionCount transacciones',
+                      style: TextStyle(
+                        color: textColor.withValues(alpha: .7),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              _MiniSalesBars(days: days),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MiniSalesBars extends StatelessWidget {
+  final List<DailySales> days;
+
+  const _MiniSalesBars({required this.days});
+
+  @override
+  Widget build(BuildContext context) {
+    final amounts = days.length > 7
+        ? days.sublist(days.length - 7).map((day) => day.amount).toList()
+        : days.map((day) => day.amount).toList();
+    while (amounts.length < 7) {
+      amounts.insert(0, 0);
+    }
+    final maximum = amounts.fold<double>(
+      0,
+      (largest, amount) => amount > largest ? amount : largest,
+    );
+    return SizedBox(
+      width: 62,
+      height: 54,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var index = 0; index < amounts.length; index++)
+            Container(
+              width: 6,
+              height: maximum == 0
+                  ? 8
+                  : (8 + 40 * amounts[index] / maximum).clamp(8, 48).toDouble(),
+              decoration: BoxDecoration(
+                color: index.isEven
+                    ? const Color(0xFF0A84FF)
+                    : const Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PastelMetricCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final String detail;
+  final Color color;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _PastelMetricCard({
+    required this.title,
+    required this.value,
+    required this.detail,
+    required this.color,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const textColor = Color(0xFF1E1E1E);
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: textColor.withValues(alpha: .72),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .7),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: textColor, size: 15),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: textColor,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                detail,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: textColor.withValues(alpha: .68),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardBottomNavigation extends StatelessWidget {
+  final ValueChanged<String> onNavigate;
+  final VoidCallback onNewSale;
+
+  const _DashboardBottomNavigation({
+    required this.onNavigate,
+    required this.onNewSale,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+        child: Container(
+          height: 70,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1C1C1E),
+            borderRadius: BorderRadius.circular(36),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: .16),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _DashboardNavItem(
+                  label: 'Inicio',
+                  icon: Icons.home_filled,
+                  selected: true,
+                  onTap: () => onNavigate('/'),
+                ),
+              ),
+              Expanded(
+                child: _DashboardNavItem(
+                  label: 'Productos',
+                  icon: Icons.inventory_2_outlined,
+                  onTap: () => onNavigate('/products'),
+                ),
+              ),
+              Expanded(
+                child: _DashboardNavItem(
+                  label: 'Clientes',
+                  icon: Icons.people_outline_rounded,
+                  onTap: () => onNavigate('/customers'),
+                ),
+              ),
+              Expanded(
+                child: _DashboardNavItem(
+                  label: 'Ajustes',
+                  icon: Icons.settings_outlined,
+                  onTap: () => onNavigate('/settings'),
+                ),
+              ),
+              SizedBox(
+                width: 58,
+                child: IconButton(
+                  tooltip: 'Nueva venta',
+                  onPressed: onNewSale,
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFF0A84FF),
+                    foregroundColor: Colors.white,
+                    fixedSize: const Size(48, 48),
+                  ),
+                  icon: const Icon(Icons.add_rounded, size: 29),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardNavItem extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DashboardNavItem({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? Colors.white : const Color(0xFF9A9AA0);
+    return Tooltip(
+      message: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(28),
+        child: SizedBox(
+          height: 62,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 9,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1322,11 +1707,19 @@ class _SalesPerformanceCard extends StatelessWidget {
     final chartMaximum = highestAmount == 0 ? 1.0 : highestAmount * 1.25;
     final axisInterval = chartMaximum / 4;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: colors.outlineVariant),
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: theme.brightness == Brightness.dark ? .12 : .04,
+            ),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
@@ -1340,7 +1733,7 @@ class _SalesPerformanceCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Ventas de los últimos 7 días',
+                        'Tendencia semanal',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
