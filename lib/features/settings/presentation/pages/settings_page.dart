@@ -403,17 +403,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 margin: const EdgeInsets.only(bottom: 22),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      colors.primaryContainer,
-                      Color.lerp(colors.primaryContainer, colors.surface, .3)!,
-                    ],
-                  ),
+                  color: colors.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: colors.primary.withValues(alpha: .1),
+                    color: colors.outlineVariant.withValues(alpha: .7),
                   ),
                 ),
                 child: Row(
@@ -422,12 +415,12 @@ class _SettingsPageState extends State<SettingsPage> {
                       width: 58,
                       height: 58,
                       decoration: BoxDecoration(
-                        color: colors.primary.withValues(alpha: .1),
+                        color: colors.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(18),
                       ),
                       child: Icon(
                         Icons.tune_rounded,
-                        color: colors.primary,
+                        color: colors.onSurfaceVariant,
                         size: 28,
                       ),
                     ),
@@ -440,7 +433,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             'CENTRO DE ADMINISTRACIÓN',
                             style: Theme.of(context).textTheme.labelSmall
                                 ?.copyWith(
-                                  color: colors.primary,
+                                  color: colors.onSurfaceVariant,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 1.1,
                                 ),
@@ -465,8 +458,9 @@ class _SettingsPageState extends State<SettingsPage> {
               _BusinessProfileCard(onTap: () => context.push('/shop')),
               const SizedBox(height: 22),
               _SectionTitle(
-                title: 'Catálogo y clientes',
-                subtitle: 'Administra productos, existencias y contactos.',
+                icon: Icons.inventory_2_outlined,
+                title: 'Operación y clientes',
+                subtitle: 'Productos, cobros, clientes y créditos.',
               ),
               _SettingsGroup(
                 children: [
@@ -485,21 +479,21 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const _SettingsDivider(),
                   _SettingsTile(
-                    icon: Icons.account_balance_wallet_outlined,
+                    icon: Icons.payments_outlined,
                     title: 'Formas de pago',
                     subtitle: 'Crea y edita las opciones que acepta tu negocio',
                     onTap: () => context.push('/settings/payment-methods'),
                   ),
                   const _SettingsDivider(),
                   _SettingsTile(
-                    icon: Icons.people_outline,
+                    icon: Icons.group_outlined,
                     title: 'Clientes',
                     subtitle: 'Directorio y datos de contacto',
                     onTap: () => context.push('/customers'),
                   ),
                   const _SettingsDivider(),
                   _SettingsTile(
-                    icon: Icons.account_balance_wallet_outlined,
+                    icon: Icons.credit_score_outlined,
                     title: 'Compras a crédito',
                     subtitle: 'Saldos, abonos y comprobantes por cliente',
                     onTap: () => context.push('/settings/credits'),
@@ -508,6 +502,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 18),
               _SectionTitle(
+                icon: Icons.description_outlined,
                 title: 'Documentos y etiquetas',
                 subtitle: 'Personaliza lo que compartes e imprimes.',
               ),
@@ -542,7 +537,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const _SettingsDivider(),
                   _SettingsTile(
-                    icon: Icons.qr_code_scanner,
+                    icon: Icons.qr_code_2_outlined,
                     title: 'Códigos de barras',
                     subtitle: 'Consulta e imprime etiquetas de productos',
                     onTap: () => context.push('/settings/barcodes'),
@@ -551,6 +546,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 18),
               _SectionTitle(
+                icon: Icons.analytics_outlined,
                 title: 'Análisis del negocio',
                 subtitle: 'Revisa ventas y rendimiento de tu operación.',
               ),
@@ -566,6 +562,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 22),
               _SectionTitle(
+                icon: Icons.tune_rounded,
                 title: 'Preferencias del negocio',
                 subtitle:
                     'Ajusta moneda, inventario y apariencia de la aplicación.',
@@ -856,6 +853,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 22),
               _SectionTitle(
+                icon: Icons.devices_outlined,
                 title: 'Dispositivos',
                 subtitle: 'Gestiona la conexión y el formato de impresión.',
               ),
@@ -872,6 +870,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 22),
               _SectionTitle(
+                icon: Icons.backup_outlined,
                 title: 'Copia de seguridad',
                 subtitle:
                     'Exporta tus datos locales para guardarlos o compartirlos.',
@@ -917,6 +916,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 22),
               const _SectionTitle(
+                icon: Icons.dashboard_outlined,
                 title: 'Acceso rápido',
                 subtitle: 'Consulta los datos importantes de tu operación.',
               ),
@@ -1374,6 +1374,7 @@ class _BusinessProfileCard extends StatelessWidget {
     builder: (context, state) {
       final shop = state is ShopLoaded ? state.shop : null;
       final logo = shop?.logoData;
+      final colors = Theme.of(context).colorScheme;
       return Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -1382,10 +1383,7 @@ class _BusinessProfileCard extends StatelessWidget {
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).colorScheme.primary,
-                  Theme.of(context).colorScheme.primary.withValues(alpha: .78),
-                ],
+                colors: [colors.primary, colors.primary.withValues(alpha: .82)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -1394,14 +1392,14 @@ class _BusinessProfileCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 32,
-                  backgroundColor: Colors.white.withValues(alpha: .18),
+                  backgroundColor: colors.onPrimary.withValues(alpha: .16),
                   backgroundImage: logo == null
                       ? null
                       : MemoryImage(base64Decode(logo)),
                   child: logo == null
-                      ? const Icon(
+                      ? Icon(
                           Icons.storefront,
-                          color: Colors.white,
+                          color: colors.onPrimary,
                           size: 30,
                         )
                       : null,
@@ -1417,7 +1415,7 @@ class _BusinessProfileCard extends StatelessWidget {
                             : 'Configura tu tienda',
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(
-                              color: Colors.white,
+                              color: colors.onPrimary,
                               fontWeight: FontWeight.bold,
                             ),
                       ),
@@ -1428,20 +1426,22 @@ class _BusinessProfileCard extends StatelessWidget {
                             : 'Añade el logotipo y los datos del negocio',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white70),
+                        style: TextStyle(
+                          color: colors.onPrimary.withValues(alpha: .75),
+                        ),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'Editar perfil de la tienda',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: colors.onPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: Colors.white),
+                Icon(Icons.chevron_right, color: colors.onPrimary),
               ],
             ),
           ),
@@ -1452,27 +1452,58 @@ class _BusinessProfileCard extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
+  final IconData icon;
   final String title;
   final String subtitle;
-  const _SectionTitle({required this.title, required this.subtitle});
+  const _SectionTitle({
+    this.icon = Icons.settings_outlined,
+    required this.title,
+    required this.subtitle,
+  });
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 3),
-        Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 20, color: colors.onSurfaceVariant),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _SettingsGroup extends StatelessWidget {
@@ -1480,10 +1511,20 @@ class _SettingsGroup extends StatelessWidget {
   const _SettingsGroup({required this.children});
 
   @override
-  Widget build(BuildContext context) => Card(
-    clipBehavior: Clip.antiAlias,
-    child: Column(children: children),
-  );
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: colors.outlineVariant.withValues(alpha: .75)),
+      ),
+      child: Column(children: children),
+    );
+  }
 }
 
 class _SettingsTile extends StatelessWidget {
@@ -1506,18 +1547,17 @@ class _SettingsTile extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return ListTile(
       onTap: onTap,
-      minVerticalPadding: 12,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
+      minVerticalPadding: 10,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
       leading: Container(
-        width: 52,
-        height: 52,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
-          color: colors.primaryContainer,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.primary.withValues(alpha: .08)),
+          color: colors.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(13),
         ),
         alignment: Alignment.center,
-        child: Icon(icon, color: colors.primary, size: 25),
+        child: Icon(icon, color: colors.onSurfaceVariant, size: 22),
       ),
       title: Text(
         title,

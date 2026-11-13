@@ -74,10 +74,11 @@ class _DashboardPageState extends State<DashboardPage> {
     final isWebDesktop = kIsWeb && screenWidth >= 900;
     final showBottomNavigation = !kIsWeb || screenWidth < 800;
     final webColors = _WebDashboardColors.of(context);
+    final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: isWebDesktop
           ? webColors.canvas
-          : const Color(0xFFF5F7FA),
+          : theme.scaffoldBackgroundColor,
       appBar: null,
       body: BlocConsumer<DashboardBloc, DashboardState>(
         listener: (context, state) {
@@ -179,7 +180,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           value: '${summary.lowStock.length}',
                           detail:
                               '${summary.lowStock.where((product) => product.stock == 0).length} agotados',
-                          color: const Color(0xFFFFE0E0),
+                          color: theme.colorScheme.error,
                           icon: Icons.inventory_2_rounded,
                           onTap: () => context.push(
                             '/products?lowStock=1&threshold=${state.threshold}',
@@ -193,7 +194,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           value:
                               '$occupiedTables / ${_restaurantState.tables.length}',
                           detail: 'en servicio',
-                          color: const Color(0xFFDDF3E1),
+                          color: const Color(0xFF2E7D32),
                           icon: Icons.table_restaurant_rounded,
                           onTap: _openRestaurant,
                         ),
@@ -666,11 +667,11 @@ class _DailySalesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const textColor = Color(0xFF1E1E1E);
+    final colors = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: const Color(0xFFD8E7FF),
+        color: colors.primaryContainer,
         borderRadius: BorderRadius.circular(30),
       ),
       child: Column(
@@ -681,16 +682,12 @@ class _DailySalesCard extends StatelessWidget {
             children: [
               const Text(
                 'Ventas del día',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               ),
               Container(
                 padding: const EdgeInsets.only(left: 10, right: 5),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .7),
+                  color: colors.surface.withValues(alpha: .75),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -702,7 +699,6 @@ class _DailySalesCard extends StatelessWidget {
                       size: 18,
                     ),
                     style: const TextStyle(
-                      color: textColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -736,7 +732,6 @@ class _DailySalesCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: textColor,
                         fontSize: 29,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -1,
@@ -747,7 +742,7 @@ class _DailySalesCard extends StatelessWidget {
                     Text(
                       '$transactionCount transacciones',
                       style: TextStyle(
-                        color: textColor.withValues(alpha: .7),
+                        color: colors.onPrimaryContainer.withValues(alpha: .75),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -772,6 +767,7 @@ class _MiniSalesBars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final amounts = days.length > 7
         ? days.sublist(days.length - 7).map((day) => day.amount).toList()
         : days.map((day) => day.amount).toList();
@@ -797,8 +793,8 @@ class _MiniSalesBars extends StatelessWidget {
                   : (8 + 40 * amounts[index] / maximum).clamp(8, 48).toDouble(),
               decoration: BoxDecoration(
                 color: index.isEven
-                    ? const Color(0xFF0A84FF)
-                    : const Color(0xFF1E1E1E),
+                    ? colors.primary
+                    : colors.onPrimaryContainer.withValues(alpha: .75),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -827,9 +823,15 @@ class _PastelMetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const textColor = Color(0xFF1E1E1E);
+    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Color.alphaBlend(
+      color.withValues(alpha: isDark ? .2 : .1),
+      colors.surface,
+    );
+    final accent = isDark ? Color.lerp(color, Colors.white, .45)! : color;
     return Material(
-      color: color,
+      color: cardColor,
       borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -846,8 +848,8 @@ class _PastelMetricCard extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: textColor.withValues(alpha: .72),
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: colors.onSurfaceVariant,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -857,10 +859,10 @@ class _PastelMetricCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .7),
+                      color: colors.surfaceContainerHighest,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(icon, color: textColor, size: 15),
+                    child: Icon(icon, color: accent, size: 15),
                   ),
                 ],
               ),
@@ -869,8 +871,8 @@ class _PastelMetricCard extends StatelessWidget {
                 value,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: textColor,
+                style: TextStyle(
+                  color: colors.onSurface,
                   fontSize: 24,
                   fontWeight: FontWeight.w900,
                   height: 1,
@@ -881,8 +883,8 @@ class _PastelMetricCard extends StatelessWidget {
                 detail,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: textColor.withValues(alpha: .68),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.onSurfaceVariant,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
@@ -906,6 +908,7 @@ class _DashboardBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return SafeArea(
       top: false,
       child: Padding(
@@ -914,8 +917,9 @@ class _DashboardBottomNavigation extends StatelessWidget {
           height: 70,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1E),
+            color: colors.surface,
             borderRadius: BorderRadius.circular(36),
+            border: Border.all(color: colors.outlineVariant),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: .16),
@@ -961,8 +965,8 @@ class _DashboardBottomNavigation extends StatelessWidget {
                   tooltip: 'Nueva venta',
                   onPressed: onNewSale,
                   style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF0A84FF),
-                    foregroundColor: Colors.white,
+                    backgroundColor: colors.primary,
+                    foregroundColor: colors.onPrimary,
                     fixedSize: const Size(48, 48),
                   ),
                   icon: const Icon(Icons.add_rounded, size: 29),
@@ -991,7 +995,8 @@ class _DashboardNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? Colors.white : const Color(0xFF9A9AA0);
+    final colors = Theme.of(context).colorScheme;
+    final color = selected ? colors.primary : colors.onSurfaceVariant;
     return Tooltip(
       message: label,
       child: InkWell(
@@ -1024,15 +1029,20 @@ class _DashboardNavItem extends StatelessWidget {
 
 class _WebDashboardColors {
   final bool isDark;
+  final Color primary;
+  final Color onPrimary;
 
-  const _WebDashboardColors(this.isDark);
+  const _WebDashboardColors(this.isDark, this.primary, this.onPrimary);
 
-  factory _WebDashboardColors.of(BuildContext context) =>
-      _WebDashboardColors(Theme.of(context).brightness == Brightness.dark);
+  factory _WebDashboardColors.of(BuildContext context) {
+    final theme = Theme.of(context);
+    return _WebDashboardColors(
+      theme.brightness == Brightness.dark,
+      theme.colorScheme.primary,
+      theme.colorScheme.onPrimary,
+    );
+  }
 
-  Color get primary => AppThemeController.primaryColor.value;
-  Color get onPrimary =>
-      primary.computeLuminance() > 0.179 ? Colors.black : Colors.white;
   Color get selectedSurface =>
       Color.alphaBlend(primary.withValues(alpha: isDark ? .22 : .12), surface);
   List<Color> get chartColors => List.generate(
@@ -1979,7 +1989,14 @@ class _BestSellerMetrics extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: index == 0
-                      ? const Color(0xFFFFF1D6)
+                      ? Color.alphaBlend(
+                          const Color(0xFFB7791F).withValues(
+                            alpha: theme.brightness == Brightness.dark
+                                ? .18
+                                : .1,
+                          ),
+                          theme.colorScheme.surface,
+                        )
                       : theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(11),
                 ),

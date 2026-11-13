@@ -220,7 +220,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
         .length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Menú del restaurante'),
         actions: [
@@ -542,38 +542,41 @@ class _MenuStat extends StatelessWidget {
   const _MenuStat({required this.label, required this.value});
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: 122,
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: .13),
-      borderRadius: BorderRadius.circular(15),
-      border: Border.all(color: Colors.white.withValues(alpha: .14)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 9,
-            fontWeight: FontWeight.w800,
-            letterSpacing: .5,
+  Widget build(BuildContext context) {
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
+    return Container(
+      width: 122,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      decoration: BoxDecoration(
+        color: onPrimary.withValues(alpha: .13),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: onPrimary.withValues(alpha: .14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: onPrimary.withValues(alpha: .72),
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: .5,
+            ),
           ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 21,
-            fontWeight: FontWeight.w900,
+          const SizedBox(height: 5),
+          Text(
+            value,
+            style: TextStyle(
+              color: onPrimary,
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _CategoryFilterChip extends StatelessWidget {
@@ -692,6 +695,10 @@ class _MenuProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final availableColor = isDark
+        ? const Color(0xFF78D6A1)
+        : const Color(0xFF18794E);
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
@@ -744,7 +751,10 @@ class _MenuProductCard extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: product.isAvailable
-                              ? const Color(0xFFE9F6EF)
+                              ? Color.alphaBlend(
+                                  availableColor.withValues(alpha: .14),
+                                  colors.surface,
+                                )
                               : colors.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -752,7 +762,7 @@ class _MenuProductCard extends StatelessWidget {
                           product.isAvailable ? 'Disponible' : 'Pausado',
                           style: TextStyle(
                             color: product.isAvailable
-                                ? const Color(0xFF18794E)
+                                ? availableColor
                                 : colors.onSurfaceVariant,
                             fontSize: 10,
                             fontWeight: FontWeight.w800,

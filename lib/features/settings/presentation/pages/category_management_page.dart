@@ -467,19 +467,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
-    final primaryForeground = theme.colorScheme.onPrimary;
-    final colors = theme.colorScheme.copyWith(
-      brightness: Brightness.light,
-      primary: primaryColor,
-      onPrimary: primaryForeground,
-      primaryContainer: primaryColor.withValues(alpha: .12),
-      onPrimaryContainer: primaryColor,
-      surface: Colors.white,
-      onSurface: const Color(0xFF1D2127),
-      onSurfaceVariant: const Color(0xFF747B86),
-      outlineVariant: const Color(0xFFE5E7EB),
-    );
+    final colors = theme.colorScheme;
     final assignedCount = _categories
         .where((category) => _productCount(category.name) > 0)
         .length;
@@ -492,23 +480,15 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
 
     return Theme(
       data: theme.copyWith(
-        brightness: Brightness.light,
         colorScheme: colors,
-        scaffoldBackgroundColor: const Color(0xFFF4F5F7),
-        textTheme: theme.textTheme.apply(
-          bodyColor: const Color(0xFF1D2127),
-          displayColor: const Color(0xFF111111),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFF4F5F7),
-          foregroundColor: Color(0xFF111111),
-          centerTitle: true,
-          elevation: 0,
-          surfaceTintColor: Colors.transparent,
+        scaffoldBackgroundColor: theme.scaffoldBackgroundColor,
+        appBarTheme: theme.appBarTheme.copyWith(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          foregroundColor: colors.onSurface,
         ),
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF4F5F7),
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
           title: const Text('Categorías'),
           actions: [
@@ -577,7 +557,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                             Text(
                               'Mantén tu catálogo ordenado y fácil de explorar.',
                               style: TextStyle(
-                                color: Color(0xFFBFC3C9),
+                                color: colors.onPrimary.withValues(alpha: .72),
                                 fontSize: 12,
                               ),
                             ),
@@ -614,14 +594,14 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                         icon: const Icon(Icons.close_rounded),
                       ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: colors.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  borderSide: BorderSide(color: colors.outlineVariant),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  borderSide: BorderSide(color: colors.outlineVariant),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -632,11 +612,11 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
             const SizedBox(height: 22),
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Tus categorías',
                     style: TextStyle(
-                      color: Color(0xFF17191D),
+                      color: colors.onSurface,
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                     ),
@@ -673,9 +653,9 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: colors.surface,
                     borderRadius: BorderRadius.circular(19),
-                    border: Border.all(color: const Color(0xFFE7E9ED)),
+                    border: Border.all(color: colors.outlineVariant),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: .025),
@@ -701,8 +681,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                     ),
                     title: Text(
                       category.name,
-                      style: const TextStyle(
-                        color: Color(0xFF1D2127),
+                      style: TextStyle(
+                        color: colors.onSurface,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -723,8 +703,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                           tooltip: 'Editar categoría',
                           onPressed: () => _editCategory(category),
                           style: IconButton.styleFrom(
-                            foregroundColor: const Color(0xFF30343B),
-                            backgroundColor: const Color(0xFFF3F4F6),
+                            foregroundColor: colors.onSurfaceVariant,
+                            backgroundColor: colors.surfaceContainerHighest,
                           ),
                           icon: const Icon(Icons.edit_outlined, size: 18),
                         ),
@@ -819,9 +799,9 @@ class _CategoryEmptyState extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(26),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE7E9ED)),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         children: [
@@ -837,8 +817,8 @@ class _CategoryEmptyState extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF17191D),
+            style: TextStyle(
+              color: colors.onSurface,
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),
@@ -847,7 +827,7 @@ class _CategoryEmptyState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF747B86), height: 1.4),
+            style: TextStyle(color: colors.onSurfaceVariant, height: 1.4),
           ),
           if (action != null)
             Padding(

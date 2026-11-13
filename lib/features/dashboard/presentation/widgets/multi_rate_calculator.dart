@@ -371,7 +371,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
     final colors = Theme.of(context).colorScheme;
     final equivalent = _savedRate == null ? null : _amount * _savedRate!.value;
     return Material(
-      color: Colors.white,
+      color: colors.surface,
       borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
@@ -385,7 +385,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                 width: 38,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDCE3E9),
+                  color: colors.outlineVariant,
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
@@ -396,16 +396,16 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: colors.primaryContainer,
                       borderRadius: BorderRadius.circular(13),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.calculate_rounded,
-                      color: Color(0xFF2768D7),
+                      color: colors.onPrimaryContainer,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -420,7 +420,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                         Text(
                           'Tasas en vivo y conversión a bolívares',
                           style: TextStyle(
-                            color: Color(0xFF788596),
+                            color: colors.onSurfaceVariant,
                             fontSize: 11,
                           ),
                         ),
@@ -474,13 +474,13 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(11),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF4E5),
+                    color: colors.errorContainer,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     _rateError!,
-                    style: const TextStyle(
-                      color: Color(0xFF8A4B08),
+                    style: TextStyle(
+                      color: colors.onErrorContainer,
                       fontSize: 12,
                     ),
                   ),
@@ -491,19 +491,19 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(16, 13, 16, 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3F5F8),
+                  color: colors.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(17),
-                  border: Border.all(color: const Color(0xFFE7ECF2)),
+                  border: Border.all(color: colors.outlineVariant),
                 ),
                 child: Column(
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'MONTO',
                           style: TextStyle(
-                            color: Color(0xFF788596),
+                            color: colors.onSurfaceVariant,
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                             letterSpacing: .5,
@@ -511,8 +511,8 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                         ),
                         Text(
                           '${_source.unit} ${NumberFormat('#,##0.########', 'es').format(_amount)}',
-                          style: const TextStyle(
-                            color: Color(0xFF35465A),
+                          style: TextStyle(
+                            color: colors.onSurface,
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
                           ),
@@ -528,8 +528,8 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                             children: [
                               Text(
                                 'RESULTADO ESTIMADO · VES',
-                                style: const TextStyle(
-                                  color: Color(0xFF788596),
+                                style: TextStyle(
+                                  color: colors.onSurfaceVariant,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: .5,
@@ -540,8 +540,8 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                                 _savedRate == null
                                     ? 'Define una tasa para calcular'
                                     : '1 ${_source.unit} = ${_savedRate!.value.toString()} VES',
-                                style: const TextStyle(
-                                  color: Color(0xFF596779),
+                                style: TextStyle(
+                                  color: colors.onSurfaceVariant,
                                   fontSize: 11,
                                 ),
                               ),
@@ -572,8 +572,8 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                                       ? 'Configura tu tasa o consulta Binance P2P'
                                       : 'Esperando tasa en línea'
                                 : '${_savedRate!.source} · ${DateFormat('dd/MM/yy HH:mm', 'es').format(_savedRate!.updatedAt)}',
-                            style: const TextStyle(
-                              color: Color(0xFF7C8795),
+                            style: TextStyle(
+                              color: colors.onSurfaceVariant,
                               fontSize: 10,
                             ),
                           ),
@@ -615,12 +615,12 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                     ),
                     if (_source.storageKey == 'USDT') ...[
                       const SizedBox(height: 4),
-                      const Align(
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'La consulta P2P es opcional; la tasa manual guardada se mantiene disponible sin conexión.',
                           style: TextStyle(
-                            color: Color(0xFF7C8795),
+                            color: colors.onSurfaceVariant,
                             fontSize: 10,
                           ),
                         ),
@@ -640,8 +640,8 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                   children: [
                     _CalcKey(
                       label: 'C',
-                      background: const Color(0xFFFFEDF0),
-                      foreground: const Color(0xFFE24B68),
+                      background: colors.errorContainer,
+                      foreground: colors.onErrorContainer,
                       onTap: () => _append('clear'),
                     ),
                     _CalcKey(
@@ -650,7 +650,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                     ),
                     _CalcKey(
                       label: '+16%',
-                      foreground: const Color(0xFF2768D7),
+                      foreground: colors.primary,
                       onTap: () => _append('percent'),
                     ),
                     _CalcKey(
@@ -681,7 +681,7 @@ class _MultiRateCalculatorState extends State<MultiRateCalculator> {
                       ),
                     _CalcKey(
                       label: '±',
-                      foreground: const Color(0xFF596779),
+                      foreground: colors.onSurfaceVariant,
                       onTap: () => _append('sign'),
                     ),
                     _CalcKey(label: '0', onTap: () => _append('0')),
@@ -765,89 +765,95 @@ class _RatePill extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: selected ? Colors.white : const Color(0xFFEFF2F6),
-    borderRadius: BorderRadius.circular(14),
-    child: InkWell(
-      onTap: onTap,
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final labelColor = selected
+        ? colors.onPrimaryContainer
+        : colors.onSurfaceVariant;
+    return Material(
+      color: selected ? colors.primaryContainer : colors.surfaceContainerHigh,
       borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? const Color(0xFF2768D7) : Colors.transparent,
-            width: 1.2,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? colors.primary : Colors.transparent,
+              width: 1.2,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .07),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: .07),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (source.storageKey == 'USDT')
-                  const Padding(
-                    padding: EdgeInsets.only(right: 3),
-                    child: Icon(
-                      Icons.currency_exchange_rounded,
-                      size: 12,
-                      color: Color(0xFFF0A900),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (source.storageKey == 'USDT')
+                    Padding(
+                      padding: EdgeInsets.only(right: 3),
+                      child: Icon(
+                        Icons.currency_exchange_rounded,
+                        size: 12,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFFFFD166)
+                            : const Color(0xFF9A6700),
+                      ),
+                    ),
+                  Flexible(
+                    child: Text(
+                      source.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: labelColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                Flexible(
-                  child: Text(
-                    source.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                ],
+              ),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    source.storageKey == 'USDT' ? 'P2P · Manual' : source.unit,
                     style: TextStyle(
-                      color: selected
-                          ? const Color(0xFF2768D7)
-                          : const Color(0xFF596779),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                      color: labelColor,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  source.storageKey == 'USDT' ? 'P2P · Manual' : source.unit,
-                  style: TextStyle(
-                    color: selected
-                        ? const Color(0xFF2768D7)
-                        : const Color(0xFF788596),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(width: 4),
+                  Icon(
+                    configured ? Icons.check_circle : Icons.circle_outlined,
+                    size: 9,
+                    color: configured
+                        ? (Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF69D49B)
+                              : const Color(0xFF19794B))
+                        : colors.onSurfaceVariant,
                   ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  configured ? Icons.check_circle : Icons.circle_outlined,
-                  size: 9,
-                  color: configured
-                      ? const Color(0xFF2D9B6F)
-                      : const Color(0xFFA8B1BC),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _CalcKey extends StatelessWidget {
@@ -868,33 +874,38 @@ class _CalcKey extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: background ?? (emphasized ? const Color(0xFFEAF1FC) : Colors.white),
-    borderRadius: BorderRadius.circular(14),
-    child: InkWell(
-      onTap: onTap,
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final keyBackground =
+        background ??
+        (emphasized ? colors.primaryContainer : colors.surfaceContainerHigh);
+    final keyForeground =
+        foreground ??
+        (emphasized ? colors.onPrimaryContainer : colors.onSurface);
+    return Material(
+      color: keyBackground,
       borderRadius: BorderRadius.circular(14),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: emphasized
-                ? const Color(0xFFD5E2F8)
-                : const Color(0xFFE4E9EF),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.outlineVariant),
           ),
-        ),
-        alignment: Alignment.center,
-        child: icon != null
-            ? Icon(icon, color: foreground ?? const Color(0xFF293647), size: 20)
-            : Text(
-                label!,
-                style: TextStyle(
-                  color: foreground ?? const Color(0xFF222D3A),
-                  fontSize: label == '+16%' ? 13 : 20,
-                  fontWeight: FontWeight.w700,
+          alignment: Alignment.center,
+          child: icon != null
+              ? Icon(icon, color: keyForeground, size: 20)
+              : Text(
+                  label!,
+                  style: TextStyle(
+                    color: keyForeground,
+                    fontSize: label == '+16%' ? 13 : 20,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

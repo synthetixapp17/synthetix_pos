@@ -100,7 +100,7 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
     final selected = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => Dialog(
-        backgroundColor: const Color(0xFFF5F7FA),
+        backgroundColor: Theme.of(dialogContext).colorScheme.surface,
         insetPadding: const EdgeInsets.all(20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: ConstrainedBox(
@@ -230,28 +230,20 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = theme.colorScheme.copyWith(
-      brightness: Brightness.light,
-      primary: Color(_primaryColor),
-      onPrimary: Colors.white,
-      surface: Colors.white,
-      onSurface: const Color(0xFF202938),
-      onSurfaceVariant: const Color(0xFF687386),
-      outlineVariant: const Color(0xFFE5EAF0),
-    );
+    final colors = theme.colorScheme;
     final accentIsLight = Color(_accentColor).computeLuminance() > 0.58;
     return Theme(
       data: theme.copyWith(
         colorScheme: colors,
-        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+        scaffoldBackgroundColor: theme.scaffoldBackgroundColor,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F7FA),
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
           title: const Text('Cotización'),
           centerTitle: true,
-          foregroundColor: const Color(0xFF202938),
-          backgroundColor: const Color(0xFFF5F7FA),
+          foregroundColor: colors.onSurface,
+          backgroundColor: theme.scaffoldBackgroundColor,
           surfaceTintColor: Colors.transparent,
           leading: IconButton(
             tooltip: 'Volver',
@@ -278,12 +270,12 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
                             width: 46,
                             height: 46,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE5F4F0),
+                              color: colors.primaryContainer,
                               borderRadius: BorderRadius.circular(14),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.request_quote_outlined,
-                              color: Color(0xFF2E7D6F),
+                              color: colors.primary,
                             ),
                           ),
                           title: const Text(
@@ -510,19 +502,19 @@ class _QuotationSettingsPageState extends State<QuotationSettingsPage> {
                       child: FilledButton.icon(
                         onPressed: _saving ? null : _save,
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF2E7D6F),
-                          foregroundColor: Colors.white,
+                          backgroundColor: colors.primary,
+                          foregroundColor: colors.onPrimary,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
                         icon: _saving
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.white,
+                                  color: colors.onPrimary,
                                 ),
                               )
                             : const Icon(Icons.save_outlined),
@@ -549,22 +541,25 @@ class _SurfaceCard extends StatelessWidget {
   const _SurfaceCard({required this.child});
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: const Color(0xFFE9EDF2)),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.035),
-          blurRadius: 14,
-          offset: const Offset(0, 4),
-        ),
-      ],
-    ),
-    child: child,
-  );
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colors.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            color: colors.shadow.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
 }
 
 class _TemplateOption extends StatelessWidget {
@@ -882,7 +877,10 @@ class _InvoicePreview extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('PREPARADO PARA', style: style(size: 6, color: muted)),
+                      Text(
+                        'PREPARADO PARA',
+                        style: style(size: 6, color: muted),
+                      ),
                       SizedBox(height: 2 * scale),
                       Text(
                         'José Núñez',
@@ -1015,69 +1013,75 @@ class _PdfColorCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: width,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE7EBF0)),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF172B4D).withValues(alpha: 0.045),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              height: 62,
-              width: double.infinity,
-              color: Color(color),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                hex,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: width,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.outlineVariant),
+            boxShadow: [
+              BoxShadow(
+                color: colors.shadow.withValues(alpha: 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                height: 62,
+                width: double.infinity,
+                color: Color(color),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  hex,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        color: Color(0xFF202938),
-                        fontWeight: FontWeight.w700,
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          color: colors.onSurface,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                  const Icon(
-                    Icons.edit_outlined,
-                    color: Color(0xFF697587),
-                    size: 18,
-                  ),
-                ],
+                    Icon(
+                      Icons.edit_outlined,
+                      color: colors.onSurfaceVariant,
+                      size: 18,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _AccentWarning extends StatelessWidget {
@@ -1086,35 +1090,46 @@ class _AccentWarning extends StatelessWidget {
   const _AccentWarning({required this.onDarken});
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF8E1),
-      border: Border.all(color: const Color(0xFFEADCA8)),
-      borderRadius: BorderRadius.circular(13),
-    ),
-    child: Row(
-      children: [
-        const CircleAvatar(
-          radius: 15,
-          backgroundColor: Color(0xFFFFE7A8),
-          child: Icon(
-            Icons.info_outline_rounded,
-            size: 18,
-            color: Color(0xFF795548),
-          ),
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF3A2D12) : const Color(0xFFFFF8E1),
+        border: Border.all(
+          color: isDark ? const Color(0xFF6D5521) : const Color(0xFFEADCA8),
         ),
-        const SizedBox(width: 10),
-        const Expanded(
-          child: Text(
-            'El acento es muy claro y puede tener poco contraste.',
-            style: TextStyle(fontSize: 12, color: Color(0xFF5D5140)),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 15,
+            backgroundColor: isDark
+                ? const Color(0xFF6D5521)
+                : const Color(0xFFFFE7A8),
+            child: Icon(
+              Icons.info_outline_rounded,
+              size: 18,
+              color: isDark ? const Color(0xFFFFE0A1) : const Color(0xFF795548),
+            ),
           ),
-        ),
-        TextButton(onPressed: onDarken, child: const Text('Oscurecer')),
-      ],
-    ),
-  );
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'El acento es muy claro y puede tener poco contraste.',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? colors.onSurface : const Color(0xFF5D5140),
+              ),
+            ),
+          ),
+          TextButton(onPressed: onDarken, child: const Text('Oscurecer')),
+        ],
+      ),
+    );
+  }
 }
 
 class _ColorCombination extends StatelessWidget {

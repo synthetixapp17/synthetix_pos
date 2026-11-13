@@ -400,7 +400,7 @@ class _ReportsPageState extends State<ReportsPage> {
   Widget build(BuildContext context) {
     AppCurrencyScope.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Reportes de ventas'),
         actions: [
@@ -2037,8 +2037,7 @@ class _CashClosingPreviewDialogState extends State<_CashClosingPreviewDialog> {
     final end = start.add(const Duration(days: 1));
     return widget.sales
         .where(
-          (sale) =>
-              !sale.soldAt.isBefore(start) && sale.soldAt.isBefore(end),
+          (sale) => !sale.soldAt.isBefore(start) && sale.soldAt.isBefore(end),
         )
         .toList()
       ..sort((first, second) => first.soldAt.compareTo(second.soldAt));
@@ -2125,7 +2124,10 @@ class _CashClosingPreviewDialogState extends State<_CashClosingPreviewDialog> {
               padding: const EdgeInsets.fromLTRB(22, 20, 12, 20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [colors.primary, colors.primary.withValues(alpha: .8)],
+                  colors: [
+                    colors.primary,
+                    colors.primary.withValues(alpha: .8),
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -2136,23 +2138,23 @@ class _CashClosingPreviewDialogState extends State<_CashClosingPreviewDialog> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .16),
+                      color: colors.onPrimary.withValues(alpha: .16),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.point_of_sale_rounded,
-                      color: Colors.white,
+                      color: colors.onPrimary,
                     ),
                   ),
                   const SizedBox(width: 14),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Cierre de caja',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: colors.onPrimary,
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                           ),
@@ -2161,7 +2163,7 @@ class _CashClosingPreviewDialogState extends State<_CashClosingPreviewDialog> {
                         Text(
                           'Resumen de ventas por día',
                           style: TextStyle(
-                            color: Colors.white70,
+                            color: colors.onPrimary.withValues(alpha: .72),
                             fontSize: 12,
                           ),
                         ),
@@ -2171,7 +2173,7 @@ class _CashClosingPreviewDialogState extends State<_CashClosingPreviewDialog> {
                   IconButton(
                     tooltip: 'Cerrar',
                     onPressed: () => Navigator.pop(context),
-                    color: Colors.white,
+                    color: colors.onPrimary,
                     icon: const Icon(Icons.close_rounded),
                   ),
                 ],
@@ -2220,9 +2222,7 @@ class _CashClosingPreviewDialogState extends State<_CashClosingPreviewDialog> {
                               ),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: colors.onSurface,
-                                side: BorderSide(
-                                  color: colors.outlineVariant,
-                                ),
+                                side: BorderSide(color: colors.outlineVariant),
                               ),
                             ),
                           ),
@@ -2252,9 +2252,10 @@ class _CashClosingPreviewDialogState extends State<_CashClosingPreviewDialog> {
                           child: _CashClosingMetric(
                             icon: Icons.inventory_2_outlined,
                             label: 'UNIDADES',
-                            value: NumberFormat('#,##0.##', 'es').format(
-                              unitsSold,
-                            ),
+                            value: NumberFormat(
+                              '#,##0.##',
+                              'es',
+                            ).format(unitsSold),
                             color: const Color(0xFF16856B),
                           ),
                         ),
@@ -2329,9 +2330,7 @@ class _CashClosingPreviewDialogState extends State<_CashClosingPreviewDialog> {
                           Expanded(
                             child: Text(
                               'Detalle de ventas',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
+                              style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(fontWeight: FontWeight.w800),
                             ),
                           ),
@@ -2460,9 +2459,9 @@ class _CashClosingMetric extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 value,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
               ),
             ],
           ),
@@ -2527,11 +2526,7 @@ class _CashClosingPaymentRow extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 5),
     child: Row(
       children: [
-        const Icon(
-          Icons.payments_outlined,
-          size: 17,
-          color: Color(0xFF748194),
-        ),
+        const Icon(Icons.payments_outlined, size: 17, color: Color(0xFF748194)),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -2568,86 +2563,89 @@ class _ReportsHeader extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(22),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(22),
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Theme.of(context).colorScheme.primary,
-          Theme.of(context).colorScheme.primary.withValues(alpha: 0.76),
-          const Color(0xFF173B4E),
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.primary,
+            Color.lerp(colors.primary, colors.onPrimary, 0.12)!,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colors.primary.withValues(alpha: 0.2),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
         ],
       ),
-      boxShadow: [
-        BoxShadow(
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-          blurRadius: 22,
-          offset: const Offset(0, 10),
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'ANÁLISIS DEL NEGOCIO',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.74),
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.3,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Rendimiento de ventas',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                dateLabel,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.82),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Text(
-                  '$transactionCount transacciones registradas',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ANÁLISIS DEL NEGOCIO',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colors.onPrimary.withValues(alpha: 0.74),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.3,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  'Rendimiento de ventas',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    color: colors.onPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  dateLabel,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colors.onPrimary.withValues(alpha: 0.82),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.onPrimary.withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Text(
+                    '$transactionCount transacciones registradas',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: colors.onPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Icon(
-          Icons.query_stats_rounded,
-          size: 58,
-          color: Colors.white.withValues(alpha: 0.84),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(width: 12),
+          Icon(
+            Icons.query_stats_rounded,
+            size: 58,
+            color: colors.onPrimary.withValues(alpha: 0.84),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ReportCard extends StatelessWidget {
@@ -2657,46 +2655,49 @@ class _ReportCard extends StatelessWidget {
   const _ReportCard({required this.title, required this.child});
 
   @override
-  Widget build(BuildContext context) => Card(
-    elevation: 1,
-    shadowColor: const Color(0xFF172B4D).withValues(alpha: 0.06),
-    color: Colors.white,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(22),
-      side: const BorderSide(color: Color(0xFFE9EDF2)),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 4,
-                height: 22,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 1,
+      shadowColor: colors.shadow.withValues(alpha: 0.12),
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(color: colors.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: colors.primary,
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          child,
-        ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            child,
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _RankedProductBar extends StatelessWidget {
@@ -2716,6 +2717,7 @@ class _RankedProductBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Row(
       children: [
         Container(
@@ -2755,10 +2757,9 @@ class _RankedProductBar extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF202938),
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
-                      ),
+                      ).copyWith(color: colors.onSurface),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -2779,7 +2780,7 @@ class _RankedProductBar extends StatelessWidget {
                     Container(
                       height: 7,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF0F2F5),
+                        color: colors.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
@@ -2816,103 +2817,106 @@ class _CategoryMetricTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE9EDF2)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(13),
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.outlineVariant),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(Icons.category_rounded, color: color, size: 20),
                 ),
-                child: Icon(Icons.category_rounded, color: color, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        category.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${category.units} unidades · ${category.transactions.length} ventas',
+                        style: TextStyle(
+                          color: colors.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    for (final amount in category.amounts.entries)
+                      Text(
+                        AppCurrency.format(amount.value, code: amount.key),
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     Text(
-                      category.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${category.units} unidades · ${category.transactions.length} ventas',
-                      style: const TextStyle(
-                        color: Color(0xFF778397),
+                      AppCurrency.formatReference(category.usdAmount),
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
                         fontSize: 11,
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  for (final amount in category.amounts.entries)
-                    Text(
-                      AppCurrency.format(amount.value, code: amount.key),
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  Text(
-                    AppCurrency.formatReference(category.usdAmount),
-                    style: const TextStyle(
-                      color: Color(0xFF778397),
-                      fontSize: 11,
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: share,
+                      minHeight: 7,
+                      backgroundColor: colors.surfaceContainerHighest,
+                      color: color,
                     ),
                   ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: share,
-                    minHeight: 7,
-                    backgroundColor: const Color(0xFFF0F2F5),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  '${(share * 100).round()}%',
+                  style: TextStyle(
                     color: color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '${(share * 100).round()}%',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _NoData extends StatelessWidget {

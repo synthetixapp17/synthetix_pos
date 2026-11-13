@@ -32,28 +32,32 @@ class MetricChartCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (legacyDashboardStyle) return _buildLegacyCard();
 
+    final colors = Theme.of(context).colorScheme;
     final positive = badgeIsPositive == true;
     final negative = badgeIsPositive == false;
     final badgeColor = positive
-        ? const Color(0xFF16865B)
+        ? (Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF78D6A1)
+              : const Color(0xFF16865B))
         : negative
-        ? const Color(0xFFD64545)
-        : const Color(0xFF687386);
-    final badgeBackground = positive
-        ? const Color(0xFFE7F6EF)
-        : negative
-        ? const Color(0xFFFCEBEC)
-        : const Color(0xFFF0F2F5);
+        ? colors.error
+        : colors.onSurfaceVariant;
+    final badgeBackground = Color.alphaBlend(
+      badgeColor.withValues(
+        alpha: Theme.of(context).brightness == Brightness.dark ? 0.22 : 0.12,
+      ),
+      colors.surface,
+    );
     final borderRadius = BorderRadius.circular(22);
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surface,
         borderRadius: borderRadius,
-        border: Border.all(color: const Color(0xFFE9EDF2)),
+        border: Border.all(color: colors.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF172B4D).withValues(alpha: 0.06),
+            color: colors.shadow.withValues(alpha: 0.12),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -77,8 +81,8 @@ class MetricChartCard extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF687386),
+                        style: TextStyle(
+                          color: colors.onSurfaceVariant,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -118,7 +122,7 @@ class MetricChartCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: const Color(0xFF151B26),
+                      color: colors.onSurface,
                       fontSize: constraints.maxWidth < 150 ? 21 : 26,
                       fontWeight: FontWeight.w900,
                       letterSpacing: -1,
@@ -139,8 +143,8 @@ class MetricChartCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Ver detalles',
-                        style: const TextStyle(
-                          color: Color(0xFF687386),
+                        style: TextStyle(
+                          color: colors.onSurfaceVariant,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),

@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/app_currency.dart';
 import '../../../../core/utils/app_validators.dart';
 import '../../../../core/utils/barcode_generator.dart';
@@ -283,7 +282,10 @@ class _AddProductPageState extends State<AddProductPage> {
                   ),
                   items: const [
                     DropdownMenuItem(value: 'ud.', child: Text('Unidad (ud.)')),
-                    DropdownMenuItem(value: 'kg', child: Text('Kilogramo (kg)')),
+                    DropdownMenuItem(
+                      value: 'kg',
+                      child: Text('Kilogramo (kg)'),
+                    ),
                     DropdownMenuItem(value: 'g', child: Text('Gramo (g)')),
                   ],
                   onChanged: (value) {
@@ -358,8 +360,8 @@ class _AddProductPageState extends State<AddProductPage> {
                 icon: const Icon(Icons.add_circle_outline),
                 label: const Text('Guardar producto'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: AppTheme.onColor(AppTheme.primaryColor),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),

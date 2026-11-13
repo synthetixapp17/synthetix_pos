@@ -416,6 +416,10 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildCameraOffState() {
     final colors = Theme.of(context).colorScheme;
+    final scannerAccent = _scannerAccent();
+    final onScannerAccent = scannerAccent.computeLuminance() > .179
+        ? Colors.black
+        : Colors.white;
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -445,7 +449,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 12),
           DecoratedBox(
             decoration: BoxDecoration(
-              color: const Color(0xFF5DE1B8).withValues(alpha: .14),
+              color: scannerAccent.withValues(alpha: .14),
               borderRadius: BorderRadius.circular(30),
             ),
             child: Padding(
@@ -453,7 +457,7 @@ class _HomePageState extends State<HomePage> {
               child: Text(
                 'ESCÁNER EN PAUSA',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: const Color(0xFF8DEBD0),
+                  color: scannerAccent,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1,
                 ),
@@ -485,8 +489,8 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 12),
           FilledButton.icon(
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF5DE1B8),
-              foregroundColor: const Color(0xFF10221E),
+              backgroundColor: scannerAccent,
+              foregroundColor: onScannerAccent,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -526,6 +530,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCorner(Alignment alignment) {
+    final scannerAccent = _scannerAccent();
     return Align(
       alignment: alignment,
       child: Container(
@@ -536,27 +541,32 @@ class _HomePageState extends State<HomePage> {
             top:
                 (alignment == Alignment.topLeft ||
                     alignment == Alignment.topRight)
-                ? const BorderSide(color: Color(0xFF5DE1B8), width: 4)
+                ? BorderSide(color: scannerAccent, width: 4)
                 : BorderSide.none,
             bottom:
                 (alignment == Alignment.bottomLeft ||
                     alignment == Alignment.bottomRight)
-                ? const BorderSide(color: Color(0xFF5DE1B8), width: 4)
+                ? BorderSide(color: scannerAccent, width: 4)
                 : BorderSide.none,
             left:
                 (alignment == Alignment.topLeft ||
                     alignment == Alignment.bottomLeft)
-                ? const BorderSide(color: Color(0xFF5DE1B8), width: 4)
+                ? BorderSide(color: scannerAccent, width: 4)
                 : BorderSide.none,
             right:
                 (alignment == Alignment.topRight ||
                     alignment == Alignment.bottomRight)
-                ? const BorderSide(color: Color(0xFF5DE1B8), width: 4)
+                ? BorderSide(color: scannerAccent, width: 4)
                 : BorderSide.none,
           ),
         ),
       ),
     );
+  }
+
+  Color _scannerAccent() {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Color.lerp(primary, Colors.white, .62)!;
   }
 
   Widget _buildBottomPanel({bool desktop = false}) {

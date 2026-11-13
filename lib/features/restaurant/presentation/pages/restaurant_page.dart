@@ -661,7 +661,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
         );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Restaurante'),
         actions: [
@@ -718,10 +718,21 @@ class _RestaurantPageState extends State<RestaurantPage> {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          'Plano de mesas',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Plano de mesas',
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Consulta la disponibilidad y gestiona el salón',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: colors.onSurfaceVariant),
+                            ),
+                          ],
                         ),
                       ),
                       OutlinedButton.icon(
@@ -739,6 +750,13 @@ class _RestaurantPageState extends State<RestaurantPage> {
                       for (final filter in _TableFilter.values)
                         FilterChip(
                           selected: _filter == filter,
+                          backgroundColor: colors.surface,
+                          selectedColor: colors.primaryContainer,
+                          side: BorderSide(
+                            color: _filter == filter
+                                ? colors.primary.withValues(alpha: .25)
+                                : colors.outlineVariant,
+                          ),
                           label: Text(switch (filter) {
                             _TableFilter.all => 'Todas',
                             _TableFilter.available => 'Disponibles',
@@ -861,125 +879,139 @@ class _RestaurantHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [colors.primary, colors.primary.withValues(alpha: .78)],
-        ),
-        borderRadius: BorderRadius.circular(22),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: .7)),
         boxShadow: [
           BoxShadow(
-            color: colors.primary.withValues(alpha: .18),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: .045),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 560;
-          final introduction = Column(
+          final spacing = 10.0;
+          final statWidth = constraints.maxWidth < 520
+              ? (constraints.maxWidth - spacing) / 2
+              : (constraints.maxWidth - spacing * 3) / 4;
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'SERVICIO DE SALÓN',
-                style: TextStyle(
-                  color: colors.onPrimary.withValues(alpha: .72),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.4,
-                ),
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      Icons.table_restaurant_rounded,
+                      color: colors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'SERVICIO DE SALÓN',
+                          style: TextStyle(
+                            color: colors.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Mesas y reservas',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 7),
-              Text(
-                'Mesas y reservas',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: colors.onPrimary,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 8),
               Text(
                 'Organiza el salón, registra pedidos y envía la cuenta a caja.',
-                style: TextStyle(
-                  color: colors.onPrimary.withValues(alpha: .82),
-                  fontSize: 13,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.onSurfaceVariant,
                 ),
               ),
-            ],
-          );
-          final summary = Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _HeaderStat(label: 'MESAS', value: '$tableCount'),
-              _HeaderStat(label: 'EN SERVICIO', value: '$occupiedCount'),
-              _HeaderStat(label: 'RESERVAS HOY', value: '$reservationCount'),
-              _HeaderStat(label: 'PRODUCTOS MENÚ', value: '$menuProductCount'),
-            ],
-          );
-          final actions = Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              FilledButton.icon(
-                onPressed: onCreateTable,
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.onPrimary,
-                  foregroundColor: colors.primary,
-                ),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Configurar mesa'),
-              ),
-              OutlinedButton.icon(
-                onPressed: onCreateReservation,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colors.onPrimary,
-                  side: BorderSide(
-                    color: colors.onPrimary.withValues(alpha: .5),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  SizedBox(
+                    width: statWidth,
+                    child: _HeaderStat(
+                      label: 'Mesas',
+                      value: '$tableCount',
+                      icon: Icons.table_restaurant_outlined,
+                      color: colors.primary,
+                    ),
                   ),
-                ),
-                icon: const Icon(Icons.event_available_rounded),
-                label: const Text('Reservar'),
-              ),
-              OutlinedButton.icon(
-                onPressed: onManageMenu,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colors.onPrimary,
-                  side: BorderSide(
-                    color: colors.onPrimary.withValues(alpha: .5),
+                  SizedBox(
+                    width: statWidth,
+                    child: _HeaderStat(
+                      label: 'En servicio',
+                      value: '$occupiedCount',
+                      icon: Icons.room_service_outlined,
+                      color: const Color(0xFFB54735),
+                    ),
                   ),
-                ),
-                icon: const Icon(Icons.restaurant_menu_rounded),
-                label: const Text('Menú'),
+                  SizedBox(
+                    width: statWidth,
+                    child: _HeaderStat(
+                      label: 'Reservas hoy',
+                      value: '$reservationCount',
+                      icon: Icons.event_available_outlined,
+                      color: const Color(0xFF9A6700),
+                    ),
+                  ),
+                  SizedBox(
+                    width: statWidth,
+                    child: _HeaderStat(
+                      label: 'Productos menú',
+                      value: '$menuProductCount',
+                      icon: Icons.restaurant_menu_outlined,
+                      color: const Color(0xFF7057A3),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          );
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                introduction,
-                const SizedBox(height: 18),
-                summary,
-                const SizedBox(height: 18),
-                actions,
-              ],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(
-                flex: 5,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [introduction, const SizedBox(height: 18), actions],
-                ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  FilledButton.icon(
+                    onPressed: onCreateReservation,
+                    icon: const Icon(Icons.event_available_rounded),
+                    label: const Text('Nueva reserva'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onCreateTable,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Agregar mesa'),
+                  ),
+                  TextButton.icon(
+                    onPressed: onManageMenu,
+                    icon: const Icon(Icons.restaurant_menu_rounded),
+                    label: const Text('Menú'),
+                  ),
+                ],
               ),
-              const SizedBox(width: 24),
-              Expanded(flex: 4, child: summary),
             ],
           );
         },
@@ -991,37 +1023,61 @@ class _RestaurantHeader extends StatelessWidget {
 class _HeaderStat extends StatelessWidget {
   final String label;
   final String value;
+  final IconData icon;
+  final Color color;
 
-  const _HeaderStat({required this.label, required this.value});
+  const _HeaderStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 124,
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
     decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: .13),
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: Colors.white.withValues(alpha: .14)),
+      color: color.withValues(alpha: .07),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: color.withValues(alpha: .12)),
     ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    child: Row(
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 9,
-            fontWeight: FontWeight.w800,
-            letterSpacing: .5,
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(11),
           ),
+          child: Icon(icon, size: 18, color: color),
         ),
-        const SizedBox(height: 5),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 23,
-            fontWeight: FontWeight.w900,
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color.withValues(alpha: .85),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 20,
+                  height: 1.1,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -1064,15 +1120,15 @@ class _DiningTableCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(17),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: statusColor.withValues(alpha: .32)),
+            border: Border.all(color: statusColor.withValues(alpha: .24)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: .035),
+                color: Colors.black.withValues(alpha: .025),
                 blurRadius: 12,
-                offset: const Offset(0, 4),
+                offset: const Offset(0, 5),
               ),
             ],
           ),
@@ -1811,6 +1867,7 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
     final elapsed = _table.openedAt == null
         ? null
         : DateTime.now().difference(_table.openedAt!);
+    final headerForeground = colors.onPrimary;
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
@@ -1829,12 +1886,12 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .14),
+                      color: headerForeground.withValues(alpha: .14),
                       borderRadius: BorderRadius.circular(13),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.table_restaurant_rounded,
-                      color: Colors.white,
+                      color: headerForeground,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1844,8 +1901,8 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
                       children: [
                         Text(
                           _table.name,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: headerForeground,
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1855,8 +1912,8 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
                               ? '${_table.seats} puestos · Sin servicio abierto'
                               : '${_table.seats} puestos · '
                                     '${_durationLabel(elapsed)} en servicio',
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: headerForeground.withValues(alpha: .75),
                             fontSize: 12,
                           ),
                         ),
@@ -1869,13 +1926,13 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
                       Navigator.pop(context);
                       await widget.onEdit();
                     },
-                    color: Colors.white,
+                    color: headerForeground,
                     icon: const Icon(Icons.edit_outlined),
                   ),
                   IconButton(
                     tooltip: 'Cerrar',
                     onPressed: () => Navigator.pop(context),
-                    color: Colors.white,
+                    color: headerForeground,
                     icon: const Icon(Icons.close_rounded),
                   ),
                 ],
@@ -2026,43 +2083,54 @@ class _ReservationSummary extends StatelessWidget {
   const _ReservationSummary({required this.reservation});
 
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(13),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF6E5),
-      borderRadius: BorderRadius.circular(13),
-      border: Border.all(color: const Color(0xFFF0D598)),
-    ),
-    child: Row(
-      children: [
-        const Icon(Icons.event_available_rounded, color: Color(0xFF936200)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Reserva de ${reservation.customerName}',
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              Text(
-                '${DateFormat('HH:mm', 'es').format(reservation.startsAt)} · '
-                '${reservation.guests} personas'
-                '${reservation.phone.isEmpty ? '' : ' · ${reservation.phone}'}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              if (reservation.notes.isNotEmpty)
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const reservationAccent = Color(0xFF936200);
+    final accent = isDark
+        ? Color.lerp(reservationAccent, Colors.white, .45)!
+        : reservationAccent;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(
+          accent.withValues(alpha: isDark ? .16 : .08),
+          colors.surface,
+        ),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: accent.withValues(alpha: isDark ? .45 : .3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.event_available_rounded, color: accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  reservation.notes,
+                  'Reserva de ${reservation.customerName}',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  '${DateFormat('HH:mm', 'es').format(reservation.startsAt)} · '
+                  '${reservation.guests} personas'
+                  '${reservation.phone.isEmpty ? '' : ' · ${reservation.phone}'}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
-            ],
+                if (reservation.notes.isNotEmpty)
+                  Text(
+                    reservation.notes,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+              ],
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _ProductPickerSheet extends StatefulWidget {

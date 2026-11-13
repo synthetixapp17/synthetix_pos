@@ -54,7 +54,7 @@ class _CreditSettingsPageState extends State<CreditSettingsPage> {
     final selected = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => Dialog(
-        backgroundColor: const Color(0xFFF5F7FA),
+        backgroundColor: Theme.of(dialogContext).colorScheme.surface,
         insetPadding: const EdgeInsets.all(20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: ConstrainedBox(
@@ -206,28 +206,19 @@ class _CreditSettingsPageState extends State<CreditSettingsPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final history = CreditRepository.getAll();
-    final colors = theme.colorScheme.copyWith(
-      brightness: Brightness.light,
-      primary: Color(_primaryColor),
-      onPrimary: Colors.white,
-      secondary: Color(_accentColor),
-      surface: Colors.white,
-      onSurface: const Color(0xFF202938),
-      onSurfaceVariant: const Color(0xFF687386),
-      outlineVariant: const Color(0xFFE5EAF0),
-    );
+    final colors = theme.colorScheme;
     return Theme(
       data: theme.copyWith(
         colorScheme: colors,
-        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+        scaffoldBackgroundColor: theme.scaffoldBackgroundColor,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F7FA),
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
           title: const Text('Créditos'),
           centerTitle: true,
-          backgroundColor: const Color(0xFFF5F7FA),
-          foregroundColor: const Color(0xFF202938),
+          backgroundColor: theme.scaffoldBackgroundColor,
+          foregroundColor: colors.onSurface,
           surfaceTintColor: Colors.transparent,
           leading: IconButton(
             tooltip: 'Volver',
@@ -254,12 +245,12 @@ class _CreditSettingsPageState extends State<CreditSettingsPage> {
                             width: 46,
                             height: 46,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE5F4F0),
+                              color: colors.primaryContainer,
                               borderRadius: BorderRadius.circular(14),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.request_quote_outlined,
-                              color: Color(0xFF2E7D6F),
+                              color: colors.primary,
                             ),
                           ),
                           title: const Text(
@@ -402,7 +393,7 @@ class _CreditSettingsPageState extends State<CreditSettingsPage> {
                                     'Ej: El cliente se compromete a pagar la totalidad del crédito en un plazo de 30 días...',
                                 alignLabelWithHint: true,
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: colors.surface,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(14),
                                   borderSide: const BorderSide(
@@ -494,19 +485,19 @@ class _CreditSettingsPageState extends State<CreditSettingsPage> {
                       child: FilledButton.icon(
                         onPressed: _saving ? null : _save,
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF2E7D6F),
-                          foregroundColor: Colors.white,
+                          backgroundColor: colors.primary,
+                          foregroundColor: colors.onPrimary,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
                         icon: _saving
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.white,
+                                  color: colors.onPrimary,
                                 ),
                               )
                             : const Icon(Icons.save_outlined),
@@ -535,22 +526,25 @@ class _SettingsCard extends StatelessWidget {
   const _SettingsCard({required this.child});
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFE5EAF0)),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: .035),
-          blurRadius: 16,
-          offset: const Offset(0, 5),
-        ),
-      ],
-    ),
-    child: child,
-  );
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            color: colors.shadow.withValues(alpha: .08),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
 }
 
 class _SectionHeading extends StatelessWidget {
@@ -570,7 +564,10 @@ class _SectionHeading extends StatelessWidget {
       const SizedBox(height: 4),
       Text(
         subtitle,
-        style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 12),
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontSize: 12,
+        ),
       ),
     ],
   );
@@ -976,6 +973,7 @@ class _CreditColorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final hex =
         '#${(color & 0x00FFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
     return Material(
@@ -987,9 +985,9 @@ class _CreditColorCard extends StatelessWidget {
           width: width,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: colors.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE7EBF0)),
+            border: Border.all(color: colors.outlineVariant),
           ),
           child: Column(
             children: [
@@ -1018,7 +1016,10 @@ class _CreditColorCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         title,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: colors.onSurface,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     const Icon(Icons.edit_outlined, size: 18),
@@ -1147,31 +1148,40 @@ class _CreditAccentWarning extends StatelessWidget {
   const _CreditAccentWarning({required this.onDarken});
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF8E1),
-      border: Border.all(color: const Color(0xFFEADCA8)),
-      borderRadius: BorderRadius.circular(13),
-    ),
-    child: Row(
-      children: [
-        const Icon(
-          Icons.info_outline_rounded,
-          size: 20,
-          color: Color(0xFF795548),
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF3A2D12) : const Color(0xFFFFF8E1),
+        border: Border.all(
+          color: isDark ? const Color(0xFF6D5521) : const Color(0xFFEADCA8),
         ),
-        const SizedBox(width: 10),
-        const Expanded(
-          child: Text(
-            'El acento es muy claro: los precios se leen mal sobre blanco. En el PDF se oscurece solo para el texto.',
-            style: TextStyle(fontSize: 12, color: Color(0xFF5D5140)),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 20,
+            color: isDark ? const Color(0xFFFFE0A1) : const Color(0xFF795548),
           ),
-        ),
-        TextButton(onPressed: onDarken, child: const Text('Oscurecer')),
-      ],
-    ),
-  );
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'El acento es muy claro: los precios se leen mal sobre blanco. En el PDF se oscurece solo para el texto.',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? colors.onSurface : const Color(0xFF5D5140),
+              ),
+            ),
+          ),
+          TextButton(onPressed: onDarken, child: const Text('Oscurecer')),
+        ],
+      ),
+    );
+  }
 }
 
 class _CreditColorCombination extends StatelessWidget {

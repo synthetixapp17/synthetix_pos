@@ -159,9 +159,10 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
   @override
   Widget build(BuildContext context) {
     AppCurrencyScope.of(context);
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F8F6),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleSpacing: 20,
@@ -171,24 +172,16 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF16885A), Color(0xFF0B6742)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: colors.primaryContainer,
                 borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF138A55).withValues(alpha: .18),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
-              child: const Icon(Icons.scale_rounded, color: Colors.white),
+              child: Icon(
+                Icons.scale_rounded,
+                color: colors.onPrimaryContainer,
+              ),
             ),
             const SizedBox(width: 12),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -199,7 +192,7 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                   'Venta por peso · Entrada manual',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF73817A),
+                    color: colors.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -326,7 +319,7 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
               : () => context.push('/checkout'),
         ),
       ),
-      backgroundColor: const Color(0xFFF4F7F9),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
     );
   }
 
@@ -371,7 +364,7 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                     icon: const Icon(Icons.close_rounded),
                   ),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: colors.surface,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide.none,
@@ -422,7 +415,7 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
     return vertical
         ? Container(
             padding: const EdgeInsets.all(18),
-            decoration: _cardDecoration(),
+            decoration: _cardDecoration(context),
             child: content,
           )
         : content;
@@ -447,7 +440,7 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
         _quantityFor(product) <= product.availableStock + 0.000001;
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -475,8 +468,8 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                     const SizedBox(height: 5),
                     Text(
                       '${AppCurrency.format(product.salePrice, code: product.currencyCode)} / ${product.saleUnitLabel}',
-                      style: const TextStyle(
-                        color: Color(0xFF138A55),
+                      style: TextStyle(
+                        color: _weightAccent(context),
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -499,16 +492,12 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF14251F), Color(0xFF0B1512)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: colors.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFF284437)),
+              border: Border.all(color: colors.outlineVariant),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF10251B).withValues(alpha: .16),
+                  color: Colors.black.withValues(alpha: .08),
                   blurRadius: 20,
                   offset: const Offset(0, 9),
                 ),
@@ -521,16 +510,16 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                     Container(
                       width: 9,
                       height: 9,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF4BE29A),
+                      decoration: BoxDecoration(
+                        color: _weightAccent(context),
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'ENTRADA MANUAL ACTIVA',
                       style: TextStyle(
-                        color: Color(0xFFD8E6DE),
+                        color: colors.onSurfaceVariant,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1,
                         fontSize: 11,
@@ -543,7 +532,7 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                           : 'Mostrar teclado táctil',
                       onPressed: () =>
                           setState(() => _showKeypad = !_showKeypad),
-                      color: Colors.white,
+                      color: colors.onSurface,
                       icon: Icon(
                         _showKeypad
                             ? Icons.keyboard_hide_rounded
@@ -553,10 +542,10 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   'PESO DEL PRODUCTO',
                   style: TextStyle(
-                    color: Color(0xFF92A79B),
+                    color: colors.onSurfaceVariant,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.3,
@@ -573,8 +562,8 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                         fit: BoxFit.scaleDown,
                         child: Text(
                           _weightInput,
-                          style: const TextStyle(
-                            color: Color(0xFF70E5A7),
+                          style: TextStyle(
+                            color: colors.primary,
                             fontSize: 68,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -2,
@@ -586,8 +575,8 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                     const SizedBox(width: 9),
                     Text(
                       inputUnit,
-                      style: const TextStyle(
-                        color: Color(0xFFB4C5BB),
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
                         fontSize: 21,
                         fontWeight: FontWeight.w700,
                       ),
@@ -611,11 +600,11 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                   onSelectionChanged: (selection) =>
                       _changeInputUnit(selection.first),
                   style: SegmentedButton.styleFrom(
-                  foregroundColor: const Color(0xFFD2DED7),
-                  selectedForegroundColor: const Color(0xFF10251B),
-                  selectedBackgroundColor: const Color(0xFF70E5A7),
-                  side: const BorderSide(color: Color(0xFF344A3F)),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                    foregroundColor: colors.onSurface,
+                    selectedForegroundColor: colors.onPrimary,
+                    selectedBackgroundColor: colors.primary,
+                    side: BorderSide(color: colors.outlineVariant),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -654,9 +643,9 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF3F7F5),
+              color: colors.surfaceContainerLow,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE1ECE6)),
+              border: Border.all(color: colors.outlineVariant),
             ),
             child: Row(
               children: [
@@ -686,7 +675,7 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                     Text(
                       AppCurrency.format(price, code: product.currencyCode),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: const Color(0xFF138A55),
+                        color: _weightAccent(context),
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -709,7 +698,7 @@ class _DigitalScalePageState extends State<DigitalScalePage> {
                 : null,
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
-              backgroundColor: const Color(0xFF138A55),
+              backgroundColor: colors.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15),
               ),
@@ -741,7 +730,7 @@ class _ProductChoice extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Material(
-      color: selected ? const Color(0xFFECF8F1) : Colors.white,
+      color: selected ? colors.primaryContainer : colors.surface,
       borderRadius: BorderRadius.circular(15),
       child: InkWell(
         onTap: onTap,
@@ -751,7 +740,7 @@ class _ProductChoice extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(15),
             border: Border.all(
-              color: selected ? const Color(0xFF138A55) : colors.outlineVariant,
+              color: selected ? colors.primary : colors.outlineVariant,
               width: selected ? 1.6 : 1,
             ),
           ),
@@ -780,8 +769,8 @@ class _ProductChoice extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       '${AppCurrency.format(product.salePrice, code: product.currencyCode)} / ${product.saleUnitLabel}',
-                      style: const TextStyle(
-                        color: Color(0xFF138A55),
+                      style: TextStyle(
+                        color: _weightAccent(context),
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
@@ -789,8 +778,7 @@ class _ProductChoice extends StatelessWidget {
                   ],
                 ),
               ),
-              if (selected)
-                const Icon(Icons.check_circle, color: Color(0xFF138A55)),
+              if (selected) Icon(Icons.check_circle, color: colors.primary),
             ],
           ),
         ),
@@ -808,18 +796,18 @@ class _ProductImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageData = product.imageData;
-    if (imageData == null) return _placeholder();
+    if (imageData == null) return _placeholder(context);
     late final Uint8List imageBytes;
     try {
       imageBytes = base64Decode(imageData);
     } on FormatException {
-      return _placeholder();
+      return _placeholder(context);
     }
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF2EE),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(13),
       ),
       child: ClipRRect(
@@ -827,22 +815,27 @@ class _ProductImage extends StatelessWidget {
         child: Image.memory(
           imageBytes,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) =>
-              const Icon(Icons.inventory_2_outlined, color: Color(0xFF138A55)),
+          errorBuilder: (_, _, _) => Icon(
+            Icons.inventory_2_outlined,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );
   }
 
-  Widget _placeholder() => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      color: const Color(0xFFEAF2EE),
-      borderRadius: BorderRadius.circular(13),
-    ),
-    child: const Icon(Icons.inventory_2_outlined, color: Color(0xFF138A55)),
-  );
+  Widget _placeholder(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Icon(Icons.inventory_2_outlined, color: colors.onSurfaceVariant),
+    );
+  }
 }
 
 class _StockBadge extends StatelessWidget {
@@ -852,26 +845,33 @@ class _StockBadge extends StatelessWidget {
   const _StockBadge({required this.stock, required this.unit});
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF1F4F5),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        const Text(
-          'DISPONIBLE',
-          style: TextStyle(fontSize: 9, letterSpacing: .6),
-        ),
-        Text(
-          '${_formatWeightAmount(stock)} $unit',
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-        ),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            'DISPONIBLE',
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 9,
+              letterSpacing: .6,
+            ),
+          ),
+          Text(
+            '${_formatWeightAmount(stock)} $unit',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _QuickWeightButton extends StatelessWidget {
@@ -887,9 +887,10 @@ class _QuickWeightButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final style = OutlinedButton.styleFrom(
-      foregroundColor: const Color(0xFF344750),
-      side: const BorderSide(color: Color(0xFFDCE4E7)),
+      foregroundColor: colors.onSurface,
+      side: BorderSide(color: colors.outlineVariant),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
@@ -938,21 +939,24 @@ class _KeyButton extends StatelessWidget {
   const _KeyButton({this.label, this.icon, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => OutlinedButton(
-    onPressed: onTap,
-    style: OutlinedButton.styleFrom(
-      backgroundColor: Colors.white,
-      foregroundColor: const Color(0xFF17242C),
-      side: const BorderSide(color: Color(0xFFE0E7EA)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
-    ),
-    child: icon == null
-        ? Text(
-            label!,
-            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
-          )
-        : Icon(icon),
-  );
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        backgroundColor: colors.surface,
+        foregroundColor: colors.onSurface,
+        side: BorderSide(color: colors.outlineVariant),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+      ),
+      child: icon == null
+          ? Text(
+              label!,
+              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+            )
+          : Icon(icon),
+    );
+  }
 }
 
 class _SaleSummary extends StatelessWidget {
@@ -963,6 +967,7 @@ class _SaleSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final currencyCode = AppCurrencyScope.of(context);
     final rate = AppCurrency.rateFor(currencyCode);
     return SafeArea(
@@ -970,8 +975,8 @@ class _SaleSummary extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+          color: colors.surface,
+          border: Border(top: BorderSide(color: colors.outlineVariant)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: .05),
@@ -982,16 +987,19 @@ class _SaleSummary extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.shopping_bag_outlined, color: Color(0xFF138A55)),
+            Icon(Icons.shopping_bag_outlined, color: colors.primary),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'Total de la venta',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF687880)),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
                   Text(
                     '${AppCurrency.format(totalUsd, code: AppCurrency.baseCode)}'
@@ -1004,7 +1012,7 @@ class _SaleSummary extends StatelessWidget {
             FilledButton(
               onPressed: onCheckout,
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF138A55),
+                backgroundColor: colors.primary,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 18,
                   vertical: 14,
@@ -1025,66 +1033,76 @@ class _EmptyScale extends StatelessWidget {
   const _EmptyScale({required this.onAddProduct});
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(28),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 430),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 76,
-              height: 76,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE7F7EF),
-                borderRadius: BorderRadius.circular(24),
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  color: colors.primaryContainer,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(
+                  Icons.scale_rounded,
+                  size: 38,
+                  color: colors.onPrimaryContainer,
+                ),
               ),
-              child: const Icon(
-                Icons.scale_rounded,
-                size: 38,
-                color: Color(0xFF138A55),
+              const SizedBox(height: 18),
+              Text(
+                'Todavía no hay artículos por peso',
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
               ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'Todavía no hay artículos por peso',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Crea o edita un producto y configura su unidad de venta como kg o g. '
-              'También puedes asignar esas unidades a las variaciones.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: onAddProduct,
-              icon: const Icon(Icons.add),
-              label: const Text('Ir a productos'),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'Crea o edita un producto y configura su unidad de venta como kg o g. '
+                'También puedes asignar esas unidades a las variaciones.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: onAddProduct,
+                icon: const Icon(Icons.add),
+                label: const Text('Ir a productos'),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
+    );
+  }
+}
+
+BoxDecoration _cardDecoration(BuildContext context) {
+  final colors = Theme.of(context).colorScheme;
+  return BoxDecoration(
+    color: colors.surface,
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: colors.outlineVariant),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: .035),
+        blurRadius: 18,
+        offset: const Offset(0, 6),
+      ),
+    ],
   );
 }
 
-BoxDecoration _cardDecoration() => BoxDecoration(
-  color: Colors.white,
-  borderRadius: BorderRadius.circular(20),
-  border: Border.all(color: const Color(0xFFE6ECEE)),
-  boxShadow: [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: .035),
-      blurRadius: 18,
-      offset: const Offset(0, 6),
-    ),
-  ],
-);
+Color _weightAccent(BuildContext context) {
+  return Theme.of(context).colorScheme.primary;
+}
 
 String _formatWeightAmount(double value) => value == value.roundToDouble()
     ? value.toStringAsFixed(0)

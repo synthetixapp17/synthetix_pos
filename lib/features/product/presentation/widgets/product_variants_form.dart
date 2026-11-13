@@ -211,82 +211,84 @@ class ProductVariantsFormState extends State<ProductVariantsForm> {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
-    elevation: 0,
-    color: const Color(0xFFF8FAFC),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
-      side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEAF1FC),
-                  borderRadius: BorderRadius.circular(12),
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
+      color: colors.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: colors.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.tune_rounded, color: colors.primary),
                 ),
-                child: const Icon(Icons.tune_rounded, color: Color(0xFF2768D7)),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Variantes del producto',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Variantes del producto',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Combina color, talla, peso y más. Cada combinación conserva su precio y stock.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      const SizedBox(height: 3),
+                      Text(
+                        'Combina color, talla, peso y más. Cada combinación conserva su precio y stock.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            for (var index = 0; index < _rows.length; index++)
+              _buildVariantCard(context, index),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-          for (var index = 0; index < _rows.length; index++)
-            _buildVariantCard(context, index),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ],
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _addVariant,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Agregar combinación'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(13),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _addVariant,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Agregar combinación'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(13),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _buildVariantCard(BuildContext context, int index) {
     final row = _rows[index];
@@ -295,7 +297,7 @@ class ProductVariantsFormState extends State<ProductVariantsForm> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.outlineVariant),
       ),
@@ -309,13 +311,13 @@ class ProductVariantsFormState extends State<ProductVariantsForm> {
                 height: 28,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F4FA),
+                  color: colors.primaryContainer,
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: Text(
                   '${index + 1}',
-                  style: const TextStyle(
-                    color: Color(0xFF2768D7),
+                  style: TextStyle(
+                    color: colors.primary,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
@@ -368,10 +370,10 @@ class ProductVariantsFormState extends State<ProductVariantsForm> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.add_circle_outline_rounded,
                       size: 18,
-                      color: Color(0xFF2768D7),
+                      color: colors.primary,
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -402,47 +404,46 @@ class ProductVariantsFormState extends State<ProductVariantsForm> {
                 icon: Icons.inventory_2_outlined,
               ),
               LayoutBuilder(
-                builder: (context, constraints) =>
-                    SizedBox(
-                      width: constraints.maxWidth < 280
-                          ? constraints.maxWidth
-                          : 280,
-                      child: DropdownButtonFormField<String>(
-                  initialValue: row.unitLabel.trim().isEmpty
-                      ? 'ud.'
-                      : row.unitLabel,
-                  decoration: const InputDecoration(
-                    labelText: 'Unidad',
-                    prefixIcon: Icon(Icons.straighten_rounded, size: 19),
-                    isDense: true,
-                  ),
-                  items: [
-                    if (!_unitOptions.contains(row.unitLabel))
-                      DropdownMenuItem(
-                        value: row.unitLabel,
-                        child: Text(
-                          row.unitLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    for (final unit in _unitOptions)
-                      DropdownMenuItem(
-                        value: unit,
-                        child: Text(
-                          unit,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => row.unitLabel = value);
-                    }
-                  },
-                      ),
+                builder: (context, constraints) => SizedBox(
+                  width: constraints.maxWidth < 280
+                      ? constraints.maxWidth
+                      : 280,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: row.unitLabel.trim().isEmpty
+                        ? 'ud.'
+                        : row.unitLabel,
+                    decoration: const InputDecoration(
+                      labelText: 'Unidad',
+                      prefixIcon: Icon(Icons.straighten_rounded, size: 19),
+                      isDense: true,
                     ),
+                    items: [
+                      if (!_unitOptions.contains(row.unitLabel))
+                        DropdownMenuItem(
+                          value: row.unitLabel,
+                          child: Text(
+                            row.unitLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      for (final unit in _unitOptions)
+                        DropdownMenuItem(
+                          value: unit,
+                          child: Text(
+                            unit,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => row.unitLabel = value);
+                      }
+                    },
+                  ),
+                ),
               ),
             ],
           ),

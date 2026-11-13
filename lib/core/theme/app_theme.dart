@@ -7,6 +7,21 @@ class AppTheme {
   static Color get primaryColor => AppThemeController.primaryColor.value;
   static Color onColor(Color color) =>
       color.computeLuminance() > 0.179 ? Colors.black : Colors.white;
+  static Color _darkPrimaryColor(Color color) {
+    if (color.computeLuminance() >= 0.35) return color;
+    var lower = 0.0;
+    var upper = 1.0;
+    for (var index = 0; index < 12; index++) {
+      final midpoint = (lower + upper) / 2;
+      final candidate = Color.lerp(color, Colors.white, midpoint)!;
+      if (candidate.computeLuminance() < 0.35) {
+        lower = midpoint;
+      } else {
+        upper = midpoint;
+      }
+    }
+    return Color.lerp(color, Colors.white, upper)!;
+  }
 
   static const Color secondaryColor = Color(0xFF737373);
   static const Color backgroundColor = Color(0xFFF2F2F7);
@@ -159,11 +174,12 @@ class AppTheme {
   }
 
   static ThemeData get darkTheme {
-    final foregroundColor = onColor(primaryColor);
+    final darkPrimary = _darkPrimaryColor(primaryColor);
+    final foregroundColor = onColor(darkPrimary);
     final scheme = ColorScheme.fromSeed(
-      seedColor: Colors.white,
+      seedColor: primaryColor,
       brightness: Brightness.dark,
-      primary: primaryColor,
+      primary: darkPrimary,
       onPrimary: foregroundColor,
       secondary: const Color(0xFFBDBDBD),
       surface: const Color(0xFF171717),
@@ -173,7 +189,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: scheme,
-      primaryColor: primaryColor,
+      primaryColor: darkPrimary,
       scaffoldBackgroundColor: const Color(0xFF101010),
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: Color(0xFF1C1C1C),
@@ -201,12 +217,12 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: primaryColor, width: 1.5),
+          borderSide: BorderSide(color: darkPrimary, width: 1.5),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: primaryColor,
+          backgroundColor: darkPrimary,
           foregroundColor: foregroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -216,7 +232,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
+          backgroundColor: darkPrimary,
           foregroundColor: foregroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -225,7 +241,7 @@ class AppTheme {
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: primaryColor,
+        backgroundColor: darkPrimary,
         foregroundColor: foregroundColor,
       ),
       switchTheme: SwitchThemeData(
@@ -234,28 +250,28 @@ class AppTheme {
           return null;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return primaryColor;
+          if (states.contains(WidgetState.selected)) return darkPrimary;
           return null;
         }),
       ),
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return primaryColor;
+          if (states.contains(WidgetState.selected)) return darkPrimary;
           return null;
         }),
         checkColor: WidgetStatePropertyAll(foregroundColor),
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return primaryColor;
+          if (states.contains(WidgetState.selected)) return darkPrimary;
           return null;
         }),
       ),
       chipTheme: ChipThemeData(
-        selectedColor: primaryColor.withValues(alpha: .2),
+        selectedColor: darkPrimary.withValues(alpha: .2),
         checkmarkColor: foregroundColor,
       ),
-      progressIndicatorTheme: ProgressIndicatorThemeData(color: primaryColor),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: darkPrimary),
     );
   }
 }

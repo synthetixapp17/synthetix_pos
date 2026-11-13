@@ -219,7 +219,7 @@ class _ProductBarcodesPageState extends State<ProductBarcodesPage> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: colors.surface,
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.surface,
         centerTitle: false,
@@ -603,7 +603,7 @@ class _BarcodeProductCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8F9FA),
+                color: colors.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: BarcodeWidget(
@@ -612,7 +612,7 @@ class _BarcodeProductCard extends StatelessWidget {
                 width: double.infinity,
                 height: 68,
                 drawText: false,
-                backgroundColor: const Color(0xFFF8F9FA),
+                backgroundColor: Colors.white,
                 errorBuilder: (context, error) => SizedBox(
                   height: 68,
                   child: Center(

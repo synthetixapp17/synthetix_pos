@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/data/hive_database.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/app_currency.dart';
 import '../../domain/entities/product.dart';
 import '../bloc/product_bloc.dart';
@@ -641,7 +640,11 @@ class _ProductListPageState extends State<ProductListPage> {
           SizedBox(
             width: 24,
             child: _productSort == sort
-                ? Icon(Icons.check, size: 18, color: AppTheme.primaryColor)
+                ? Icon(
+                    Icons.check,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.primary,
+                  )
                 : null,
           ),
           Text(label),
