@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/utils/app_currency.dart';
@@ -715,17 +718,27 @@ class _MenuProductCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 68,
+                  height: 68,
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     color: colors.primaryContainer,
                     borderRadius: BorderRadius.circular(15),
                   ),
-                  child: Icon(
-                    Icons.restaurant_rounded,
-                    color: colors.primary,
-                    size: 23,
-                  ),
+                  child: product.imageData == null || product.imageData!.isEmpty
+                      ? Icon(
+                          Icons.restaurant_rounded,
+                          color: colors.primary,
+                          size: 25,
+                        )
+                      : Image.memory(
+                          base64Decode(product.imageData!),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.broken_image_outlined,
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1054,6 +1067,7 @@ class _MenuProductEditorDialogState extends State<_MenuProductEditorDialog> {
   late String _categoryId;
   late String _currencyCode;
   late final List<CurrencyConfig> _currencies;
+  String? _imageData;
 
   @override
   void initState() {
@@ -1074,6 +1088,25 @@ class _MenuProductEditorDialogState extends State<_MenuProductEditorDialog> {
             )
             ? AppCurrency.baseCode
             : AppCurrency.configuredCurrencies.first.code);
+    _imageData = widget.product?.imageData;
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final image = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 82,
+        maxWidth: 1400,
+      );
+      if (image == null || !mounted) return;
+      final bytes = await image.readAsBytes();
+      if (mounted) setState(() => _imageData = base64Encode(bytes));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo cargar la imagen: $error')),
+      );
+    }
   }
 
   @override
@@ -1099,6 +1132,14 @@ class _MenuProductEditorDialogState extends State<_MenuProductEditorDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                _MenuProductImagePicker(
+                  imageData: _imageData,
+                  onPick: _pickImage,
+                  onRemove: _imageData == null
+                      ? null
+                      : () => setState(() => _imageData = null),
+                ),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _nameController,
                   autofocus: true,
@@ -1237,10 +1278,93 @@ class _MenuProductEditorDialogState extends State<_MenuProductEditorDialog> {
                 price: price,
                 currencyCode: _currencyCode,
                 isAvailable: widget.product?.isAvailable ?? true,
+                imageData: _imageData,
               ),
             );
           },
           child: const Text('Guardar producto'),
+        ),
+      ],
+    );
+  }
+}
+
+class _MenuProductImagePicker extends StatelessWidget {
+  final String? imageData;
+  final VoidCallback onPick;
+  final VoidCallback? onRemove;
+
+  const _MenuProductImagePicker({
+    required this.imageData,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final image = imageData;
+    return Row(
+      children: [
+        Container(
+          width: 76,
+          height: 76,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: colors.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: image == null || image.isEmpty
+              ? Icon(
+                  Icons.restaurant_rounded,
+                  color: colors.onSurfaceVariant,
+                  size: 28,
+                )
+              : Image.memory(
+                  base64Decode(image),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Icon(
+                    Icons.broken_image_outlined,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                image == null ? 'Foto del producto' : 'Imagen seleccionada',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'Añade una foto para mostrarla en el menú.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Wrap(
+                spacing: 8,
+                children: [
+                  TextButton.icon(
+                    onPressed: onPick,
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                    label: Text(image == null ? 'Elegir imagen' : 'Cambiar'),
+                  ),
+                  if (onRemove != null)
+                    TextButton(
+                      onPressed: onRemove,
+                      child: const Text('Quitar'),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     );

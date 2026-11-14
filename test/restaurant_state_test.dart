@@ -83,6 +83,7 @@ void main() {
           price: 3.5,
           currencyCode: 'USD',
           isAvailable: false,
+          imageData: 'aW1hZ2U=',
         ),
       ],
     );
@@ -93,6 +94,16 @@ void main() {
     expect(decoded.products.single.name, 'Limonada');
     expect(decoded.products.single.price, 3.5);
     expect(decoded.products.single.isAvailable, isFalse);
+    expect(decoded.products.single.imageData, 'aW1hZ2U=');
+
+    final legacyProduct = RestaurantMenuProduct.fromMap({
+      'id': 'coffee',
+      'categoryId': 'drinks',
+      'name': 'Café',
+      'price': 2.5,
+      'currencyCode': 'USD',
+    });
+    expect(legacyProduct.imageData, isNull);
   });
 
   test('new restaurant menu order lines do not track POS inventory', () {

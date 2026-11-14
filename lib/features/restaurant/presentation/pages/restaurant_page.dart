@@ -594,6 +594,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
       currencyCode: item.currencyCode,
       category: category?.name ?? 'Menú',
       inventoryTracked: false,
+      imageData: item.imageData,
     );
   }
 
@@ -878,15 +879,33 @@ class _RestaurantHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: colors.surface,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.alphaBlend(
+              colors.primary.withValues(alpha: isDark ? .22 : .09),
+              isDark ? const Color(0xFF171717) : colors.surface,
+            ),
+            isDark ? colors.surface : colors.surface,
+          ],
+        ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: .7)),
+        border: Border.all(
+          color: isDark
+              ? colors.outlineVariant.withValues(alpha: .3)
+              : colors.outlineVariant.withValues(alpha: .7),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: .045),
+            color: isDark
+                ? Colors.black.withValues(alpha: .28)
+                : Colors.black.withValues(alpha: .045),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -907,7 +926,9 @@ class _RestaurantHeader extends StatelessWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: colors.primaryContainer,
+                      color: isDark
+                          ? colors.primary.withValues(alpha: .18)
+                          : colors.primaryContainer,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(
@@ -1034,55 +1055,73 @@ class _HeaderStat extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: .07),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: color.withValues(alpha: .12)),
-    ),
-    child: Row(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: .12),
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: Icon(icon, size: 18, color: color),
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final background = isDark
+        ? Color.alphaBlend(
+            color.withValues(alpha: .18),
+            Theme.of(context).colorScheme.surfaceContainerHighest,
+          )
+        : color.withValues(alpha: .07);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark
+              ? color.withValues(alpha: .18)
+              : color.withValues(alpha: .12),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: color.withValues(alpha: .85),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 20,
-                  height: 1.1,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: isDark
+                  ? color.withValues(alpha: .18)
+                  : color.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, size: 18, color: color),
           ),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isDark
+                        ? Colors.white70
+                        : color.withValues(alpha: .85),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 20,
+                    height: 1.1,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _DiningTableCard extends StatelessWidget {
@@ -1113,8 +1152,10 @@ class _DiningTableCard extends StatelessWidget {
         : table.order.first.currencyCode;
     final total = table.order.fold<double>(0, (sum, line) => sum + line.total);
     final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Material(
-      color: colors.surface,
+      color: isDark ? colors.surfaceContainerLow : colors.surface,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -1122,11 +1163,14 @@ class _DiningTableCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(17),
           decoration: BoxDecoration(
+            color: isDark ? colors.surfaceContainerLow : colors.surface,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: statusColor.withValues(alpha: .24)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: .025),
+                color: isDark
+                    ? Colors.black.withValues(alpha: .22)
+                    : Colors.black.withValues(alpha: .025),
                 blurRadius: 12,
                 offset: const Offset(0, 5),
               ),
@@ -1141,7 +1185,7 @@ class _DiningTableCard extends StatelessWidget {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: .1),
+                      color: statusColor.withValues(alpha: isDark ? .18 : .1),
                       borderRadius: BorderRadius.circular(13),
                     ),
                     child: Icon(
@@ -1210,7 +1254,7 @@ class _DiningTableCard extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: .1),
+                  color: statusColor.withValues(alpha: isDark ? .18 : .1),
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: Row(

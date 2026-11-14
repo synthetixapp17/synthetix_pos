@@ -69,6 +69,7 @@ class RestaurantMenuProduct {
   final double price;
   final String currencyCode;
   final bool isAvailable;
+  final String? imageData;
 
   const RestaurantMenuProduct({
     required this.id,
@@ -78,6 +79,7 @@ class RestaurantMenuProduct {
     required this.price,
     required this.currencyCode,
     this.isAvailable = true,
+    this.imageData,
   });
 
   RestaurantMenuProduct copyWith({
@@ -87,6 +89,7 @@ class RestaurantMenuProduct {
     double? price,
     String? currencyCode,
     bool? isAvailable,
+    String? imageData,
   }) => RestaurantMenuProduct(
     id: id,
     categoryId: categoryId ?? this.categoryId,
@@ -95,6 +98,7 @@ class RestaurantMenuProduct {
     price: price ?? this.price,
     currencyCode: currencyCode ?? this.currencyCode,
     isAvailable: isAvailable ?? this.isAvailable,
+    imageData: imageData ?? this.imageData,
   );
 
   Map<String, Object> toMap() => {
@@ -105,6 +109,7 @@ class RestaurantMenuProduct {
     'price': price,
     'currencyCode': currencyCode,
     'isAvailable': isAvailable,
+    'imageData': ?imageData,
   };
 
   factory RestaurantMenuProduct.fromMap(Map map) {
@@ -115,6 +120,7 @@ class RestaurantMenuProduct {
     final price = map['price'];
     final currencyCode = map['currencyCode'] ?? 'USD';
     final isAvailable = map['isAvailable'] ?? true;
+    final imageData = map['imageData'];
     if (id is! String ||
         id.isEmpty ||
         categoryId is! String ||
@@ -127,7 +133,8 @@ class RestaurantMenuProduct {
         price < 0 ||
         currencyCode is! String ||
         currencyCode.isEmpty ||
-        isAvailable is! bool) {
+        isAvailable is! bool ||
+        (imageData != null && imageData is! String)) {
       throw const FormatException('Un producto del menú no es válido.');
     }
     return RestaurantMenuProduct(
@@ -138,6 +145,7 @@ class RestaurantMenuProduct {
       price: price.toDouble(),
       currencyCode: currencyCode,
       isAvailable: isAvailable,
+      imageData: imageData is String ? imageData : null,
     );
   }
 }
