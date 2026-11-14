@@ -71,4 +71,23 @@ void main() {
 
     expect(repository.save(menu), throwsFormatException);
   });
+
+  test('rejects invalid image data in a restored menu', () {
+    final repository = RestaurantMenuRepository();
+    const menu = RestaurantMenuState(
+      categories: [RestaurantMenuCategory(id: 'food', name: 'Comida')],
+      products: [
+        RestaurantMenuProduct(
+          id: 'soup',
+          categoryId: 'food',
+          name: 'Sopa',
+          price: 2,
+          currencyCode: 'USD',
+          imageData: 'not-base64',
+        ),
+      ],
+    );
+
+    expect(() => repository.validate(menu), throwsFormatException);
+  });
 }

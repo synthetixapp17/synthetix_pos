@@ -32,6 +32,7 @@ class DiningTable {
   final int seats;
   final DateTime? openedAt;
   final List<TableOrderLine> order;
+  final List<TableOrderLine> sentKitchenOrder;
 
   const DiningTable({
     required this.id,
@@ -39,6 +40,7 @@ class DiningTable {
     required this.seats,
     this.openedAt,
     this.order = const [],
+    this.sentKitchenOrder = const [],
   });
 
   bool get isOpen => openedAt != null;
@@ -49,12 +51,16 @@ class DiningTable {
     DateTime? openedAt,
     bool clearSession = false,
     List<TableOrderLine>? order,
+    List<TableOrderLine>? sentKitchenOrder,
   }) => DiningTable(
     id: id,
     name: name ?? this.name,
     seats: seats ?? this.seats,
     openedAt: clearSession ? null : openedAt ?? this.openedAt,
     order: clearSession ? const [] : order ?? this.order,
+    sentKitchenOrder: clearSession
+        ? const []
+        : sentKitchenOrder ?? this.sentKitchenOrder,
   );
 
   Map<String, Object?> toMap() => {
@@ -63,6 +69,7 @@ class DiningTable {
     'seats': seats,
     'openedAt': openedAt?.toIso8601String(),
     'order': order.map((line) => line.toMap()).toList(),
+    'sentKitchenOrder': sentKitchenOrder.map((line) => line.toMap()).toList(),
   };
 
   factory DiningTable.fromMap(Map map) {
@@ -70,6 +77,7 @@ class DiningTable {
     final name = map['name'];
     final seats = map['seats'];
     final rawOrder = map['order'] ?? const [];
+    final rawSentKitchenOrder = map['sentKitchenOrder'] ?? const [];
     final openedAt = map['openedAt'] == null
         ? null
         : DateTime.tryParse(map['openedAt'].toString());
@@ -80,6 +88,7 @@ class DiningTable {
         seats is! int ||
         seats < 1 ||
         rawOrder is! List ||
+        rawSentKitchenOrder is! List ||
         (map['openedAt'] != null && openedAt == null)) {
       throw const FormatException('Una mesa guardada no es válida.');
     }
@@ -89,6 +98,9 @@ class DiningTable {
       seats: seats,
       openedAt: openedAt,
       order: rawOrder
+          .map((item) => TableOrderLine.fromMap(item as Map))
+          .toList(),
+      sentKitchenOrder: rawSentKitchenOrder
           .map((item) => TableOrderLine.fromMap(item as Map))
           .toList(),
     );

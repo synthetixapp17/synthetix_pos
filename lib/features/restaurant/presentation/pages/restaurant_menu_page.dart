@@ -1,11 +1,14 @@
 import 'dart:convert';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/utils/app_currency.dart';
 import '../../../../core/data/models/app_settings.dart';
+import '../../data/restaurant_menu_backup.dart';
 import '../../data/restaurant_menu_repository.dart';
 import '../../domain/entities/restaurant_menu.dart';
 
@@ -24,6 +27,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
   String _query = '';
   String? _error;
   bool _loading = true;
+  bool _processingFile = false;
 
   @override
   void initState() {
@@ -190,6 +194,117 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
     );
   }
 
+  Future<void> _exportMenu() async {
+    if (_processingFile) return;
+    setState(() => _processingFile = true);
+    try {
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+      await SharePlus.instance.share(
+        ShareParams(
+          title: 'Copia del menú del restaurante',
+          text: 'Categorías, productos, disponibilidad e imágenes del menú.',
+          files: [
+            XFile.fromData(
+              RestaurantMenuBackup().encode(_menu),
+              mimeType: 'application/json',
+            ),
+          ],
+          fileNameOverrides: ['menu_restaurante_$timestamp.json'],
+          downloadFallbackEnabled: true,
+        ),
+      );
+    } catch (error) {
+      _message('No se pudo exportar el menú: $error');
+    } finally {
+      if (mounted) setState(() => _processingFile = false);
+    }
+  }
+
+  Future<void> _restoreMenu() async {
+    if (_processingFile) return;
+    setState(() => _processingFile = true);
+    try {
+      final file = await FilePicker.pickFile(
+        dialogTitle: 'Seleccionar copia del menú del restaurante',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (file == null || !mounted) return;
+      if (file.extension?.toLowerCase() != 'json') {
+        throw const FormatException('Selecciona un archivo JSON del menú.');
+      }
+
+      final restored = RestaurantMenuBackup().decode(await file.readAsBytes());
+      _repository.validate(restored);
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Reemplazar menú actual'),
+          content: Text(
+            'Se reemplazarán las ${_menu.categories.length} categorías y '
+            '${_menu.products.length} productos actuales por los datos de '
+            '"${file.name}": ${restored.categories.length} categorías y '
+            '${restored.products.length} productos. Las imágenes incluidas '
+            'en la copia también se restaurarán.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Restaurar menú'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      if (await _save(restored)) {
+        setState(() => _selectedCategoryId = null);
+        _message('Menú restaurado correctamente.');
+      }
+    } catch (error) {
+      _message('No se pudo restaurar el menú: $error');
+    } finally {
+      if (mounted) setState(() => _processingFile = false);
+    }
+  }
+
+  Future<void> _deleteAllMenu() async {
+    if (_menu.categories.isEmpty && _menu.products.isEmpty) {
+      _message('El menú ya está vacío.');
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.delete_forever_outlined),
+        title: const Text('Borrar todo el menú'),
+        content: const Text(
+          'Se eliminarán todas las categorías y productos del menú del '
+          'restaurante. Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Borrar todo'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    if (await _save(const RestaurantMenuState())) {
+      setState(() => _selectedCategoryId = null);
+      _message('Se borraron todas las categorías y productos del menú.');
+    }
+  }
+
   String _categoryName(String id) {
     for (final category in _menu.categories) {
       if (category.id == id) return category.name;
@@ -229,14 +344,52 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
         actions: [
           IconButton(
             tooltip: 'Actualizar menú',
-            onPressed: _loading ? null : _load,
+            onPressed: _loading || _processingFile ? null : _load,
             icon: const Icon(Icons.refresh_rounded),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Copias y datos del menú',
+            enabled: !_loading && !_processingFile,
+            onSelected: (action) {
+              switch (action) {
+                case 'export':
+                  _exportMenu();
+                case 'restore':
+                  _restoreMenu();
+                case 'delete':
+                  _deleteAllMenu();
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'export',
+                child: ListTile(
+                  leading: Icon(Icons.download_outlined),
+                  title: Text('Exportar menú a archivo'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'restore',
+                child: ListTile(
+                  leading: Icon(Icons.upload_file_outlined),
+                  title: Text('Restaurar desde archivo'),
+                ),
+              ),
+              PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'delete',
+                child: ListTile(
+                  leading: Icon(Icons.delete_forever_outlined),
+                  title: Text('Borrar todo el menú'),
+                ),
+              ),
+            ],
           ),
           const SizedBox(width: 8),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _loading ? null : () => _editProduct(),
+        onPressed: _loading || _processingFile ? null : () => _editProduct(),
         icon: const Icon(Icons.add_rounded),
         label: const Text('Nuevo producto'),
       ),

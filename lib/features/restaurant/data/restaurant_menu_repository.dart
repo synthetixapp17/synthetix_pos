@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../../../core/data/hive_database.dart';
 import '../domain/entities/restaurant_menu.dart';
 
@@ -13,7 +15,7 @@ class RestaurantMenuRepository {
     return RestaurantMenuState.fromMap(stored);
   }
 
-  Future<void> save(RestaurantMenuState state) async {
+  void validate(RestaurantMenuState state) {
     final categoryIds = <String>{};
     final categoryNames = <String>{};
     for (final category in state.categories) {
@@ -41,7 +43,20 @@ class RestaurantMenuRepository {
           'Revisa los nombres, precios y categorías de los productos.',
         );
       }
+      if (product.imageData != null) {
+        try {
+          base64Decode(product.imageData!);
+        } on FormatException {
+          throw const FormatException(
+            'Una imagen del menú no tiene un formato válido.',
+          );
+        }
+      }
     }
+  }
+
+  Future<void> save(RestaurantMenuState state) async {
+    validate(state);
     await HiveDatabase.settingsBox.put(storageKey, state.toMap());
   }
 }

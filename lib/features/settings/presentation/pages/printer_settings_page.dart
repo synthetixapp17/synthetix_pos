@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
+import '../../../../core/data/hive_database.dart';
 import '../../../../core/utils/receipt_preferences.dart';
 import '../../../shop/presentation/bloc/shop_bloc.dart';
 import '../bloc/printer_bloc.dart';
@@ -18,12 +19,91 @@ class PrinterSettingsPage extends StatefulWidget {
 
 class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
   late int _paperWidth;
+  String? _kitchenPrinterMac;
+  String? _kitchenPrinterName;
 
   @override
   void initState() {
     super.initState();
     _paperWidth = ReceiptPreferences.paperWidth;
+    _kitchenPrinterMac = HiveDatabase.settingsBox.get('kitchen_printer_mac');
+    _kitchenPrinterName = HiveDatabase.settingsBox.get('kitchen_printer_name');
     context.read<PrinterBloc>().add(RefreshPrinterEvent());
+  }
+
+  Future<void> _setKitchenPrinter(BluetoothInfo device) async {
+    try {
+      if (HiveDatabase.settingsBox.get('printer_mac') == device.macAdress) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Selecciona una impresora distinta a la impresora de caja.',
+            ),
+          ),
+        );
+        return;
+      }
+      await HiveDatabase.settingsBox.put(
+        'kitchen_printer_mac',
+        device.macAdress,
+      );
+      await HiveDatabase.settingsBox.put('kitchen_printer_name', device.name);
+      if (!mounted) return;
+      setState(() {
+        _kitchenPrinterMac = device.macAdress;
+        _kitchenPrinterName = device.name;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${device.name.isEmpty ? 'Impresora térmica' : device.name} '
+            'configurada para comandas.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo guardar la impresora de cocina: $error'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _clearKitchenPrinter() async {
+    try {
+      await HiveDatabase.settingsBox.delete('kitchen_printer_mac');
+      await HiveDatabase.settingsBox.delete('kitchen_printer_name');
+      if (!mounted) return;
+      setState(() {
+        _kitchenPrinterMac = null;
+        _kitchenPrinterName = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo quitar la impresora de cocina: $error'),
+        ),
+      );
+    }
+  }
+
+  void _connectCashierPrinter(BluetoothInfo device) {
+    if (device.macAdress == _kitchenPrinterMac) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'La impresora de cocina no se puede usar también para caja.',
+          ),
+        ),
+      );
+      return;
+    }
+    context.read<PrinterBloc>().add(
+      ConnectPrinterEvent(mac: device.macAdress, name: device.name),
+    );
   }
 
   Future<void> _savePaperWidth(int width) async {
@@ -32,14 +112,14 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
       if (!mounted) return;
       setState(() => _paperWidth = width);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Tamaño del ticket guardado: $width mm.'),
-        ),
+        SnackBar(content: Text('Tamaño del ticket guardado: $width mm.')),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo guardar el tamaño del ticket: $error')),
+        SnackBar(
+          content: Text('No se pudo guardar el tamaño del ticket: $error'),
+        ),
       );
     }
   }
@@ -70,7 +150,8 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
             },
             builder: (context, state) {
               final connected = state.status == PrinterStatus.connected;
-              final busy = state.status == PrinterStatus.scanning ||
+              final busy =
+                  state.status == PrinterStatus.scanning ||
                   state.status == PrinterStatus.connecting ||
                   state.status == PrinterStatus.testPrinting;
               return ListView(
@@ -118,6 +199,34 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 26),
+                  const _PrinterSectionHeading(
+                    title: 'Impresora de cocina',
+                    subtitle:
+                        'Elige una impresora Bluetooth vinculada distinta a la de caja. Se usará para las comandas.',
+                  ),
+                  Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.soup_kitchen_outlined),
+                      ),
+                      title: Text(
+                        _kitchenPrinterName ?? 'Sin configurar',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        _kitchenPrinterMac ??
+                            'Selecciona una impresora de la lista para cocina.',
+                      ),
+                      trailing: _kitchenPrinterMac == null
+                          ? null
+                          : IconButton(
+                              tooltip: 'Quitar impresora de cocina',
+                              onPressed: _clearKitchenPrinter,
+                              icon: const Icon(Icons.close_rounded),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 26),
@@ -181,23 +290,28 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                             ),
                           )
                         else
-                          for (var index = 0;
-                              index < state.devices.length;
-                              index++) ...[
+                          for (
+                            var index = 0;
+                            index < state.devices.length;
+                            index++
+                          ) ...[
                             _PrinterDeviceTile(
                               device: state.devices[index],
-                              connected: state.connectedMac ==
+                              connected:
+                                  state.connectedMac ==
                                   state.devices[index].macAdress,
-                              disabled: busy ||
+                              kitchenPrinter:
+                                  _kitchenPrinterMac ==
+                                  state.devices[index].macAdress,
+                              disabled:
+                                  busy ||
                                   (connected &&
                                       state.connectedMac !=
                                           state.devices[index].macAdress),
-                              onConnect: () => context.read<PrinterBloc>().add(
-                                ConnectPrinterEvent(
-                                  mac: state.devices[index].macAdress,
-                                  name: state.devices[index].name,
-                                ),
-                              ),
+                              onConnect: () =>
+                                  _connectCashierPrinter(state.devices[index]),
+                              onSetKitchen: () =>
+                                  _setKitchenPrinter(state.devices[index]),
                             ),
                             if (index < state.devices.length - 1)
                               const Divider(height: 1, indent: 72),
@@ -294,11 +408,7 @@ class _PrinterIntroCard extends StatelessWidget {
               color: colors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(
-              Icons.print_rounded,
-              color: colors.primary,
-              size: 28,
-            ),
+            child: Icon(Icons.print_rounded, color: colors.primary, size: 28),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -370,23 +480,27 @@ class _PrinterDeviceTile extends StatelessWidget {
   const _PrinterDeviceTile({
     required this.device,
     required this.connected,
+    required this.kitchenPrinter,
     required this.disabled,
     required this.onConnect,
+    required this.onSetKitchen,
   });
 
   final BluetoothInfo device;
   final bool connected;
+  final bool kitchenPrinter;
   final bool disabled;
   final VoidCallback onConnect;
+  final VoidCallback onSetKitchen;
 
   @override
   Widget build(BuildContext context) => ListTile(
     minVerticalPadding: 14,
     contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
     leading: CircleAvatar(
-      backgroundColor: Theme.of(context).colorScheme.primary.withValues(
-        alpha: 0.1,
-      ),
+      backgroundColor: Theme.of(
+        context,
+      ).colorScheme.primary.withValues(alpha: 0.1),
       child: Icon(
         connected ? Icons.print_rounded : Icons.bluetooth_rounded,
         color: Theme.of(context).colorScheme.primary,
@@ -397,14 +511,33 @@ class _PrinterDeviceTile extends StatelessWidget {
       style: const TextStyle(fontWeight: FontWeight.w600),
     ),
     subtitle: Text(device.macAdress),
-    trailing: connected
-        ? const Chip(
+    trailing: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (connected)
+          const Chip(
             avatar: Icon(Icons.check_rounded, size: 16),
             label: Text('Conectada'),
+            visualDensity: VisualDensity.compact,
           )
-        : OutlinedButton(
+        else
+          OutlinedButton(
             onPressed: disabled ? null : onConnect,
-            child: const Text('Conectar'),
+            child: const Text('Conectar caja'),
           ),
+        if (kitchenPrinter)
+          const Chip(
+            avatar: Icon(Icons.soup_kitchen_outlined, size: 16),
+            label: Text('Cocina'),
+            visualDensity: VisualDensity.compact,
+          )
+        else
+          TextButton(
+            onPressed: onSetKitchen,
+            child: const Text('Usar en cocina'),
+          ),
+      ],
+    ),
   );
 }

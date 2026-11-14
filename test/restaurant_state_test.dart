@@ -22,6 +22,16 @@ void main() {
               unitPrice: 12.5,
             ),
           ],
+          sentKitchenOrder: [
+            TableOrderLine(
+              productId: 'product-1',
+              variantId: 'variant-1',
+              name: 'Hamburguesa · Doble',
+              currencyCode: 'USD',
+              quantity: 1,
+              unitPrice: 12.5,
+            ),
+          ],
         ),
       ],
       reservations: [
@@ -43,6 +53,7 @@ void main() {
     expect(decoded.tables.single.isOpen, isTrue);
     expect(decoded.tables.single.order.single.total, 25);
     expect(decoded.tables.single.order.single.variantId, 'variant-1');
+    expect(decoded.tables.single.sentKitchenOrder.single.quantity, 1);
     expect(decoded.reservations.single.customerName, 'Ana Pérez');
     expect(decoded.reservations.single.startsAt, startsAt);
     expect(decoded.reservations.single.isActive, isTrue);
@@ -131,5 +142,38 @@ void main() {
       }).inventoryTracked,
       isTrue,
     );
+  });
+
+  test('clearing a table session also clears its kitchen send history', () {
+    const table = DiningTable(
+      id: 'table-1',
+      name: 'Mesa 1',
+      seats: 4,
+      order: [
+        TableOrderLine(
+          productId: 'product-1',
+          variantId: null,
+          name: 'Café',
+          currencyCode: 'USD',
+          quantity: 1,
+          unitPrice: 2.5,
+        ),
+      ],
+      sentKitchenOrder: [
+        TableOrderLine(
+          productId: 'product-1',
+          variantId: null,
+          name: 'Café',
+          currencyCode: 'USD',
+          quantity: 1,
+          unitPrice: 2.5,
+        ),
+      ],
+    );
+
+    final cleared = table.copyWith(clearSession: true);
+
+    expect(cleared.order, isEmpty);
+    expect(cleared.sentKitchenOrder, isEmpty);
   });
 }

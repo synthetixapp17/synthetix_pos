@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/data/hive_database.dart';
+import '../../../../core/utils/printer_helper.dart';
 import '../../../../core/utils/app_currency.dart';
 import '../../../billing/domain/entities/cart_item.dart';
 import '../../../billing/presentation/bloc/billing_bloc.dart';
@@ -14,6 +16,7 @@ import '../../../product/domain/entities/product.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../data/restaurant_repository.dart';
 import '../../data/restaurant_menu_repository.dart';
+import '../../data/restaurant_kitchen_ticket.dart';
 import '../../domain/entities/restaurant_menu.dart';
 import '../../domain/entities/restaurant_state.dart';
 
@@ -307,6 +310,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
         onAddProduct: (product) => _addProductToTable(table, product),
         onUpdateQuantity: (lineIndex, quantity) =>
             _updateOrderQuantity(table, lineIndex, quantity),
+        onKitchenCommand: () => _sendKitchenCommand(table),
         onClear: () => _clearTable(table),
         onCheckout: () => _checkoutTable(table),
         onEdit: () => _editTable(table),
@@ -418,6 +422,102 @@ class _RestaurantPageState extends State<RestaurantPage> {
     return _save(
       RestaurantState(tables: tables, reservations: _data.reservations),
     );
+  }
+
+  Future<bool> _sendKitchenCommand(DiningTable table) async {
+    final latest = _data.tables.firstWhere(
+      (item) => item.id == table.id,
+      orElse: () => table,
+    );
+    final kitchenMac = HiveDatabase.settingsBox.get('kitchen_printer_mac');
+    final kitchenName = HiveDatabase.settingsBox.get('kitchen_printer_name');
+    if (kitchenMac is! String || kitchenMac.isEmpty) {
+      _showMessage(
+        'Configura una impresora de cocina en Ajustes > Impresora térmica.',
+      );
+      return false;
+    }
+
+    final ticketBuilder = RestaurantKitchenTicket();
+    final changes = ticketBuilder.changesFor(latest);
+    if (changes.isEmpty) {
+      _showMessage('No hay productos nuevos ni cambios para enviar a cocina.');
+      return false;
+    }
+
+    final cashierMac = HiveDatabase.settingsBox.get('printer_mac');
+    if (cashierMac == kitchenMac) {
+      _showMessage(
+        'La impresora de cocina debe ser distinta de la impresora de caja.',
+      );
+      return false;
+    }
+
+    final ticket = ticketBuilder.format(table: latest, changes: changes);
+    final printer = PrinterHelper();
+    String? printError;
+    String? restoreError;
+    try {
+      if (!await printer.disconnect()) {
+        throw const PrinterException(
+          'No se pudo desconectar la impresora activa.',
+        );
+      }
+      if (!await printer.connect(kitchenMac)) {
+        throw PrinterException(
+          'No se pudo conectar con ${kitchenName ?? 'la impresora de cocina'}.',
+        );
+      }
+      await printer.printText(ticket);
+    } catch (error) {
+      printError = error.toString();
+    }
+
+    try {
+      if (!await printer.disconnect()) {
+        throw const PrinterException(
+          'No se pudo desconectar la impresora de cocina.',
+        );
+      }
+      if (cashierMac is String && cashierMac.isNotEmpty) {
+        if (!await printer.connect(cashierMac)) {
+          throw const PrinterException(
+            'No se pudo reconectar la impresora de caja.',
+          );
+        }
+      }
+    } catch (error) {
+      restoreError = error.toString();
+    }
+
+    if (printError != null) {
+      _showMessage(
+        'No se pudo enviar la comanda: $printError'
+        '${restoreError == null ? '' : ' $restoreError'}',
+      );
+      return false;
+    }
+
+    final saved = await _replaceTable(
+      latest.copyWith(sentKitchenOrder: List.of(latest.order)),
+    );
+    if (!saved) {
+      _showMessage(
+        'La comanda se imprimió, pero no se pudo guardar su estado de envío. '
+        'Evita reenviarla hasta revisar el pedido.',
+      );
+      return false;
+    }
+    _showMessage(
+      'Comanda de ${latest.name} enviada a '
+      '${kitchenName is String && kitchenName.isNotEmpty ? kitchenName : 'cocina'}.',
+    );
+    if (restoreError != null) {
+      _showMessage(
+        'La comanda se imprimió, pero $restoreError Revisa la impresora de caja.',
+      );
+    }
+    return true;
   }
 
   Future<void> _clearTable(DiningTable table) async {
@@ -1778,6 +1878,7 @@ class _DiningTableDialog extends StatefulWidget {
   final Future<bool> Function() onStart;
   final Future<bool> Function(Product) onAddProduct;
   final Future<bool> Function(int, double) onUpdateQuantity;
+  final Future<bool> Function() onKitchenCommand;
   final Future<void> Function() onClear;
   final Future<void> Function() onCheckout;
   final Future<void> Function() onEdit;
@@ -1789,6 +1890,7 @@ class _DiningTableDialog extends StatefulWidget {
     required this.onStart,
     required this.onAddProduct,
     required this.onUpdateQuantity,
+    required this.onKitchenCommand,
     required this.onClear,
     required this.onCheckout,
     required this.onEdit,
@@ -1899,6 +2001,19 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
     if (_table.order.isEmpty) return;
     Navigator.pop(context);
     await widget.onCheckout();
+  }
+
+  Future<void> _sendToKitchen() async {
+    if (_table.order.isEmpty || _working) return;
+    setState(() => _working = true);
+    final sent = await widget.onKitchenCommand();
+    if (!mounted) return;
+    setState(() {
+      if (sent) {
+        _table = _table.copyWith(sentKitchenOrder: List.of(_table.order));
+      }
+      _working = false;
+    });
   }
 
   @override
@@ -2081,32 +2196,52 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
                       ),
                     ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 18),
-              child: Row(
-                children: [
-                  if (_table.isOpen)
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: widget.onClear,
-                        icon: const Icon(Icons.logout_rounded),
-                        label: const Text('Liberar'),
-                      ),
+            if (_table.isOpen)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _working ? null : widget.onClear,
+                          icon: const Icon(Icons.logout_rounded),
+                          label: const Text('Liberar'),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _table.order.isEmpty || _working
+                                ? null
+                                : _sendToKitchen,
+                            icon: _working
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.soup_kitchen_outlined),
+                            label: Text(
+                              _working ? 'Enviando…' : 'Enviar comanda',
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  if (_table.isOpen) const SizedBox(width: 10),
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton.icon(
-                      onPressed: !_table.isOpen || _table.order.isEmpty
+                    const SizedBox(height: 8),
+                    FilledButton.icon(
+                      onPressed: _table.order.isEmpty || _working
                           ? null
                           : _checkout,
                       icon: const Icon(Icons.point_of_sale_rounded),
-                      label: const Text('Enviar a caja'),
+                      label: const Text('Cerrar mesa y enviar a caja'),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
