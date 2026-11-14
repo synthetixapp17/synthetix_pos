@@ -223,7 +223,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
         .length;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Menú del restaurante'),
         actions: [
@@ -433,52 +433,93 @@ class _MenuHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [colors.primary, colors.primary.withValues(alpha: .78)],
+          colors: [
+            Color.alphaBlend(
+              colors.primary.withValues(alpha: isDark ? .22 : .09),
+              isDark ? const Color(0xFF171717) : colors.surface,
+            ),
+            isDark ? colors.surface : colors.surface,
+          ],
         ),
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark
+              ? colors.outlineVariant.withValues(alpha: .3)
+              : colors.outlineVariant.withValues(alpha: .7),
+        ),
         boxShadow: [
           BoxShadow(
-            color: colors.primary.withValues(alpha: .17),
-            blurRadius: 22,
-            offset: const Offset(0, 9),
+            color: isDark
+                ? Colors.black.withValues(alpha: .28)
+                : Colors.black.withValues(alpha: .045),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 680;
+          final summaryMaxWidth = compact
+              ? constraints.maxWidth
+              : (constraints.maxWidth - 22) * 5 / 11;
+          final statWidth = summaryWidth(summaryMaxWidth);
           final introduction = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'CARTA Y OFERTA GASTRONÓMICA',
-                style: TextStyle(
-                  color: colors.onPrimary.withValues(alpha: .72),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.3,
-                ),
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? colors.primary.withValues(alpha: .18)
+                          : colors.primaryContainer,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      Icons.restaurant_menu_rounded,
+                      color: colors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'CARTA Y OFERTA GASTRONÓMICA',
+                          style: TextStyle(
+                            color: colors.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Diseña tu menú',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               Text(
-                'Diseña tu menú',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: colors.onPrimary,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
                 'Organiza categorías, define precios y controla qué platos están disponibles.',
-                style: TextStyle(
-                  color: colors.onPrimary.withValues(alpha: .82),
-                  fontSize: 13,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 18),
@@ -488,21 +529,11 @@ class _MenuHero extends StatelessWidget {
                 children: [
                   FilledButton.icon(
                     onPressed: onCreateProduct,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colors.onPrimary,
-                      foregroundColor: colors.primary,
-                    ),
                     icon: const Icon(Icons.add_rounded),
                     label: const Text('Crear producto'),
                   ),
                   OutlinedButton.icon(
                     onPressed: onCreateCategory,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colors.onPrimary,
-                      side: BorderSide(
-                        color: colors.onPrimary.withValues(alpha: .5),
-                      ),
-                    ),
                     icon: const Icon(Icons.category_outlined),
                     label: const Text('Nueva categoría'),
                   ),
@@ -514,9 +545,33 @@ class _MenuHero extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _MenuStat(label: 'PRODUCTOS', value: '$productCount'),
-              _MenuStat(label: 'CATEGORÍAS', value: '$categoryCount'),
-              _MenuStat(label: 'DISPONIBLES', value: '$availableCount'),
+              for (final stat in [
+                (
+                  label: 'Productos',
+                  value: '$productCount',
+                  icon: Icons.restaurant_menu_outlined,
+                  color: colors.primary,
+                ),
+                (
+                  label: 'Categorías',
+                  value: '$categoryCount',
+                  icon: Icons.category_outlined,
+                  color: const Color(0xFF7057A3),
+                ),
+                (
+                  label: 'Disponibles',
+                  value: '$availableCount',
+                  icon: Icons.check_circle_outline_rounded,
+                  color: const Color(0xFF17815D),
+                ),
+              ])
+                _MenuStat(
+                  width: statWidth,
+                  label: stat.label,
+                  value: stat.value,
+                  icon: stat.icon,
+                  color: stat.color,
+                ),
             ],
           );
           if (compact) {
@@ -536,44 +591,91 @@ class _MenuHero extends StatelessWidget {
       ),
     );
   }
+
+  double summaryWidth(double maxWidth) {
+    const spacing = 10.0;
+    return maxWidth < 520
+        ? (maxWidth - spacing) / 2
+        : (maxWidth - spacing * 2) / 3;
+  }
 }
 
 class _MenuStat extends StatelessWidget {
+  final double width;
   final String label;
   final String value;
+  final IconData icon;
+  final Color color;
 
-  const _MenuStat({required this.label, required this.value});
+  const _MenuStat({
+    required this.width,
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final onPrimary = Theme.of(context).colorScheme.onPrimary;
+    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final background = isDark
+        ? Color.alphaBlend(
+            color.withValues(alpha: .18),
+            colors.surfaceContainerHighest,
+          )
+        : color.withValues(alpha: .07);
     return Container(
-      width: 122,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
       decoration: BoxDecoration(
-        color: onPrimary.withValues(alpha: .13),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: onPrimary.withValues(alpha: .14)),
+        color: background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark
+              ? color.withValues(alpha: .18)
+              : color.withValues(alpha: .12),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: onPrimary.withValues(alpha: .72),
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              letterSpacing: .5,
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: isDark ? .18 : .12),
+              borderRadius: BorderRadius.circular(11),
             ),
+            child: Icon(icon, size: 18, color: color),
           ),
-          const SizedBox(height: 5),
-          Text(
-            value,
-            style: TextStyle(
-              color: onPrimary,
-              fontSize: 21,
-              fontWeight: FontWeight.w900,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isDark
+                        ? Colors.white70
+                        : color.withValues(alpha: .85),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 20,
+                    height: 1.1,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1343,9 +1445,9 @@ class _MenuProductImagePicker extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 'Añade una foto para mostrarla en el menú.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
               ),
               const SizedBox(height: 5),
               Wrap(
