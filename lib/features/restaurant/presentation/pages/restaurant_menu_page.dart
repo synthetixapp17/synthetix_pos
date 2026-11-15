@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
@@ -426,6 +427,8 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
                     availableCount: availableCount,
                     onCreateProduct: () => _editProduct(),
                     onCreateCategory: () => _editCategory(),
+                    onConfigureKitchenPrinter: () =>
+                        context.push('/settings/printer'),
                   ),
                   const SizedBox(height: 22),
                   Row(
@@ -574,6 +577,7 @@ class _MenuHero extends StatelessWidget {
   final int availableCount;
   final VoidCallback onCreateProduct;
   final VoidCallback onCreateCategory;
+  final VoidCallback onConfigureKitchenPrinter;
 
   const _MenuHero({
     required this.productCount,
@@ -581,6 +585,7 @@ class _MenuHero extends StatelessWidget {
     required this.availableCount,
     required this.onCreateProduct,
     required this.onCreateCategory,
+    required this.onConfigureKitchenPrinter,
   });
 
   @override
@@ -689,6 +694,11 @@ class _MenuHero extends StatelessWidget {
                     onPressed: onCreateCategory,
                     icon: const Icon(Icons.category_outlined),
                     label: const Text('Nueva categoría'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onConfigureKitchenPrinter,
+                    icon: const Icon(Icons.soup_kitchen_outlined),
+                    label: const Text('Configurar impresora de comandas'),
                   ),
                 ],
               ),
