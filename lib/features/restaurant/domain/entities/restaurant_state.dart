@@ -115,6 +115,7 @@ class TableOrderLine {
   final double quantity;
   final double unitPrice;
   final String category;
+  final String? imageData;
   final bool inventoryTracked;
 
   const TableOrderLine({
@@ -125,6 +126,7 @@ class TableOrderLine {
     required this.quantity,
     required this.unitPrice,
     this.category = '',
+    this.imageData,
     this.inventoryTracked = true,
   });
 
@@ -138,6 +140,7 @@ class TableOrderLine {
     'quantity': quantity,
     'unitPrice': unitPrice,
     'category': category,
+    'imageData': imageData,
     'inventoryTracked': inventoryTracked,
   };
 
@@ -149,6 +152,7 @@ class TableOrderLine {
     final quantity = map['quantity'];
     final unitPrice = map['unitPrice'];
     final category = map['category'] ?? '';
+    final imageData = map['imageData'];
     final inventoryTracked = map['inventoryTracked'] ?? true;
     if (productId is! String ||
         productId.isEmpty ||
@@ -162,6 +166,7 @@ class TableOrderLine {
         !unitPrice.toDouble().isFinite ||
         unitPrice < 0 ||
         category is! String ||
+        (imageData != null && imageData is! String) ||
         inventoryTracked is! bool) {
       throw const FormatException('Un producto de un pedido no es válido.');
     }
@@ -173,6 +178,7 @@ class TableOrderLine {
       quantity: quantity.toDouble(),
       unitPrice: unitPrice.toDouble(),
       category: category,
+      imageData: imageData as String?,
       inventoryTracked: inventoryTracked,
     );
   }

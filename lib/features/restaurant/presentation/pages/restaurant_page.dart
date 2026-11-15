@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -307,7 +309,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
             RestaurantState(tables: tables, reservations: reservations),
           );
         },
-        onAddProduct: (product) => _addProductToTable(table, product),
+        onAddProducts: (products) => _addProductsToTable(table, products),
         onUpdateQuantity: (lineIndex, quantity) =>
             _updateOrderQuantity(table, lineIndex, quantity),
         onKitchenCommand: () => _sendKitchenCommand(table),
@@ -318,7 +320,11 @@ class _RestaurantPageState extends State<RestaurantPage> {
     );
   }
 
-  Future<bool> _addProductToTable(DiningTable table, Product product) async {
+  Future<bool> _addProductsToTable(
+    DiningTable table,
+    List<Product> products,
+  ) async {
+    if (products.isEmpty) return false;
     final latest = _data.tables.firstWhere(
       (item) => item.id == table.id,
       orElse: () => table,
@@ -326,39 +332,47 @@ class _RestaurantPageState extends State<RestaurantPage> {
     final existingCurrency = latest.order.isEmpty
         ? null
         : latest.order.first.currencyCode;
-    if (existingCurrency != null && existingCurrency != product.currencyCode) {
-      _showMessage(
-        'No se pueden mezclar monedas distintas en el pedido de una mesa.',
-      );
-      return false;
-    }
-    final index = latest.order.indexWhere(
-      (line) =>
-          line.productId == product.id &&
-          line.variantId == product.selectedVariantId,
-    );
-    final quantity = (index < 0 ? 0.0 : latest.order[index].quantity) + 1;
-    if (product.inventoryTracked && quantity > product.availableStock) {
-      _showMessage('No hay existencias suficientes de "${product.name}".');
-      return false;
-    }
     final lines = [...latest.order];
-    final line = TableOrderLine(
-      productId: product.id,
-      variantId: product.selectedVariantId,
-      name: product.variationLabel.isEmpty
-          ? product.name
-          : '${product.name} · ${product.variationLabel}',
-      currencyCode: product.currencyCode,
-      quantity: quantity,
-      unitPrice: product.price,
-      category: product.category,
-      inventoryTracked: product.inventoryTracked,
-    );
-    if (index < 0) {
-      lines.add(line);
-    } else {
-      lines[index] = line;
+
+    for (final product in products) {
+      if ((existingCurrency != null &&
+              existingCurrency != product.currencyCode) ||
+          (lines.isNotEmpty &&
+              lines.first.currencyCode != product.currencyCode)) {
+        _showMessage(
+          'No se pueden mezclar monedas distintas en el pedido de una mesa.',
+        );
+        return false;
+      }
+
+      final index = lines.indexWhere(
+        (line) =>
+            line.productId == product.id &&
+            line.variantId == product.selectedVariantId,
+      );
+      final quantity = (index < 0 ? 0.0 : lines[index].quantity) + 1;
+      if (product.inventoryTracked && quantity > product.availableStock) {
+        _showMessage('No hay existencias suficientes de "${product.name}".');
+        return false;
+      }
+      final line = TableOrderLine(
+        productId: product.id,
+        variantId: product.selectedVariantId,
+        name: product.variationLabel.isEmpty
+            ? product.name
+            : '${product.name} · ${product.variationLabel}',
+        currencyCode: product.currencyCode,
+        quantity: quantity,
+        unitPrice: product.price,
+        category: product.category,
+        imageData: product.imageData,
+        inventoryTracked: product.inventoryTracked,
+      );
+      if (index < 0) {
+        lines.add(line);
+      } else {
+        lines[index] = line;
+      }
     }
     return _replaceTable(latest.copyWith(order: lines));
   }
@@ -394,6 +408,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
         quantity: quantity,
         unitPrice: line.unitPrice,
         category: line.category,
+        imageData: line.imageData,
         inventoryTracked: line.inventoryTracked,
       );
     }
@@ -1876,7 +1891,7 @@ class _DiningTableDialog extends StatefulWidget {
   final TableReservation? reservation;
   final List<Product> products;
   final Future<bool> Function() onStart;
-  final Future<bool> Function(Product) onAddProduct;
+  final Future<bool> Function(List<Product>) onAddProducts;
   final Future<bool> Function(int, double) onUpdateQuantity;
   final Future<bool> Function() onKitchenCommand;
   final Future<void> Function() onClear;
@@ -1888,7 +1903,7 @@ class _DiningTableDialog extends StatefulWidget {
     required this.reservation,
     required this.products,
     required this.onStart,
-    required this.onAddProduct,
+    required this.onAddProducts,
     required this.onUpdateQuantity,
     required this.onKitchenCommand,
     required this.onClear,
@@ -1924,42 +1939,51 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
   }
 
   Future<void> _addItem() async {
-    final product = await showModalBottomSheet<Product>(
+    final products = await showModalBottomSheet<List<Product>>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (context) => _ProductPickerSheet(products: widget.products),
+      builder: (context) => _ProductPickerSheet(
+        products: widget.products,
+        existingQuantities: {
+          for (final line in _table.order)
+            (line.productId, line.variantId): line.quantity,
+        },
+      ),
     );
-    if (product == null || !mounted) return;
+    if (products == null || products.isEmpty || !mounted) return;
     setState(() => _working = true);
-    final saved = await widget.onAddProduct(product);
+    final saved = await widget.onAddProducts(products);
     if (mounted) {
       setState(() {
         if (saved) {
-          final index = _table.order.indexWhere(
-            (line) =>
-                line.productId == product.id &&
-                line.variantId == product.selectedVariantId,
-          );
           final lines = [..._table.order];
-          final line = TableOrderLine(
-            productId: product.id,
-            variantId: product.selectedVariantId,
-            name: product.variationLabel.isEmpty
-                ? product.name
-                : '${product.name} · ${product.variationLabel}',
-            currencyCode: product.currencyCode,
-            quantity: index < 0 ? 1 : lines[index].quantity + 1,
-            unitPrice: product.price,
-            category: product.category,
-            inventoryTracked: product.inventoryTracked,
-          );
-          if (index < 0) {
-            lines.add(line);
-          } else {
-            lines[index] = line;
+          for (final product in products) {
+            final index = lines.indexWhere(
+              (line) =>
+                  line.productId == product.id &&
+                  line.variantId == product.selectedVariantId,
+            );
+            final line = TableOrderLine(
+              productId: product.id,
+              variantId: product.selectedVariantId,
+              name: product.variationLabel.isEmpty
+                  ? product.name
+                  : '${product.name} · ${product.variationLabel}',
+              currencyCode: product.currencyCode,
+              quantity: index < 0 ? 1 : lines[index].quantity + 1,
+              unitPrice: product.price,
+              category: product.category,
+              imageData: product.imageData,
+              inventoryTracked: product.inventoryTracked,
+            );
+            if (index < 0) {
+              lines.add(line);
+            } else {
+              lines[index] = line;
+            }
           }
           _table = _table.copyWith(order: lines);
         }
@@ -1987,6 +2011,7 @@ class _DiningTableDialogState extends State<_DiningTableDialog> {
               quantity: quantity,
               unitPrice: line.unitPrice,
               category: line.category,
+              imageData: line.imageData,
               inventoryTracked: line.inventoryTracked,
             );
           }
@@ -2314,8 +2339,12 @@ class _ReservationSummary extends StatelessWidget {
 
 class _ProductPickerSheet extends StatefulWidget {
   final List<Product> products;
+  final Map<(String, String?), double> existingQuantities;
 
-  const _ProductPickerSheet({required this.products});
+  const _ProductPickerSheet({
+    required this.products,
+    required this.existingQuantities,
+  });
 
   @override
   State<_ProductPickerSheet> createState() => _ProductPickerSheetState();
@@ -2324,6 +2353,9 @@ class _ProductPickerSheet extends StatefulWidget {
 class _ProductPickerSheetState extends State<_ProductPickerSheet> {
   final _searchController = TextEditingController();
   String _query = '';
+  String? _selectedCategory;
+  final Map<(String, String?), ({Product product, int quantity})> _selected =
+      {};
 
   @override
   void dispose() {
@@ -2331,19 +2363,115 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
     super.dispose();
   }
 
+  String _categoryLabel(Product product) =>
+      product.category.trim().isEmpty ? 'Menú' : product.category.trim();
+
+  (String, String?) _keyFor(Product product) =>
+      (product.id, product.selectedVariantId);
+
+  int _quantityFor(Product product) =>
+      _selected[_keyFor(product)]?.quantity ?? 0;
+
+  double _remainingStock(Product product) {
+    if (!product.inventoryTracked) return double.infinity;
+    return math.max(
+      0,
+      product.availableStock -
+          (widget.existingQuantities[_keyFor(product)] ?? 0),
+    );
+  }
+
+  bool _canIncrease(Product product) =>
+      _quantityFor(product) < _remainingStock(product);
+
+  void _adjustSelection(Product product, int delta) {
+    final key = _keyFor(product);
+    final next = _quantityFor(product) + delta;
+    if (delta > 0 && !_canIncrease(product)) return;
+    setState(() {
+      if (next <= 0) {
+        _selected.remove(key);
+      } else {
+        _selected[key] = (product: product, quantity: next);
+      }
+    });
+  }
+
+  Widget _quantityControl(Product product) {
+    final quantity = _quantityFor(product);
+    if (quantity == 0) {
+      return IconButton.filledTonal(
+        tooltip: 'Agregar ${product.name}',
+        onPressed: _canIncrease(product)
+            ? () => _adjustSelection(product, 1)
+            : null,
+        icon: const Icon(Icons.add_rounded),
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: 'Quitar una unidad',
+          onPressed: () => _adjustSelection(product, -1),
+          icon: const Icon(Icons.remove_circle_outline_rounded, size: 20),
+        ),
+        Text('$quantity', style: const TextStyle(fontWeight: FontWeight.w800)),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: 'Agregar una unidad',
+          onPressed: _canIncrease(product)
+              ? () => _adjustSelection(product, 1)
+              : null,
+          icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
+        ),
+      ],
+    );
+  }
+
+  void _submitSelection() {
+    Navigator.pop(context, [
+      for (final selection in _selected.values)
+        for (var index = 0; index < selection.quantity; index++)
+          selection.product,
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final products = widget.products
-        .where(
-          (product) =>
-              product.name.toLowerCase().contains(_query.toLowerCase()) ||
-              product.category.toLowerCase().contains(_query.toLowerCase()) ||
-              product.barcode.toLowerCase().contains(_query.toLowerCase()),
-        )
-        .toList();
+    final categories =
+        {
+          for (final product in widget.products) _categoryLabel(product),
+        }.toList()..sort(
+          (first, second) =>
+              first.toLowerCase().compareTo(second.toLowerCase()),
+        );
+    final query = _query.toLowerCase();
+    final products =
+        widget.products
+            .where(
+              (product) =>
+                  (_selectedCategory == null ||
+                      _categoryLabel(product) == _selectedCategory) &&
+                  (query.isEmpty ||
+                      product.name.toLowerCase().contains(query) ||
+                      product.description.toLowerCase().contains(query) ||
+                      _categoryLabel(product).toLowerCase().contains(query) ||
+                      product.barcode.toLowerCase().contains(query)),
+            )
+            .toList()
+          ..sort(
+            (first, second) =>
+                first.name.toLowerCase().compareTo(second.name.toLowerCase()),
+          );
+    final selectedCount = _selected.values.fold<int>(
+      0,
+      (total, selected) => total + selected.quantity,
+    );
     return SizedBox(
-      height: MediaQuery.sizeOf(context).height * .82,
+      height: math.min(MediaQuery.sizeOf(context).height * .9, 820.0),
       child: Column(
         children: [
           Padding(
@@ -2376,6 +2504,7 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                 suffixIcon: _query.isEmpty
                     ? null
                     : IconButton(
+                        tooltip: 'Limpiar búsqueda',
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _query = '');
@@ -2385,14 +2514,51 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 42,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              scrollDirection: Axis.horizontal,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text('Todas · ${widget.products.length}'),
+                    selected: _selectedCategory == null,
+                    onSelected: (_) => setState(() => _selectedCategory = null),
+                  ),
+                ),
+                for (final category in categories)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(
+                        '$category · ${widget.products.where((product) => _categoryLabel(product) == category).length}',
+                      ),
+                      selected: _selectedCategory == category,
+                      onSelected: (_) => setState(
+                        () => _selectedCategory = _selectedCategory == category
+                            ? null
+                            : category,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
           Expanded(
             child: products.isEmpty
                 ? Center(
-                    child: Text(
-                      widget.products.isEmpty
-                          ? 'Aún no hay productos disponibles en el menú del restaurante.'
-                          : 'No encontramos productos con esa búsqueda.',
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        widget.products.isEmpty
+                            ? 'Aún no hay productos disponibles para agregar.'
+                            : 'No encontramos productos con esos filtros.',
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   )
                 : ListView.separated(
@@ -2411,12 +2577,9 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                         child: Column(
                           children: [
                             ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: colors.primaryContainer,
-                                child: Icon(
-                                  Icons.restaurant_menu_rounded,
-                                  color: colors.primary,
-                                ),
+                              leading: _ProductPhoto(
+                                imageData: product.imageData,
+                                size: 54,
                               ),
                               title: Text(
                                 product.name,
@@ -2426,59 +2589,82 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                               ),
                               subtitle: Text(
                                 product.inventoryTracked
-                                    ? '${product.category.isEmpty ? 'Menú' : product.category} · '
+                                    ? '${_categoryLabel(product)} · '
                                           '${product.availableStock} ${product.unitLabel} disponibles'
-                                    : '${product.category.isEmpty ? 'Menú' : product.category} · '
+                                    : '${_categoryLabel(product)} · '
                                           'Menú del restaurante',
                               ),
-                              trailing: Text(
-                                AppCurrency.format(
-                                  product.price,
-                                  code: product.currencyCode,
-                                ),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
+                              trailing: product.hasVariants
+                                  ? Text(
+                                      AppCurrency.format(
+                                        product.price,
+                                        code: product.currencyCode,
+                                      ),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    )
+                                  : Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          AppCurrency.format(
+                                            product.price,
+                                            code: product.currencyCode,
+                                          ),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        _quantityControl(product),
+                                      ],
+                                    ),
                               onTap: product.hasVariants
                                   ? null
-                                  : product.inventoryTracked &&
-                                        product.availableStock <= 0
-                                  ? null
-                                  : () => Navigator.pop(context, product),
+                                  : () => _adjustSelection(product, 1),
                             ),
                             if (product.hasVariants)
                               for (final variant in variants)
-                                ListTile(
-                                  dense: true,
-                                  contentPadding: const EdgeInsets.only(
-                                    left: 64,
-                                    right: 16,
-                                  ),
-                                  title: Text(
-                                    variant.label.isEmpty
-                                        ? 'Presentación'
-                                        : variant.label,
-                                  ),
-                                  subtitle: Text(
-                                    '${variant.stock} ${variant.unitLabel} disponibles',
-                                  ),
-                                  trailing: Text(
-                                    AppCurrency.format(
-                                      variant.price,
-                                      code: product.currencyCode,
-                                    ),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  enabled: variant.stock > 0,
-                                  onTap: variant.stock > 0
-                                      ? () => Navigator.pop(
-                                          context,
-                                          product.forVariant(variant),
-                                        )
-                                      : null,
+                                Builder(
+                                  builder: (context) {
+                                    final selectedProduct = product.forVariant(
+                                      variant,
+                                    );
+                                    return ListTile(
+                                      dense: true,
+                                      contentPadding: const EdgeInsets.only(
+                                        left: 64,
+                                        right: 12,
+                                      ),
+                                      title: Text(
+                                        variant.label.isEmpty
+                                            ? 'Presentación'
+                                            : variant.label,
+                                      ),
+                                      subtitle: Text(
+                                        '${variant.stock} ${variant.unitLabel} disponibles',
+                                      ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            AppCurrency.format(
+                                              variant.price,
+                                              code: product.currencyCode,
+                                            ),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          _quantityControl(selectedProduct),
+                                        ],
+                                      ),
+                                      enabled: _canIncrease(selectedProduct),
+                                      onTap: () =>
+                                          _adjustSelection(selectedProduct, 1),
+                                    );
+                                  },
                                 ),
                           ],
                         ),
@@ -2486,8 +2672,84 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                     },
                   ),
           ),
+          SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                border: Border(top: BorderSide(color: colors.outlineVariant)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$selectedCount seleccionados',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          'Se agregarán al pedido de la mesa.',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton.icon(
+                    onPressed: selectedCount == 0 ? null : _submitSelection,
+                    icon: const Icon(Icons.check_rounded),
+                    label: Text('Agregar ($selectedCount)'),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _ProductPhoto extends StatelessWidget {
+  final String? imageData;
+  final double size;
+
+  const _ProductPhoto({required this.imageData, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    Uint8List? imageBytes;
+    if (imageData != null && imageData!.isNotEmpty) {
+      try {
+        imageBytes = base64Decode(imageData!);
+      } on FormatException {
+        imageBytes = null;
+      }
+    }
+    return Container(
+      width: size,
+      height: size,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: colors.primaryContainer,
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: imageBytes == null
+          ? Icon(Icons.restaurant_menu_rounded, color: colors.primary)
+          : Image.memory(
+              imageBytes,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Icon(
+                Icons.broken_image_outlined,
+                color: colors.onSurfaceVariant,
+              ),
+            ),
     );
   }
 }
@@ -2508,15 +2770,7 @@ class _OrderLineTile extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 7),
     child: Row(
       children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: const Icon(Icons.restaurant_menu_rounded, size: 18),
-        ),
+        _ProductPhoto(imageData: line.imageData, size: 44),
         const SizedBox(width: 10),
         Expanded(
           child: Column(

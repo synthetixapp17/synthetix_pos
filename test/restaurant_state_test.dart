@@ -20,6 +20,7 @@ void main() {
               currencyCode: 'USD',
               quantity: 2,
               unitPrice: 12.5,
+              imageData: 'aW1hZ2U=',
             ),
           ],
           sentKitchenOrder: [
@@ -53,6 +54,7 @@ void main() {
     expect(decoded.tables.single.isOpen, isTrue);
     expect(decoded.tables.single.order.single.total, 25);
     expect(decoded.tables.single.order.single.variantId, 'variant-1');
+    expect(decoded.tables.single.order.single.imageData, 'aW1hZ2U=');
     expect(decoded.tables.single.sentKitchenOrder.single.quantity, 1);
     expect(decoded.reservations.single.customerName, 'Ana Pérez');
     expect(decoded.reservations.single.startsAt, startsAt);
