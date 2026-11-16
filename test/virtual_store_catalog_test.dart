@@ -11,8 +11,8 @@ void main() {
       whatsappNumber: '584120000000',
       primaryColor: 0xFF008C95,
       accentColor: 0xFFFFB300,
-      githubOwner: 'MiNegocio',
-      githubRepository: 'tienda',
+      businessId: '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a',
+      clientSecret: 'test-secret',
     );
     final catalog = VirtualStoreCatalogBuilder().build(settings, [
       ProductModel.fromEntity(
@@ -39,7 +39,7 @@ void main() {
     expect(catalog['schemaVersion'], 1);
     expect(catalog['updatedAt'], '2026-11-15T00:00:00.000Z');
     expect(catalog['business'], {
-      'id': 'minegocio/tienda',
+      'id': '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a',
       'name': 'Café Central',
       'slogan': 'Café recién molido',
       'whatsapp': '584120000000',
@@ -51,14 +51,22 @@ void main() {
     expect((products.single['variants'] as List).single['id'], 'small');
   });
 
-  test('generates the right GitHub Pages URL for project and user sites', () {
+  test('creates and serializes a persistent identity when migrating settings', () {
+    final settings = VirtualStoreSettings.fromJson({
+      'businessName': 'Mi tienda',
+    });
+
     expect(
-      VirtualStoreCatalogBuilder.publicStoreUrl('Acme', 'catalog'),
-      'https://acme.github.io/catalog/tienda.html?negocio=acme%2Fcatalog',
+      settings.businessId,
+      matches(
+        RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        ),
+      ),
     );
-    expect(
-      VirtualStoreCatalogBuilder.publicStoreUrl('Acme', 'acme.github.io'),
-      'https://acme.github.io/tienda.html?negocio=acme%2Facme.github.io',
-    );
+    expect(settings.clientSecret, hasLength(43));
+    final restored = VirtualStoreSettings.fromJson(settings.toJson());
+    expect(restored.businessId, settings.businessId);
+    expect(restored.clientSecret, settings.clientSecret);
   });
 }

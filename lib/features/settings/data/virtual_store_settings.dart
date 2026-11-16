@@ -1,11 +1,39 @@
 import 'dart:convert';
+import 'dart:math';
+
+import 'package:uuid/uuid.dart';
 
 import '../../../core/data/hive_database.dart';
 import '../../product/data/models/product_model.dart';
+import 'virtual_store_identity_storage.dart';
 
 const virtualStoreSettingsKey = 'virtual_store_settings';
 const virtualStoreWorkerUrl =
     'https://synthetix-pos.synthetixapp17.workers.dev';
+const _businessIdStorageKey = 'virtual_store_business_id';
+const _clientSecretStorageKey = 'virtual_store_client_secret';
+
+String _newBusinessId() => const Uuid().v4();
+
+String _newClientSecret() {
+  final random = Random.secure();
+  return base64Url
+      .encode(List<int>.generate(32, (_) => random.nextInt(256)))
+      .replaceAll('=', '');
+}
+
+(String, String) _getOrCreateIdentity(String businessId, String clientSecret) {
+  final storedBusinessId = readVirtualStoreIdentity(_businessIdStorageKey);
+  final storedClientSecret = readVirtualStoreIdentity(_clientSecretStorageKey);
+  final resolvedBusinessId = storedBusinessId ?? businessId;
+  final resolvedClientSecret = storedClientSecret ?? clientSecret;
+  final identity = resolvedBusinessId.isNotEmpty && resolvedClientSecret.isNotEmpty
+      ? (resolvedBusinessId, resolvedClientSecret)
+      : (_newBusinessId(), _newClientSecret());
+  writeVirtualStoreIdentity(_businessIdStorageKey, identity.$1);
+  writeVirtualStoreIdentity(_clientSecretStorageKey, identity.$2);
+  return identity;
+}
 
 class VirtualStoreSettings {
   final String businessName;
@@ -14,10 +42,10 @@ class VirtualStoreSettings {
   final String logo;
   final int primaryColor;
   final int accentColor;
-  final String githubOwner;
-  final String githubRepository;
-  final String publisherApiKey;
+  final String businessId;
+  final String clientSecret;
   final DateTime? lastPublishedAt;
+  final String publishedUrl;
 
   const VirtualStoreSettings({
     this.businessName = '',
@@ -26,10 +54,10 @@ class VirtualStoreSettings {
     this.logo = '',
     this.primaryColor = 0xFF00695C,
     this.accentColor = 0xFFFFB300,
-    this.githubOwner = '',
-    this.githubRepository = '',
-    this.publisherApiKey = '',
+    this.businessId = '',
+    this.clientSecret = '',
     this.lastPublishedAt,
+    this.publishedUrl = '',
   });
 
   factory VirtualStoreSettings.load() {
@@ -45,9 +73,12 @@ class VirtualStoreSettings {
     }
 
     final shop = HiveDatabase.shopBox.get('shop_details');
+    final (businessId, clientSecret) = _getOrCreateIdentity('', '');
     return VirtualStoreSettings(
       businessName: shop?.name ?? '',
       whatsappNumber: shop?.phoneNumber ?? '',
+      businessId: businessId,
+      clientSecret: clientSecret,
     );
   }
 
@@ -62,6 +93,9 @@ class VirtualStoreSettings {
         'Hay valores inválidos en la configuración de la tienda virtual.',
       );
     }
+    final businessId = _stringValue(json, 'businessId');
+    final clientSecret = _stringValue(json, 'clientSecret');
+    final identity = _getOrCreateIdentity(businessId, clientSecret);
     return VirtualStoreSettings(
       businessName: _stringValue(json, 'businessName'),
       slogan: _stringValue(json, 'slogan'),
@@ -69,12 +103,12 @@ class VirtualStoreSettings {
       logo: _stringValue(json, 'logo'),
       primaryColor: primaryColor as int? ?? 0xFF00695C,
       accentColor: accentColor as int? ?? 0xFFFFB300,
-      githubOwner: _stringValue(json, 'githubOwner'),
-      githubRepository: _stringValue(json, 'githubRepository'),
-      publisherApiKey: _stringValue(json, 'publisherApiKey'),
+      businessId: identity.$1,
+      clientSecret: identity.$2,
       lastPublishedAt: lastPublishedAt == null
           ? null
           : DateTime.tryParse(lastPublishedAt as String),
+      publishedUrl: _stringValue(json, 'publishedUrl'),
     );
   }
 
@@ -85,10 +119,10 @@ class VirtualStoreSettings {
     'logo': logo,
     'primaryColor': primaryColor,
     'accentColor': accentColor,
-    'githubOwner': githubOwner,
-    'githubRepository': githubRepository,
-    'publisherApiKey': publisherApiKey,
+    'businessId': businessId,
+    'clientSecret': clientSecret,
     'lastPublishedAt': lastPublishedAt?.toIso8601String(),
+    'publishedUrl': publishedUrl,
   };
 
   static String _stringValue(Map<String, dynamic> json, String key) {
@@ -113,7 +147,7 @@ class VirtualStoreCatalogBuilder {
       'schemaVersion': 1,
       'updatedAt': (updatedAt ?? DateTime.now()).toUtc().toIso8601String(),
       'business': {
-        'id': businessId(settings.githubOwner, settings.githubRepository),
+        'id': settings.businessId,
         'name': settings.businessName,
         'slogan': settings.slogan,
         'whatsapp': settings.whatsappNumber,
@@ -141,20 +175,6 @@ class VirtualStoreCatalogBuilder {
           },
       ],
     };
-  }
-
-  static String businessId(String owner, String repository) =>
-      '${owner.toLowerCase()}/${repository.toLowerCase()}';
-
-  static String publicStoreUrl(String owner, String repository) {
-    final normalizedOwner = owner.toLowerCase();
-    final normalizedRepository = repository.toLowerCase();
-    final pagesPath = normalizedRepository == '$normalizedOwner.github.io'
-        ? '/tienda.html'
-        : '/$normalizedRepository/tienda.html';
-    return Uri.https('$normalizedOwner.github.io', pagesPath, {
-      'negocio': businessId(owner, repository),
-    }).toString();
   }
 
   static String colorToHex(int color) =>

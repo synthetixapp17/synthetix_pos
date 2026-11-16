@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/data/hive_database.dart';
 import '../../data/virtual_store_publisher.dart';
@@ -18,12 +19,16 @@ class VirtualStoreSettingsPage extends StatefulWidget {
 }
 
 class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
-  static const _palettes = [
-    ('Turquesa', 0xFF008C95, 0xFFFFB300),
-    ('Esmeralda', 0xFF16845B, 0xFFFFC857),
-    ('Azul', 0xFF2457C5, 0xFFFFA62B),
-    ('Morado', 0xFF7041A6, 0xFFFFB454),
-    ('Negro', 0xFF242424, 0xFF00A896),
+  static const _colorOptions = [
+    ('Verde oscuro', 0xFF00695C),
+    ('Turquesa', 0xFF008C95),
+    ('Esmeralda', 0xFF16845B),
+    ('Azul', 0xFF2457C5),
+    ('Morado', 0xFF7041A6),
+    ('Negro', 0xFF242424),
+    ('Amarillo', 0xFFFFB300),
+    ('Naranja', 0xFFFFA62B),
+    ('Aguamarina', 0xFF00A896),
   ];
 
   final _formKey = GlobalKey<FormState>();
@@ -32,15 +37,11 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
   late final TextEditingController _slogan;
   late final TextEditingController _whatsapp;
   late final TextEditingController _logo;
-  late final TextEditingController _githubOwner;
-  late final TextEditingController _githubRepository;
-  late final TextEditingController _publisherApiKey;
   late int _primaryColor;
   late int _accentColor;
   String? _publishedUrl;
   bool _isSaving = false;
   bool _isPublishing = false;
-  bool _obscureApiKey = true;
 
   @override
   void initState() {
@@ -50,23 +51,11 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
     _slogan = TextEditingController(text: _initialSettings.slogan);
     _whatsapp = TextEditingController(text: _initialSettings.whatsappNumber);
     _logo = TextEditingController(text: _initialSettings.logo);
-    _githubOwner = TextEditingController(text: _initialSettings.githubOwner);
-    _githubRepository = TextEditingController(
-      text: _initialSettings.githubRepository,
-    );
-    _publisherApiKey = TextEditingController(
-      text: _initialSettings.publisherApiKey,
-    );
     _primaryColor = _initialSettings.primaryColor;
     _accentColor = _initialSettings.accentColor;
-    if (_initialSettings.lastPublishedAt != null &&
-        _githubOwner.text.isNotEmpty &&
-        _githubRepository.text.isNotEmpty) {
-      _publishedUrl = VirtualStoreCatalogBuilder.publicStoreUrl(
-        _githubOwner.text,
-        _githubRepository.text,
-      );
-    }
+    _publishedUrl = _initialSettings.publishedUrl.isEmpty
+        ? null
+        : _initialSettings.publishedUrl;
   }
 
   @override
@@ -75,9 +64,6 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
     _slogan.dispose();
     _whatsapp.dispose();
     _logo.dispose();
-    _githubOwner.dispose();
-    _githubRepository.dispose();
-    _publisherApiKey.dispose();
     super.dispose();
   }
 
@@ -90,9 +76,10 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
       logo: _logo.text.trim(),
       primaryColor: _primaryColor,
       accentColor: _accentColor,
-      githubOwner: _githubOwner.text.trim(),
-      githubRepository: _githubRepository.text.trim(),
-      publisherApiKey: _publisherApiKey.text.trim(),
+      businessId: _initialSettings.businessId,
+      clientSecret: _initialSettings.clientSecret,
+      lastPublishedAt: _initialSettings.lastPublishedAt,
+      publishedUrl: _initialSettings.publishedUrl,
     );
     return settings;
   }
@@ -106,7 +93,9 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
     );
     if (mounted) {
       setState(() {
-        _publishedUrl = null;
+        _publishedUrl = settings.publishedUrl.isEmpty
+            ? null
+            : settings.publishedUrl;
       });
     }
     return settings;
@@ -130,10 +119,6 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
     if (_isPublishing) return;
     final settings = _readForm();
     if (settings == null) return;
-    if (settings.publisherApiKey.isEmpty) {
-      _showMessage('Ingresa la clave de acceso del servicio de publicación.');
-      return;
-    }
 
     setState(() {
       _isPublishing = true;
@@ -148,7 +133,7 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
         settings,
         HiveDatabase.productBox.values,
       );
-      await VirtualStorePublisher().publish(
+      final publishedUrl = await VirtualStorePublisher().publish(
         settings: settings,
         catalog: catalog,
       );
@@ -160,10 +145,10 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
         logo: settings.logo,
         primaryColor: settings.primaryColor,
         accentColor: settings.accentColor,
-        githubOwner: settings.githubOwner,
-        githubRepository: settings.githubRepository,
-        publisherApiKey: settings.publisherApiKey,
+        businessId: settings.businessId,
+        clientSecret: settings.clientSecret,
         lastPublishedAt: DateTime.now(),
+        publishedUrl: publishedUrl,
       );
       await HiveDatabase.settingsBox.put(
         virtualStoreSettingsKey,
@@ -171,10 +156,7 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
       );
       if (mounted) {
         setState(() {
-          _publishedUrl = VirtualStoreCatalogBuilder.publicStoreUrl(
-            settings.githubOwner,
-            settings.githubRepository,
-          );
+          _publishedUrl = publishedUrl;
         });
         _showMessage('Tienda actualizada y publicada correctamente.');
       }
@@ -236,6 +218,19 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
     );
   }
 
+  Future<void> _viewStore() async {
+    final url = _publishedUrl;
+    if (url == null) return;
+    try {
+      final uri = Uri.parse(url);
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw StateError('No se pudo abrir el enlace de la tienda.');
+      }
+    } catch (error) {
+      if (mounted) _showMessage('No se pudo abrir la tienda: $error');
+    }
+  }
+
   Future<void> _copyStoreLink() async {
     final url = _publishedUrl;
     if (url == null) return;
@@ -285,6 +280,7 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
     bool obscureText = false,
     Widget? suffixIcon,
     List<TextInputFormatter>? inputFormatters,
+    ValueChanged<String>? onChanged,
   }) => TextFormField(
     controller: controller,
     decoration: InputDecoration(
@@ -298,6 +294,7 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
     obscureText: obscureText,
     validator: validator,
     inputFormatters: inputFormatters,
+    onChanged: onChanged,
   );
 
   Widget _sectionTitle(String title, String subtitle) => Padding(
@@ -312,30 +309,144 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
     ),
   );
 
-  Widget _colorChoices() => Wrap(
-    spacing: 10,
-    runSpacing: 10,
+  Widget _colorChoices(
+    String title,
+    int selectedColor,
+    ValueChanged<int> onSelected,
+  ) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      for (final (name, primary, accent) in _palettes)
-        ChoiceChip(
-          selected: _primaryColor == primary && _accentColor == accent,
-          onSelected: (_) => setState(() {
-            _primaryColor = primary;
-            _accentColor = accent;
-          }),
-          avatar: CircleAvatar(
-            backgroundColor: Color(primary),
-            child: Icon(Icons.circle, size: 12, color: Color(accent)),
-          ),
-          label: Text(name),
-        ),
+      Text(title, style: Theme.of(context).textTheme.titleSmall),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final (name, color) in _colorOptions)
+            ChoiceChip(
+              key: ValueKey('$title-$name'),
+              selected: selectedColor == color,
+              onSelected: (_) => setState(() => onSelected(color)),
+              avatar: CircleAvatar(backgroundColor: Color(color), radius: 10),
+              label: Text(name),
+            ),
+        ],
+      ),
     ],
   );
 
-  Widget _logoPreview() {
+  Color _textColorOn(Color background) =>
+      background.computeLuminance() > 0.55 ? Colors.black87 : Colors.white;
+
+  Widget _storePreview() {
+    final primary = Color(_primaryColor);
+    final secondary = Color(_accentColor);
+    final businessName = _businessName.text.trim();
+    final slogan = _slogan.text.trim();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              color: primary,
+              padding: const EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  _logoPreview(size: 54),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          businessName.isEmpty
+                              ? 'Nombre de tu tienda'
+                              : businessName,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: _textColorOn(primary),
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        if (slogan.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            slogan,
+                            style: TextStyle(color: _textColorOn(primary)),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Así verán tus clientes la tienda',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.shopping_bag_outlined,
+                          color: primary,
+                          size: 32,
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Producto de ejemplo\nPrecio y detalles del producto',
+                          ),
+                        ),
+                        Icon(Icons.arrow_forward_ios, color: primary, size: 16),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton(
+                      onPressed: null,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: secondary,
+                        foregroundColor: _textColorOn(secondary),
+                        disabledBackgroundColor: secondary,
+                        disabledForegroundColor: _textColorOn(secondary),
+                      ),
+                      child: const Text('Pedir por WhatsApp'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _logoPreview({double size = 76}) {
     final source = _logo.text.trim();
     if (source.isEmpty) {
-      return const Icon(Icons.storefront_outlined, size: 42);
+      return Icon(Icons.storefront_outlined, size: size * 0.55);
     }
     try {
       final image = source.startsWith('data:image/')
@@ -346,7 +457,7 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
           : Image.network(source, fit: BoxFit.contain);
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(width: 76, height: 76, child: image),
+        child: SizedBox(width: size, height: size, child: image),
       );
     } on FormatException {
       return const Icon(Icons.broken_image_outlined, size: 42);
@@ -371,7 +482,7 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
                   child: const Padding(
                     padding: EdgeInsets.all(16),
                     child: Text(
-                      'La tienda y su catálogo serán públicos en GitHub Pages. El token de GitHub permanece únicamente en el servicio de publicación; la clave de esta pantalla solo autoriza a la app a usar ese servicio.',
+                      'El catálogo que publiques será visible para cualquier persona. Puedes actualizarlo cuando quieras desde esta pantalla.',
                     ),
                   ),
                 ),
@@ -383,12 +494,18 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
                 _textField(
                   _businessName,
                   'Nombre del negocio',
+                  onChanged: (_) => setState(() {}),
                   validator: (value) => value == null || value.trim().isEmpty
                       ? 'Ingresa el nombre del negocio.'
                       : null,
                 ),
                 const SizedBox(height: 14),
-                _textField(_slogan, 'Eslogan o descripción corta', maxLines: 2),
+                _textField(
+                  _slogan,
+                  'Eslogan o descripción corta',
+                  maxLines: 2,
+                  onChanged: (_) => setState(() {}),
+                ),
                 const SizedBox(height: 14),
                 _textField(
                   _whatsapp,
@@ -415,6 +532,7 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
                         'URL HTTPS del logotipo',
                         helper:
                             'También puedes cargar una imagen desde el dispositivo.',
+                        onChanged: (_) => setState(() {}),
                         validator: _validateLogo,
                       ),
                     ),
@@ -446,69 +564,25 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
                 const SizedBox(height: 24),
                 _sectionTitle(
                   'Colores de la tienda',
-                  'Los colores se aplicarán a los botones y destacados del sitio.',
+                  'Elige por separado los colores que identifican tu tienda.',
                 ),
-                _colorChoices(),
-                const SizedBox(height: 24),
+                _colorChoices(
+                  'Color primario',
+                  _primaryColor,
+                  (color) => _primaryColor = color,
+                ),
+                const SizedBox(height: 16),
+                _colorChoices(
+                  'Color secundario',
+                  _accentColor,
+                  (color) => _accentColor = color,
+                ),
+                const SizedBox(height: 18),
                 _sectionTitle(
-                  'Repositorio GitHub Pages',
-                  'Configura un repositorio público exclusivo para este comercio.',
+                  'Previsualización',
+                  'Mira cómo se verá el estilo de tu tienda.',
                 ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _textField(
-                        _githubOwner,
-                        'Usuario u organización',
-                        validator: (value) =>
-                            value == null ||
-                                !RegExp(r'^[A-Za-z0-9-]{1,39}$').hasMatch(value)
-                            ? 'Nombre de usuario GitHub inválido.'
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _textField(
-                        _githubRepository,
-                        'Nombre del repositorio',
-                        validator: (value) =>
-                            value == null ||
-                                !RegExp(
-                                  r'^[A-Za-z0-9._-]{1,100}$',
-                                ).hasMatch(value)
-                            ? 'Nombre de repositorio inválido.'
-                            : null,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Cloudflare Worker',
-                    border: OutlineInputBorder(),
-                  ),
-                  child: SelectableText(virtualStoreWorkerUrl),
-                ),
-                const SizedBox(height: 14),
-                _textField(
-                  _publisherApiKey,
-                  'Clave de acceso del servicio',
-                  helper:
-                      'Clave exclusiva de este repositorio registrada en CLIENT_API_KEYS. No ingreses tu token de GitHub.',
-                  obscureText: _obscureApiKey,
-                  suffixIcon: IconButton(
-                    tooltip: _obscureApiKey ? 'Mostrar clave' : 'Ocultar clave',
-                    onPressed: () =>
-                        setState(() => _obscureApiKey = !_obscureApiKey),
-                    icon: Icon(
-                      _obscureApiKey
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                    ),
-                  ),
-                ),
+                _storePreview(),
                 const SizedBox(height: 22),
                 OutlinedButton.icon(
                   onPressed: _isSaving || _isPublishing ? null : _saveLocally,
@@ -535,10 +609,22 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
                 ),
                 if (_publishedUrl != null) ...[
                   const SizedBox(height: 18),
-                  FilledButton.icon(
-                    onPressed: _shareStore,
-                    icon: const Icon(Icons.link),
-                    label: const Text('Compartir Tienda Virtual'),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _viewStore,
+                        icon: const Icon(Icons.open_in_new),
+                        label: const Text('Ver tienda'),
+                      ),
+                      FilledButton.icon(
+                        onPressed: _shareStore,
+                        icon: const Icon(Icons.share_outlined),
+                        label: const Text('Compartir tienda'),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton.icon(

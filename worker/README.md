@@ -1,22 +1,22 @@
-# Worker `synthetix-pos`
+# Worker de publicación de tiendas
 
-El endpoint que usa Flutter es:
+El endpoint que usa la app es:
 
 ```text
 https://synthetix-pos.synthetixapp17.workers.dev
 ```
 
-Acepta `POST /` (también `POST /publish`) con `Authorization: Bearer <clave
-del cliente>` y este JSON:
+La app genera y guarda un `businessId` UUID y un `clientSecret` aleatorio en sus
+ajustes locales. Publica `POST /` (también se acepta `POST /publish`) con JSON:
 
 ```json
 {
-  "owner": "cliente",
-  "repository": "tienda",
+  "businessId": "4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a",
+  "clientSecret": "secreto-aleatorio-base64url-de-43-caracteres",
   "catalog": {
     "schemaVersion": 1,
     "business": {
-      "id": "cliente/tienda",
+      "id": "4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a",
       "name": "Mi tienda",
       "whatsapp": "584120000000",
       "colors": {
@@ -29,53 +29,42 @@ del cliente>` y este JSON:
 }
 ```
 
-`CLIENT_API_KEYS` es un secreto JSON que asigna una clave diferente a cada
-repositorio permitido. Las claves del mapa usan `owner/repository` en
-minúsculas, por ejemplo:
+En la primera publicación, el Worker crea un repositorio público
+`tienda-{businessId}` en la cuenta configurada, publica `tienda.html` y
+`productos.json`, y habilita GitHub Pages. En las siguientes publicaciones,
+compara el hash SHA-256 del secreto con el guardado en Cloudflare KV y solo
+entonces actualiza el catálogo. El secreto nunca se escribe en el repositorio.
+La respuesta incluye la URL pública final.
 
-```json
-{"cliente/tienda":"clave-aleatoria-larga"}
-```
+## Configuración de Cloudflare
 
-`GITHUB_TOKEN` acepta un Fine-grained Personal Access Token con acceso solo a
-los repositorios listados en `CLIENT_API_KEYS` y permiso **Contents: Read and
-write**. El Worker no acepta repositorios que no tengan una clave registrada.
-Si todos los repositorios pertenecen al mismo propietario de recursos, un
-token puede cubrirlos. Para repositorios de distintos propietarios, configura
-`GITHUB_TOKEN` como un mapa JSON de `owner/repository` a tokens independientes,
-cada uno limitado a un solo repositorio:
+1. Crea un namespace KV:
 
-```json
-{"cliente-a/tienda":"github-token-a","cliente-b/tienda":"github-token-b"}
-```
+   ```powershell
+   wrangler kv namespace create STORE_CONFIGS
+   ```
 
-Los tokens Fine-grained están ligados a un propietario; no uses un PAT con
-permisos amplios para resolver esta limitación.
+   Copia el ID devuelto y reemplaza `REPLACE_WITH_KV_NAMESPACE_ID` en
+   `wrangler.toml`.
+2. En `wrangler.toml`, configura `GITHUB_OWNER` con la cuenta personal que
+   posee el token maestro, `APP_ORIGIN` con el origen del frontend y
+   `APP_TEMPLATE_URL` con la URL desplegada de `web/tienda.html`.
+   El Worker verifica que la plantilla pertenezca a `APP_ORIGIN`.
+3. Crea un token de GitHub limitado a esa cuenta, con permisos de repositorio
+   **Administration: Read and write**, **Contents: Read and write** y
+   **Pages: Read and write**. El Worker solo lo recibe como secreto de
+   Cloudflare:
 
-## Secretos y variables de Cloudflare
+   ```powershell
+   wrangler secret put GITHUB_TOKEN --config worker/wrangler.toml
+   ```
+4. Despliega:
 
-En **Workers & Pages → synthetix-pos → Settings → Variables and Secrets**:
+   ```powershell
+   wrangler deploy --config worker/wrangler.toml
+   ```
 
-- Secret `GITHUB_TOKEN`: Fine-grained PAT limitado a los repositorios de los
-  clientes.
-- Secret `CLIENT_API_KEYS`: mapa JSON de `owner/repository` a una clave única.
-- Variable `GITHUB_BRANCH`: `main`.
-- Variable `APP_ORIGIN`: origen exacto de la app, actualmente
-  `https://synthetixapp17.github.io`.
-
-El Worker crea o actualiza `productos.json` en la raíz y rama configurada.
-Cada repositorio debe existir, ser público y tener GitHub Pages habilitado desde
-`main` y la raíz. Copia `web/tienda.html` a la raíz del repo como
-`tienda.html`. El catálogo, imágenes, teléfono y marca publicados son públicos.
-
-Para desplegar desde la raíz del proyecto con Wrangler:
-
-```powershell
-wrangler deploy --config worker/wrangler.toml
-wrangler secret put GITHUB_TOKEN --config worker/wrangler.toml
-wrangler secret put CLIENT_API_KEYS --config worker/wrangler.toml
-```
-
-También se puede pegar el contenido de `worker/index.js` directamente en
-**Edit code** en el panel de Cloudflare; configura las mismas variables y
-secretos en el panel.
+El binding `PUBLISH_RATE_LIMITER` permite hasta 10 publicaciones por minuto y
+por IP. El catálogo y las imágenes que se publican son públicos. No añadas
+`GITHUB_TOKEN` ni el secreto de cliente al código, a `wrangler.toml` ni al
+repositorio.

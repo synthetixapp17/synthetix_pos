@@ -9,18 +9,18 @@ class VirtualStorePublisher {
 
   const VirtualStorePublisher({this.client});
 
-  Future<void> publish({
+  Future<String> publish({
     required VirtualStoreSettings settings,
     required Map<String, Object?> catalog,
   }) async {
-    if (settings.publisherApiKey.trim().isEmpty) {
+    if (settings.businessId.isEmpty || settings.clientSecret.isEmpty) {
       throw const FormatException(
-        'Configura la clave de acceso del servicio de publicación.',
+        'No se pudo crear la identidad de la tienda.',
       );
     }
     final body = jsonEncode({
-      'owner': settings.githubOwner,
-      'repository': settings.githubRepository,
+      'businessId': settings.businessId,
+      'clientSecret': settings.clientSecret,
       'catalog': catalog,
     });
     if (utf8.encode(body).length > VirtualStoreCatalogBuilder.maxCatalogBytes) {
@@ -33,7 +33,6 @@ class VirtualStorePublisher {
         await (client?.post(
                   Uri.parse(virtualStoreWorkerUrl),
                   headers: {
-                    'Authorization': 'Bearer ${settings.publisherApiKey}',
                     'Content-Type': 'application/json',
                   },
                   body: body,
@@ -41,7 +40,6 @@ class VirtualStorePublisher {
                 http.post(
                   Uri.parse(virtualStoreWorkerUrl),
                   headers: {
-                    'Authorization': 'Bearer ${settings.publisherApiKey}',
                     'Content-Type': 'application/json',
                   },
                   body: body,
@@ -59,5 +57,16 @@ class VirtualStorePublisher {
       }
       throw StateError(message);
     }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map ||
+        decoded['ok'] != true ||
+        decoded['url'] is! String ||
+        (decoded['url'] as String).isEmpty) {
+      throw const FormatException(
+        'El servicio no devolvió un enlace válido para la tienda.',
+      );
+    }
+    return decoded['url'] as String;
   }
 }

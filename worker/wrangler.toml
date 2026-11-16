@@ -3,5 +3,16 @@ main = "index.js"
 compatibility_date = "2026-11-15"
 
 [vars]
-GITHUB_BRANCH = "main"
 APP_ORIGIN = "https://synthetixapp17.github.io"
+APP_TEMPLATE_URL = "https://synthetixapp17.github.io/synthetix_pos/tienda.html"
+GITHUB_OWNER = "synthetixapp17"
+
+[[kv_namespaces]]
+binding = "STORE_CONFIGS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[[unsafe.bindings]]
+name = "PUBLISH_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
