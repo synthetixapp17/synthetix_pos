@@ -12,6 +12,8 @@ import 'package:billing_app/features/reports/data/models/sale_model.dart';
 import 'package:billing_app/features/reports/domain/entities/sale_record.dart';
 import 'package:billing_app/features/settings/data/csv_backup_exporter.dart';
 import 'package:billing_app/features/settings/data/csv_backup_importer.dart';
+import 'package:billing_app/features/settings/data/json_backup_exporter.dart';
+import 'package:billing_app/features/settings/data/local_data_resetter.dart';
 import 'package:billing_app/features/shop/data/models/shop_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
@@ -44,6 +46,193 @@ void main() {
     await directory.delete(recursive: true);
   });
 
+  test('clears all local business data and preferences', () async {
+    await HiveDatabase.productBox.put(
+      'product-1',
+      const ProductModel(
+        id: 'product-1',
+        name: 'Café',
+        barcode: '123',
+        price: 25,
+        stock: 4,
+      ),
+    );
+    await HiveDatabase.shopBox.put(
+      'shop_details',
+      const ShopModel(
+        name: 'Mi tienda',
+        addressLine1: 'Calle 1',
+        addressLine2: '',
+        phoneNumber: '555123',
+        upiId: '',
+        footerText: '',
+      ),
+    );
+    await HiveDatabase.customerBox.put(
+      'customer-1',
+      CustomerModel(
+        id: 'customer-1',
+        name: 'Ana',
+        phone: '',
+        email: '',
+        address: '',
+      ),
+    );
+    await HiveDatabase.creditBox.put('credit-1', '{"id":"credit-1"}');
+    await HiveDatabase.settingsBox.put('currency_code', 'EUR');
+
+    await LocalDataResetter().reset();
+
+    expect(HiveDatabase.productBox, isEmpty);
+    expect(HiveDatabase.shopBox, isEmpty);
+    expect(HiveDatabase.customerBox, isEmpty);
+    expect(HiveDatabase.salesBox, isEmpty);
+    expect(HiveDatabase.creditBox, isEmpty);
+    expect(HiveDatabase.settingsBox, isEmpty);
+  });
+
+  test('roundtrips a complete JSON backup', () async {
+    await HiveDatabase.settingsBox.put(
+      'product_categories',
+      jsonEncode([
+        {'name': 'Bebidas', 'icon': 0xe3af},
+      ]),
+    );
+    await HiveDatabase.settingsBox.putAll({
+      'currency_code': 'USD',
+      'app_settings': AppSettings(
+        currencies: const [
+          CurrencyConfig(code: 'USD', symbol: r'$', isBase: true, rate: 1),
+        ],
+      ),
+    });
+    await HiveDatabase.productBox.put(
+      'json-product',
+      ProductModel.fromEntity(
+        const Product(
+          id: 'json-product',
+          name: 'Café',
+          barcode: '123',
+          price: 25,
+          stock: 4,
+          category: 'Bebidas',
+          description: 'Molido\nartesanal',
+          variants: [
+            ProductVariant(
+              id: '500g',
+              attributes: {'Peso': '500 g'},
+              price: 25,
+              stock: 2,
+            ),
+          ],
+        ),
+      ),
+    );
+    await HiveDatabase.customerBox.put(
+      'json-customer',
+      CustomerModel(
+        id: 'json-customer',
+        name: 'Ana',
+        phone: '555123',
+        email: 'ana@example.com',
+        address: 'Calle 1',
+      ),
+    );
+    await HiveDatabase.salesBox.put(
+      'json-sale',
+      SaleModel.fromEntity(
+        SaleRecord(
+          id: 'json-sale',
+          soldAt: DateTime(2026, 11, 1),
+          total: 25,
+          customerId: 'json-customer',
+          customerName: 'Ana',
+          currencyCode: 'USD',
+          paymentMethod: 'Efectivo',
+          lines: const [
+            SaleLine(
+              productId: 'json-product',
+              productName: 'Café',
+              quantity: 1,
+              unitPrice: 25,
+              variantId: '500g',
+              variantAttributes: {'Peso': '500 g'},
+            ),
+          ],
+        ),
+      ),
+    );
+    await HiveDatabase.shopBox.put(
+      'shop_details',
+      const ShopModel(
+        name: 'Mi tienda',
+        addressLine1: 'Calle 1',
+        addressLine2: '',
+        phoneNumber: '555123',
+        rif: 'J-123',
+        upiId: '',
+        footerText: 'Gracias',
+      ),
+    );
+
+    final backup = JsonBackupExporter().createCompleteBackup();
+    expect(backup.name, endsWith('.json'));
+    final envelope = jsonDecode(utf8.decode(backup.bytes)) as Map;
+    expect(envelope['format'], 'synthetix_pos_backup');
+    expect(envelope['data']['products'].first['price'], 25);
+
+    await HiveDatabase.productBox.clear();
+    await HiveDatabase.settingsBox.put('currency_code', 'EUR');
+    final importer = CsvBackupImporter();
+    final plan = importer.parseJsonFile(backup.bytes);
+    expect(plan.scope, CsvBackupScope.all);
+    expect(importer.summarize(plan).products, 1);
+    expect(importer.summarize(plan).categories, 1);
+    await importer.restore(plan);
+
+    expect(
+      HiveDatabase.productBox.get('json-product')?.description,
+      'Molido\nartesanal',
+    );
+    expect(
+      HiveDatabase.productBox.get('json-product')?.variants.single.stock,
+      2,
+    );
+    expect(HiveDatabase.customerBox.containsKey('json-customer'), isTrue);
+    expect(
+      HiveDatabase.salesBox.get('json-sale')?.toEntity().lines.single.variantId,
+      '500g',
+    );
+    expect(HiveDatabase.shopBox.get('shop_details')?.rif, 'J-123');
+    expect(HiveDatabase.settingsBox.get('currency_code'), 'USD');
+    expect(
+      (HiveDatabase.settingsBox.get('app_settings') as AppSettings)
+          .currencies
+          .single
+          .code,
+      'USD',
+    );
+
+    final productsBackup = JsonBackupExporter().createBackup(
+      CsvBackupScope.products,
+    );
+    await HiveDatabase.productBox.clear();
+    await HiveDatabase.productBox.put(
+      'stale-product',
+      const ProductModel(
+        id: 'stale-product',
+        name: 'Antiguo',
+        barcode: '',
+        price: 1,
+        stock: 1,
+      ),
+    );
+    await importer.restore(importer.parseJsonFile(productsBackup.bytes));
+    expect(HiveDatabase.productBox.containsKey('stale-product'), isFalse);
+    expect(HiveDatabase.productBox.containsKey('json-product'), isTrue);
+    expect(HiveDatabase.customerBox.containsKey('json-customer'), isTrue);
+  });
+
   test(
     'exports all backup data, including saved and product categories',
     () async {
@@ -74,24 +263,24 @@ void main() {
         'product-1',
         ProductModel.fromEntity(
           Product(
-          id: 'product-1',
-          name: 'Café, "Especial"',
-          barcode: '123',
-          price: 25,
-          stock: 4,
-          description: 'Molido\nartesanal',
-          category: 'Bebidas',
-          unitLabel: 'kg',
-          imageData: 'aW1hZ2U=',
-          variants: const [
-            ProductVariant(
-              id: 'coffee-500g',
-              attributes: {'Peso': '500 g'},
-              price: 25,
-              stock: 2.5,
-              unitLabel: 'kg',
-            ),
-          ],
+            id: 'product-1',
+            name: 'Café, "Especial"',
+            barcode: '123',
+            price: 25,
+            stock: 4,
+            description: 'Molido\nartesanal',
+            category: 'Bebidas',
+            unitLabel: 'kg',
+            imageData: 'aW1hZ2U=',
+            variants: const [
+              ProductVariant(
+                id: 'coffee-500g',
+                attributes: {'Peso': '500 g'},
+                price: 25,
+                stock: 2.5,
+                unitLabel: 'kg',
+              ),
+            ],
           ),
         ),
       );

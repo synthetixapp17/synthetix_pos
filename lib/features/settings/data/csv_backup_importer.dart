@@ -231,6 +231,69 @@ class CsvBackupImporter {
     }
   }
 
+  CsvBackupPlan parseJsonFile(Uint8List bytes) {
+    if (bytes.isEmpty || bytes.length > _maxPackageBytes) {
+      throw const FormatException('El JSON está vacío o supera 100 MB.');
+    }
+
+    final decoded = jsonDecode(utf8.decode(bytes, allowMalformed: false));
+    final envelope = _jsonObject(decoded, 'copia');
+    if (envelope['format'] != 'synthetix_pos_backup' ||
+        envelope['version'] != 1) {
+      throw const FormatException(
+        'El formato o versión de la copia no es compatible.',
+      );
+    }
+    final scopeName = envelope['scope'];
+    final scope = CsvBackupScope.values
+        .where((item) => item.name == scopeName)
+        .firstOrNull;
+    if (scope == null) {
+      throw const FormatException('El tipo de copia JSON no es válido.');
+    }
+    final data = _jsonObject(envelope['data'], 'datos de la copia');
+
+    final products =
+        scope == CsvBackupScope.all || scope == CsvBackupScope.products
+        ? _parseJsonProducts(data['products'])
+        : const <ProductModel>[];
+    final categories =
+        scope == CsvBackupScope.all || scope == CsvBackupScope.categories
+        ? _parseJsonCategories(data['categories'])
+        : const <(String, int)>[];
+    final customers =
+        scope == CsvBackupScope.all || scope == CsvBackupScope.customers
+        ? _parseJsonCustomers(data['customers'])
+        : const <CustomerModel>[];
+    final sales = scope == CsvBackupScope.all || scope == CsvBackupScope.sales
+        ? _parseJsonSales(data['sales'])
+        : const <SaleModel>[];
+    final credits =
+        scope == CsvBackupScope.all || scope == CsvBackupScope.credits
+        ? _parseJsonCredits(data['credits'])
+        : const <CreditRecord>[];
+    final hasConfiguration =
+        scope == CsvBackupScope.all || scope == CsvBackupScope.configuration;
+    final shop = hasConfiguration ? _parseJsonShop(data['shop']) : null;
+    final settings = hasConfiguration
+        ? _parseJsonSettings(data['settings'])
+        : const <String, Object?>{};
+
+    return CsvBackupPlan(
+      scope: scope,
+      products: products,
+      customers: customers,
+      sales: sales,
+      credits: credits,
+      categoriesJson: jsonEncode([
+        for (final category in categories)
+          {'name': category.$1, 'icon': category.$2},
+      ]),
+      shop: shop,
+      settings: settings,
+    );
+  }
+
   CsvBackupSummary summarize(CsvBackupPlan plan) => CsvBackupSummary(
     products: plan.products.length,
     categories: (jsonDecode(plan.categoriesJson) as List).length,
@@ -721,6 +784,220 @@ class CsvBackupImporter {
       throw const FormatException('Las tasas de moneda no son válidas.');
     }
     return AppSettings(currencies: currencies);
+  }
+
+  List<ProductModel> _parseJsonProducts(Object? value) {
+    final records = _jsonArray(value, 'productos');
+    final ids = <String>{};
+    return [
+      for (final item in records)
+        () {
+          final row = _jsonObject(item, 'producto');
+          final id = _jsonNonEmptyString(row, 'id', 'producto');
+          if (!ids.add(id)) {
+            throw FormatException('ID de producto duplicado: $id.');
+          }
+          final variants = _jsonArray(row['variants'], 'variaciones');
+          final variantModels = variants.map((variant) {
+            final map = _jsonObject(variant, 'variación');
+            return ProductVariant.fromJson(map);
+          }).toList();
+          return ProductModel(
+            id: id,
+            name: _jsonNonEmptyString(row, 'name', 'producto'),
+            category: _jsonString(row, 'category', 'producto'),
+            description: _jsonString(row, 'description', 'producto'),
+            barcode: _jsonString(row, 'barcode', 'producto'),
+            price: _jsonNumber(row, 'price', 'producto'),
+            currencyCode: _jsonNonEmptyString(row, 'currencyCode', 'producto'),
+            stock: _jsonNumber(row, 'stock', 'producto'),
+            unitLabel: _jsonString(row, 'unitLabel', 'producto'),
+            imageData: _jsonNullableString(row, 'imageData', 'producto'),
+            variants: variantModels,
+            variantsJson: jsonEncode(variants),
+          );
+        }(),
+    ];
+  }
+
+  List<(String, int)> _parseJsonCategories(Object? value) {
+    final records = _jsonArray(value, 'categorías');
+    final names = <String>{};
+    return [
+      for (final item in records)
+        () {
+          final row = _jsonObject(item, 'categoría');
+          final name = _jsonNonEmptyString(row, 'name', 'categoría');
+          if (!names.add(name.toLowerCase())) {
+            throw FormatException('Categoría duplicada: $name.');
+          }
+          final icon = _jsonNumber(row, 'icon', 'categoría');
+          if (icon <= 0 || icon != icon.roundToDouble()) {
+            throw FormatException('Icono inválido para la categoría $name.');
+          }
+          return (name, icon.toInt());
+        }(),
+    ];
+  }
+
+  List<CustomerModel> _parseJsonCustomers(Object? value) {
+    final records = _jsonArray(value, 'clientes');
+    final ids = <String>{};
+    return [
+      for (final item in records)
+        () {
+          final row = _jsonObject(item, 'cliente');
+          final id = _jsonNonEmptyString(row, 'id', 'cliente');
+          if (!ids.add(id)) {
+            throw FormatException('ID de cliente duplicado: $id.');
+          }
+          return CustomerModel(
+            id: id,
+            name: _jsonNonEmptyString(row, 'name', 'cliente'),
+            identityNumber: _jsonString(row, 'identityNumber', 'cliente'),
+            phone: _jsonString(row, 'phone', 'cliente'),
+            email: _jsonString(row, 'email', 'cliente'),
+            address: _jsonString(row, 'address', 'cliente'),
+          );
+        }(),
+    ];
+  }
+
+  List<SaleModel> _parseJsonSales(Object? value) {
+    final records = _jsonArray(value, 'ventas');
+    final ids = <String>{};
+    return [
+      for (final item in records)
+        () {
+          final row = _jsonObject(item, 'venta');
+          final id = _jsonNonEmptyString(row, 'id', 'venta');
+          if (!ids.add(id)) {
+            throw FormatException('ID de venta duplicado: $id.');
+          }
+          final dateValue = _jsonNonEmptyString(row, 'soldAt', 'venta');
+          final date = DateTime.tryParse(dateValue);
+          if (date == null) {
+            throw FormatException('Fecha inválida en venta $id.');
+          }
+          final lines = _jsonArray(row['lines'], 'líneas de venta');
+          final linesJson = jsonEncode(lines);
+          decodeSaleLines(linesJson);
+          return SaleModel(
+            id: id,
+            soldAt: date,
+            total: _jsonNumber(row, 'total', 'venta'),
+            totalInCurrency: _jsonNumber(row, 'totalInCurrency', 'venta'),
+            exchangeRate: _jsonNumber(row, 'exchangeRate', 'venta'),
+            customerId: _jsonNullableString(row, 'customerId', 'venta'),
+            customerName: _jsonNullableString(row, 'customerName', 'venta'),
+            currencyCode: _jsonNonEmptyString(row, 'currencyCode', 'venta'),
+            paymentMethod: _jsonString(row, 'paymentMethod', 'venta'),
+            amountTendered: _jsonNumber(row, 'amountTendered', 'venta'),
+            changeAmount: _jsonNumber(row, 'changeAmount', 'venta'),
+            linesJson: linesJson,
+          );
+        }(),
+    ];
+  }
+
+  List<CreditRecord> _parseJsonCredits(Object? value) {
+    final records = _jsonArray(value, 'créditos');
+    final ids = <String>{};
+    return [
+      for (final item in records)
+        () {
+          final row = _jsonObject(item, 'crédito');
+          final id = _jsonNonEmptyString(row, 'id', 'crédito');
+          if (!ids.add(id)) {
+            throw FormatException('ID de crédito duplicado: $id.');
+          }
+          try {
+            return CreditRecord.fromJson(row);
+          } on Object catch (error) {
+            throw FormatException('Crédito inválido "$id": $error');
+          }
+        }(),
+    ];
+  }
+
+  ShopModel? _parseJsonShop(Object? value) {
+    if (value == null) return null;
+    final row = _jsonObject(value, 'tienda');
+    return ShopModel(
+      name: _jsonString(row, 'name', 'tienda'),
+      addressLine1: _jsonString(row, 'addressLine1', 'tienda'),
+      addressLine2: _jsonString(row, 'addressLine2', 'tienda'),
+      phoneNumber: _jsonString(row, 'phoneNumber', 'tienda'),
+      rif: _jsonString(row, 'rif', 'tienda'),
+      upiId: _jsonString(row, 'upiId', 'tienda'),
+      footerText: _jsonString(row, 'footerText', 'tienda'),
+      logoData: _jsonNullableString(row, 'logoData', 'tienda'),
+    );
+  }
+
+  Map<String, Object?> _parseJsonSettings(Object? value) {
+    final map = _jsonObject(value, 'configuración');
+    return {
+      for (final entry in map.entries)
+        entry.key: entry.key == 'app_settings'
+            ? _parseAppSettings(entry.value)
+            : entry.value,
+    };
+  }
+
+  Map<String, dynamic> _jsonObject(Object? value, String label) {
+    if (value is! Map || value.keys.any((key) => key is! String)) {
+      throw FormatException('El objeto de $label no es válido.');
+    }
+    return value.cast<String, dynamic>();
+  }
+
+  List<Object?> _jsonArray(Object? value, String label) {
+    if (value is! List) {
+      throw FormatException('La lista de $label no es válida.');
+    }
+    return value.cast<Object?>();
+  }
+
+  String _jsonString(Map<String, dynamic> row, String key, String label) {
+    final value = row[key];
+    if (value is! String) {
+      throw FormatException('Falta "$key" en $label.');
+    }
+    return value;
+  }
+
+  String _jsonNonEmptyString(
+    Map<String, dynamic> row,
+    String key,
+    String label,
+  ) {
+    final value = _jsonString(row, key, label);
+    if (value.trim().isEmpty) {
+      throw FormatException('Falta "$key" en $label.');
+    }
+    return value;
+  }
+
+  String? _jsonNullableString(
+    Map<String, dynamic> row,
+    String key,
+    String label,
+  ) {
+    final value = row[key];
+    if (value == null) return null;
+    if (value is! String) {
+      throw FormatException('"$key" no es válido en $label.');
+    }
+    return value;
+  }
+
+  double _jsonNumber(Map<String, dynamic> row, String key, String label) {
+    final value = row[key];
+    if (value is! num || !value.isFinite) {
+      throw FormatException('Número inválido "$key" en $label.');
+    }
+    return value.toDouble();
   }
 
   String? _fileType(String name) {

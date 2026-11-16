@@ -19,8 +19,9 @@ import '../../../dashboard/presentation/bloc/dashboard_bloc.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../reports/presentation/bloc/reports_bloc.dart';
 import '../../../shop/presentation/bloc/shop_bloc.dart';
-import '../../data/csv_backup_exporter.dart';
 import '../../data/csv_backup_importer.dart';
+import '../../data/json_backup_exporter.dart';
+import '../../data/local_data_resetter.dart';
 import '../../../splash/data/splash_preferences.dart';
 import '../bloc/printer_bloc.dart';
 import '../bloc/printer_event.dart';
@@ -44,7 +45,7 @@ enum _BackupScopeChoice {
 
 extension on _BackupScopeChoice {
   String get label => switch (this) {
-    _BackupScopeChoice.complete => 'Copia completa (ZIP)',
+    _BackupScopeChoice.complete => 'Copia completa (JSON)',
     _BackupScopeChoice.products => 'Productos',
     _BackupScopeChoice.categories => 'Categorías',
     _BackupScopeChoice.customers => 'Clientes',
@@ -53,24 +54,14 @@ extension on _BackupScopeChoice {
     _BackupScopeChoice.configuration => 'Tienda y configuración',
   };
 
-  CsvBackupScope? get csvScope => switch (this) {
-    _BackupScopeChoice.complete => null,
+  CsvBackupScope get backupScope => switch (this) {
+    _BackupScopeChoice.complete => CsvBackupScope.all,
     _BackupScopeChoice.products => CsvBackupScope.products,
     _BackupScopeChoice.categories => CsvBackupScope.categories,
     _BackupScopeChoice.customers => CsvBackupScope.customers,
     _BackupScopeChoice.sales => CsvBackupScope.sales,
     _BackupScopeChoice.credits => CsvBackupScope.credits,
     _BackupScopeChoice.configuration => CsvBackupScope.configuration,
-  };
-
-  String get filePrefix => switch (this) {
-    _BackupScopeChoice.complete => '',
-    _BackupScopeChoice.products => 'respaldo_productos_',
-    _BackupScopeChoice.categories => 'respaldo_categorias_',
-    _BackupScopeChoice.customers => 'respaldo_clientes_',
-    _BackupScopeChoice.sales => 'respaldo_ventas_',
-    _BackupScopeChoice.credits => 'respaldo_creditos_',
-    _BackupScopeChoice.configuration => 'respaldo_tienda_configuracion_',
   };
 }
 
@@ -80,6 +71,7 @@ class _SettingsPageState extends State<SettingsPage> {
   int _currencyDropdownVersion = 0;
   bool _isExportingBackup = false;
   bool _isRestoringBackup = false;
+  bool _isResettingData = false;
 
   @override
   void initState() {
@@ -166,14 +158,14 @@ class _SettingsPageState extends State<SettingsPage> {
               ListTile(
                 leading: Icon(
                   choice == _BackupScopeChoice.complete
-                      ? Icons.folder_zip_outlined
+                      ? Icons.backup_outlined
                       : Icons.table_chart_outlined,
                 ),
                 title: Text(choice.label),
                 subtitle: Text(
                   choice == _BackupScopeChoice.complete
-                      ? 'Todos los datos en un solo archivo ZIP'
-                      : 'Un archivo CSV; los demás datos se conservan',
+                      ? 'Todos los datos en un solo archivo JSON'
+                      : 'Un archivo JSON; los demás datos se conservan',
                 ),
                 onTap: () => Navigator.pop(context, choice),
               ),
@@ -193,33 +185,23 @@ class _SettingsPageState extends State<SettingsPage> {
     CsvBackupScope.configuration => 'tienda y configuración',
   };
 
-  Future<void> _exportCsvBackup() async {
+  Future<void> _exportBackup() async {
     if (_isExportingBackup) return;
     final choice = await _chooseBackupScope('¿Qué datos deseas exportar?');
     if (choice == null || !mounted) return;
     setState(() => _isExportingBackup = true);
     try {
-      final exporter = CsvBackupExporter();
-      final backup = choice == _BackupScopeChoice.complete
-          ? exporter.createBackupPackage()
-          : exporter.createBackup().singleWhere(
-              (file) => file.name.startsWith(choice.filePrefix),
-            );
-      final isPackage = choice == _BackupScopeChoice.complete;
+      final backup = JsonBackupExporter().createBackup(choice.backupScope);
+      final isComplete = choice == _BackupScopeChoice.complete;
       await SharePlus.instance.share(
         ShareParams(
-          title: isPackage
+          title: isComplete
               ? 'Copia completa de seguridad'
               : 'Respaldo de ${choice.label.toLowerCase()}',
-          text: isPackage
-              ? 'Paquete ZIP con todos los datos del negocio.'
-              : 'Archivo CSV de ${choice.label.toLowerCase()}.',
-          files: [
-            XFile.fromData(
-              backup.bytes,
-              mimeType: isPackage ? 'application/zip' : 'text/csv',
-            ),
-          ],
+          text: isComplete
+              ? 'Archivo JSON con todos los datos del negocio.'
+              : 'Archivo JSON de ${choice.label.toLowerCase()}.',
+          files: [XFile.fromData(backup.bytes, mimeType: 'application/json')],
           fileNameOverrides: [backup.name],
           downloadFallbackEnabled: true,
         ),
@@ -235,7 +217,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _restoreCsvBackup() async {
+  Future<void> _restoreBackup() async {
     if (_isRestoringBackup) return;
     final billingBloc = context.read<BillingBloc>();
     final customerBloc = context.read<CustomerBloc>();
@@ -263,12 +245,12 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final selectedFile = await FilePicker.pickFile(
         dialogTitle: choice == _BackupScopeChoice.complete
-            ? 'Seleccionar paquete ZIP completo'
-            : 'Seleccionar CSV de ${choice.label.toLowerCase()}',
+            ? 'Seleccionar copia completa'
+            : 'Seleccionar copia de ${choice.label.toLowerCase()}',
         type: FileType.custom,
         allowedExtensions: choice == _BackupScopeChoice.complete
-            ? ['zip']
-            : ['csv'],
+            ? ['json', 'zip']
+            : ['json', 'csv'],
       );
       if (selectedFile == null) return;
       final bytes = await selectedFile.readAsBytes();
@@ -276,14 +258,14 @@ class _SettingsPageState extends State<SettingsPage> {
       final plan = switch (selectedFile.extension?.toLowerCase()) {
         'zip' when choice == _BackupScopeChoice.complete =>
           importer.parsePackage(bytes),
+        'json' => importer.parseJsonFile(bytes),
         'csv' when choice != _BackupScopeChoice.complete =>
           importer.parseCsvFile(selectedFile.name, bytes),
         _ => throw const FormatException(
-          'Para una copia completa selecciona el ZIP; para una copia parcial, el CSV de su tipo de datos.',
+          'Selecciona un JSON para cualquier copia, un ZIP completo antiguo o un CSV parcial antiguo.',
         ),
       };
-      final expectedScope = choice.csvScope;
-      if (expectedScope != null && plan.scope != expectedScope) {
+      if (plan.scope != choice.backupScope) {
         throw FormatException(
           'El archivo seleccionado contiene ${_scopeName(plan.scope)}, '
           'no ${choice.label.toLowerCase()}.',
@@ -315,7 +297,7 @@ class _SettingsPageState extends State<SettingsPage> {
           title: Text(
             replacesAllData
                 ? 'Reemplazar datos actuales'
-                : 'Restaurar CSV seleccionado',
+                : 'Restaurar archivo seleccionado',
           ),
           content: Text(
             '${replacesAllData ? 'Se reemplazarán todos los datos locales' : 'Se reemplazarán solo los datos de este archivo; los demás se conservarán'} '
@@ -331,7 +313,7 @@ class _SettingsPageState extends State<SettingsPage> {
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
               child: Text(
-                replacesAllData ? 'Reemplazar y restaurar' : 'Restaurar CSV',
+                replacesAllData ? 'Reemplazar y restaurar' : 'Restaurar copia',
               ),
             ),
           ],
@@ -385,6 +367,92 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } finally {
       if (mounted) setState(() => _isRestoringBackup = false);
+    }
+  }
+
+  Future<void> _resetAllData() async {
+    if (_isResettingData) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(
+          Icons.delete_forever_outlined,
+          color: Theme.of(dialogContext).colorScheme.error,
+        ),
+        title: const Text('¿Borrar todos los datos?'),
+        content: const Text(
+          'Se eliminarán productos, categorías, clientes, ventas, créditos, datos de la tienda y todas las preferencias de este dispositivo. La aplicación volverá a su configuración inicial. Esta acción no se puede deshacer; exporta una copia antes de continuar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Borrar todo'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isResettingData = true);
+    final billingBloc = context.read<BillingBloc>();
+    final customerBloc = context.read<CustomerBloc>();
+    final dashboardBloc = context.read<DashboardBloc>();
+    final productBloc = context.read<ProductBloc>();
+    final reportsBloc = context.read<ReportsBloc>();
+    final shopBloc = context.read<ShopBloc>();
+    final printerBloc = context.read<PrinterBloc>();
+    final reportsFrom = reportsBloc.state.from;
+    final reportsTo = reportsBloc.state.to;
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      await LocalDataResetter().reset();
+      await AppThemeController.loadSavedMode();
+      AppCurrency.loadSavedCurrency();
+      await AppCurrency.ensureSettings();
+
+      billingBloc.add(ClearCartEvent());
+      customerBloc.add(const LoadCustomersEvent());
+      dashboardBloc.add(const LoadDashboardEvent(threshold: 5));
+      productBloc.add(LoadProducts());
+      if (reportsFrom != null && reportsTo != null) {
+        reportsBloc.add(LoadReportsEvent(from: reportsFrom, to: reportsTo));
+      }
+      shopBloc.add(LoadShopEvent());
+      printerBloc.add(InitPrinterEvent());
+
+      if (mounted) {
+        setState(() {
+          _currencyCode = AppCurrency.currentCode;
+          _stockThreshold = 5;
+          _currencyDropdownVersion++;
+        });
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Se borraron los datos. La aplicación está como nueva.',
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('No se pudieron borrar todos los datos: $error'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isResettingData = false);
     }
   }
 
@@ -541,6 +609,23 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: 'Códigos de barras',
                     subtitle: 'Consulta e imprime etiquetas de productos',
                     onTap: () => context.push('/settings/barcodes'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              _SectionTitle(
+                icon: Icons.storefront_outlined,
+                title: 'Tienda virtual',
+                subtitle: 'Publica tu catálogo y recibe pedidos por WhatsApp.',
+              ),
+              _SettingsGroup(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.language_outlined,
+                    title: 'Configurar tienda virtual',
+                    subtitle:
+                        'Personaliza tu sitio y actualiza sus productos en GitHub Pages.',
+                    onTap: () => context.push('/settings/virtual-store'),
                   ),
                 ],
               ),
@@ -879,10 +964,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   _SettingsTile(
                     icon: Icons.download_outlined,
-                    title: 'Exportar datos en CSV',
+                    title: 'Exportar datos en JSON',
                     subtitle:
                         'Elige una copia completa o exporta productos, categorías y otros datos por separado.',
-                    onTap: _isExportingBackup ? null : _exportCsvBackup,
+                    onTap: _isExportingBackup ? null : _exportBackup,
                     trailing: _isExportingBackup
                         ? const SizedBox(
                             width: 22,
@@ -896,8 +981,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     icon: Icons.settings_backup_restore_outlined,
                     title: 'Restaurar copia de seguridad',
                     subtitle:
-                        'Restaura un tipo de dato desde su CSV o todos los datos desde un ZIP.',
-                    onTap: _isRestoringBackup ? null : _restoreCsvBackup,
+                        'Restaura copias JSON nuevas y archivos CSV/ZIP antiguos.',
+                    onTap: _isRestoringBackup ? null : _restoreBackup,
                     trailing: _isRestoringBackup
                         ? const SizedBox(
                             width: 22,
@@ -927,6 +1012,31 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: 'Resumen del negocio',
                     subtitle: 'Ventas del día y estado del inventario',
                     onTap: () => context.go('/'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              _SectionTitle(
+                icon: Icons.warning_amber_rounded,
+                title: 'Zona de peligro',
+                subtitle:
+                    'Elimina los datos locales y vuelve al estado inicial.',
+              ),
+              _SettingsGroup(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.delete_forever_outlined,
+                    title: 'Borrar todo y empezar de nuevo',
+                    subtitle:
+                        'Elimina todos los registros y preferencias guardados en este dispositivo.',
+                    onTap: _isResettingData ? null : _resetAllData,
+                    trailing: _isResettingData
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(Icons.delete_outline, color: colors.error),
                   ),
                 ],
               ),

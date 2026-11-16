@@ -13,6 +13,7 @@ import '../../features/product/presentation/pages/add_product_page.dart';
 import '../../features/product/presentation/pages/edit_product_page.dart';
 import '../../features/shop/presentation/pages/shop_details_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/settings/presentation/pages/virtual_store_settings_page.dart';
 import '../../features/settings/presentation/pages/receipt_settings_page.dart';
 import '../../features/settings/presentation/pages/product_barcodes_page.dart';
 import '../../features/settings/presentation/pages/quotation_settings_page.dart';
@@ -125,6 +126,10 @@ final router = GoRouter(
         GoRoute(
           path: '/settings/receipt',
           builder: (context, state) => const ReceiptSettingsPage(),
+        ),
+        GoRoute(
+          path: '/settings/virtual-store',
+          builder: (context, state) => const VirtualStoreSettingsPage(),
         ),
         GoRoute(
           path: '/settings/printer',

@@ -17,6 +17,10 @@ Try Synthetix POS on [GitHub Pages](https://synthetixapp17.github.io/synthetix_p
 
 The `Deploy Flutter Web to GitHub Pages` workflow runs tests and builds the web app for pushes and pull requests targeting `main`. It deploys only from `main`; pull requests are validated without changing the live demo. To redeploy, run the workflow manually from the Actions tab while `main` is selected.
 
+### Virtual storefront
+
+The static storefront template is [`web/tienda.html`](./web/tienda.html). Each merchant uses a separate public repository with GitHub Pages enabled from `main` and the repository root; copy the template there as `tienda.html`. The Cloudflare Worker in [`worker/README.md`](./worker/README.md) accepts only registered repositories and uses a separate app key for each one. The published `productos.json`, images, store details, and WhatsApp number are public.
+
 ## 🎯 Project Scope
 
 This application serves as a complete offline POS system for small to medium-sized retail shops. It streamlines the checkout process, catalog management, and receipt generation securely entirely on-device.
@@ -28,7 +32,8 @@ This application serves as a complete offline POS system for small to medium-siz
 - **Restaurant Table Service**: Browse restaurant items by category, search and add multiple products with photos to table orders, restore the menu from JSON backups, send incremental kitchen orders to a dedicated Bluetooth printer, and transfer the final table order to checkout.
 - **Sales Reports & Cash Closing**: Look up and reprint saved receipts, preview invoices before printing, and print daily sales totals by currency.
 - **Shop Settings & Customization**: Centrally managed shop details printed dynamically on receipts.
-- **CSV Backups**: Export a complete ZIP backup or restore an individual CSV without replacing unrelated data.
+- **Backups**: Export complete or partial JSON backups; older CSV and ZIP backups remain restorable.
+- **Virtual Storefront**: Configure a public GitHub Pages catalog with product photos, branding, stock, and WhatsApp ordering. GitHub credentials stay in a per-store server-side publisher.
 - **Offline-First Architecture**: Powered by `Hive` for lightning-fast localized NoSQL data storage. No active internet connectivity required.
 
 ## 🛠 Tech Stack & Architecture
