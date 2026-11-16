@@ -1,12 +1,14 @@
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const MAX_TEMPLATE_BYTES = 256 * 1024;
 const GITHUB_API = 'https://api.github.com';
+const DEFAULT_APP_ORIGIN = 'https://synthetixapp17.github.io';
 
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin');
-    const cors = corsHeaders(origin, env.APP_ORIGIN);
-    if (origin && origin !== env.APP_ORIGIN) {
+    const allowedOrigins = [DEFAULT_APP_ORIGIN, env.APP_ORIGIN].filter(Boolean);
+    const cors = corsHeaders(origin, allowedOrigins);
+    if (origin && !allowedOrigins.includes(origin)) {
       return json({ error: 'Origen no autorizado.' }, 403);
     }
 
@@ -387,10 +389,10 @@ function constantTimeEqual(first, second) {
   return difference === 0;
 }
 
-function corsHeaders(origin, allowedOrigin) {
-  if (!origin || !allowedOrigin || origin !== allowedOrigin) return {};
+function corsHeaders(origin, allowedOrigins) {
+  if (!origin || !allowedOrigins.includes(origin)) return {};
   return {
-    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Origin': origin,
     Vary: 'Origin',
   };
 }

@@ -42,4 +42,52 @@ void main() {
       client.close();
     },
   );
+
+  test('shows the JSON error returned by the Worker', () async {
+    final client = MockClient(
+      (_) async => http.Response('{"error":"La clave no corresponde."}', 401),
+    );
+
+    await expectLater(
+      VirtualStorePublisher(client: client).publish(
+        settings: const VirtualStoreSettings(
+          businessId: '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a',
+          clientSecret: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        ),
+        catalog: const {'schemaVersion': 1},
+      ),
+      throwsA(
+        isA<VirtualStorePublishException>().having(
+          (error) => error.message,
+          'message',
+          'La clave no corresponde.',
+        ),
+      ),
+    );
+    client.close();
+  });
+
+  test('explains when the browser blocks the Worker request', () async {
+    final client = MockClient(
+      (_) async => throw http.ClientException('Failed to fetch'),
+    );
+
+    await expectLater(
+      VirtualStorePublisher(client: client).publish(
+        settings: const VirtualStoreSettings(
+          businessId: '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a',
+          clientSecret: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        ),
+        catalog: const {'schemaVersion': 1},
+      ),
+      throwsA(
+        isA<VirtualStorePublishException>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('CORS'), contains('Failed to fetch')),
+        ),
+      ),
+    );
+    client.close();
+  });
 }

@@ -1,8 +1,18 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
 import 'virtual_store_settings.dart';
+
+class VirtualStorePublishException implements Exception {
+  final String message;
+
+  const VirtualStorePublishException(this.message);
+
+  @override
+  String toString() => message;
+}
 
 class VirtualStorePublisher {
   final http.Client? client;
@@ -29,22 +39,7 @@ class VirtualStorePublisher {
       );
     }
 
-    final response =
-        await (client?.post(
-                  Uri.parse(virtualStoreWorkerUrl),
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: body,
-                ) ??
-                http.post(
-                  Uri.parse(virtualStoreWorkerUrl),
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: body,
-                ))
-            .timeout(const Duration(seconds: 45));
+    final response = await _post(body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       var message = 'El servicio respondió con HTTP ${response.statusCode}.';
       try {
@@ -55,18 +50,53 @@ class VirtualStorePublisher {
       } on FormatException {
         // Keep the HTTP status when the proxy does not return JSON.
       }
-      throw StateError(message);
+      throw VirtualStorePublishException(message);
     }
 
-    final decoded = jsonDecode(response.body);
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(response.body);
+    } on FormatException {
+      throw const VirtualStorePublishException(
+        'El servicio devolvió una respuesta que no es JSON válido.',
+      );
+    }
     if (decoded is! Map ||
         decoded['ok'] != true ||
         decoded['url'] is! String ||
         (decoded['url'] as String).isEmpty) {
-      throw const FormatException(
+      throw const VirtualStorePublishException(
         'El servicio no devolvió un enlace válido para la tienda.',
       );
     }
     return decoded['url'] as String;
+  }
+
+  Future<http.Response> _post(String body) async {
+    final uri = Uri.parse(virtualStoreWorkerUrl);
+    try {
+      return await (client?.post(
+                uri,
+                headers: const {'Content-Type': 'application/json'},
+                body: body,
+              ) ??
+              http.post(
+                uri,
+                headers: const {'Content-Type': 'application/json'},
+                body: body,
+              ))
+          .timeout(const Duration(seconds: 45));
+    } on http.ClientException catch (error) {
+      throw VirtualStorePublishException(
+        'No se pudo conectar con el servicio de publicación. El navegador '
+        'puede haber bloqueado la solicitud por CORS: verifica que el Worker '
+        'permita el origen https://synthetixapp17.github.io y responda al '
+        'preflight OPTIONS. Detalle: ${error.message}',
+      );
+    } on TimeoutException {
+      throw const VirtualStorePublishException(
+        'La solicitud al servicio de publicación superó el tiempo de espera.',
+      );
+    }
   }
 }
