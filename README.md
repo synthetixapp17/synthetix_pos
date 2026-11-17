@@ -19,7 +19,7 @@ The `Deploy Flutter Web to GitHub Pages` workflow runs tests and builds the web 
 
 ### Virtual storefront
 
-The static storefront template is [`web/tienda.html`](./web/tienda.html). On first publish, the Cloudflare Worker creates a public catalog repository for the store and enables GitHub Pages automatically. Store credentials stay in the app's local storage and Cloudflare KV; the master GitHub token stays in a Cloudflare Worker secret. The published catalog, images, store details, and WhatsApp number are public. See [`worker/README.md`](./worker/README.md) for deployment configuration.
+The static storefront template is [`web/tienda.html`](./web/tienda.html). The app publishes the store name and catalog to the Cloudflare Worker, which creates a public repository and enables GitHub Pages. The GitHub token stays in a Cloudflare Worker secret and is never sent to the app. Store names are not authentication: anyone who knows a store name can update its catalog. Published catalogs, images, store details, and WhatsApp numbers are public. See [`worker/README.md`](./worker/README.md) for deployment configuration.
 
 ## 🎯 Project Scope
 
@@ -33,7 +33,7 @@ This application serves as a complete offline POS system for small to medium-siz
 - **Sales Reports & Cash Closing**: Look up and reprint saved receipts, preview invoices before printing, and print daily sales totals by currency.
 - **Shop Settings & Customization**: Centrally managed shop details printed dynamically on receipts.
 - **Backups**: Export complete or partial JSON backups; older CSV and ZIP backups remain restorable.
-- **Virtual Storefront**: Configure a public GitHub Pages catalog with product photos, branding, stock, and WhatsApp ordering. GitHub credentials stay in a per-store server-side publisher.
+- **Virtual Storefront**: Publish a public GitHub Pages catalog using the store name, product photos, branding, stock, and WhatsApp ordering. The GitHub token stays server-side in Cloudflare.
 - **Offline-First Architecture**: Powered by `Hive` for lightning-fast localized NoSQL data storage. No active internet connectivity required.
 
 ## 🛠 Tech Stack & Architecture

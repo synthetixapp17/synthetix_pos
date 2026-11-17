@@ -3,22 +3,22 @@
 El endpoint que usa la app es:
 
 ```text
-https://synthetix-pos.synthetixapp17.workers.dev
+https://synthetix-pos.synthetixapp17.workers.dev/
 ```
 
-La app genera y guarda un `businessId` UUID y un `clientSecret` aleatorio en sus
-ajustes locales. Publica `POST /` (también se acepta `POST /publish`) con JSON:
+La app publica el nombre de la tienda como `businessId` en `POST /` (también se
+acepta `POST /publish`). El catálogo debe repetir el nombre en
+`catalog.business.id`:
 
 ```json
 {
-  "businessId": "4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a",
-  "clientSecret": "secreto-aleatorio-base64url-de-43-caracteres",
+  "businessId": "Tienda de Luis",
   "catalog": {
     "schemaVersion": 1,
     "business": {
-      "id": "4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a",
-      "name": "Mi tienda",
-      "whatsapp": "584120000000",
+      "id": "Tienda de Luis",
+      "name": "Tienda de Luis",
+      "whatsapp": "",
       "colors": {
         "primary": "#008c95",
         "accent": "#ffb300"
@@ -29,12 +29,16 @@ ajustes locales. Publica `POST /` (también se acepta `POST /publish`) con JSON:
 }
 ```
 
-En la primera publicación, el Worker crea un repositorio público
-`tienda-{businessId}` en la cuenta configurada, publica `tienda.html` y
-`productos.json`, y habilita GitHub Pages. En las siguientes publicaciones,
-compara el hash SHA-256 del secreto con el guardado en Cloudflare KV y solo
-entonces actualiza el catálogo. El secreto nunca se escribe en el repositorio.
-La respuesta incluye la URL pública final.
+El Worker convierte el nombre a un slug seguro y crea un repositorio público
+`tienda-{slug}` en `GITHUB_OWNER`. Publica `tienda.html` y `productos.json`,
+habilita GitHub Pages y devuelve la URL pública. Cloudflare KV conserva el
+repositorio asociado al slug para futuras actualizaciones.
+
+Esta modalidad no autentica al dueño de la tienda: cualquier persona puede
+publicar o sobrescribir el catálogo asociado al mismo nombre. El limitador
+reduce ráfagas por IP, pero el nombre no es una credencial ni demuestra
+propiedad. El `GITHUB_TOKEN` sigue siendo necesario y debe permanecer como
+secreto del Worker; nunca se envía a Flutter.
 
 ## Configuración de Cloudflare
 
@@ -46,8 +50,8 @@ La respuesta incluye la URL pública final.
 
    Copia el ID devuelto y reemplaza `REPLACE_WITH_KV_NAMESPACE_ID` en
    `wrangler.toml`.
-2. En `wrangler.toml`, configura `GITHUB_OWNER` con la cuenta personal que
-   posee el token maestro, `APP_ORIGIN` con el origen del frontend y
+2. En `wrangler.toml`, configura `GITHUB_OWNER` con la cuenta propietaria del
+   token, `APP_ORIGIN` con el origen del frontend y
    `APP_TEMPLATE_URL` con la URL desplegada de `web/tienda.html`.
    El Worker verifica que la plantilla pertenezca a `APP_ORIGIN`.
 3. Crea un token de GitHub limitado a esa cuenta, con permisos de repositorio
@@ -66,5 +70,4 @@ La respuesta incluye la URL pública final.
 
 El binding `PUBLISH_RATE_LIMITER` permite hasta 10 publicaciones por minuto y
 por IP. El catálogo y las imágenes que se publican son públicos. No añadas
-`GITHUB_TOKEN` ni el secreto de cliente al código, a `wrangler.toml` ni al
-repositorio.
+`GITHUB_TOKEN` al código, a `wrangler.toml` ni al repositorio.

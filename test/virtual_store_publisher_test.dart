@@ -7,60 +7,48 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
-  test(
-    'posts the store identity and catalog without GitHub credentials',
-    () async {
-      final client = MockClient((request) async {
-        expect(
-          request.url,
-          Uri.parse('https://synthetix-pos.synthetixapp17.workers.dev'),
-        );
-        expect(request.method, 'POST');
-        expect(request.headers.containsKey('Authorization'), isFalse);
-        expect(request.headers['Content-Type'], 'application/json');
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-        expect(body['businessId'], '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a');
-        expect(
-          body['clientSecret'],
-          'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-        );
-        expect(body['catalog'], {'schemaVersion': 1, 'products': []});
-        return http.Response(
-          '{"ok":true,"url":"https://owner.github.io/tienda-id/tienda.html"}',
-          200,
-        );
-      });
-
-      final url = await VirtualStorePublisher(client: client).publish(
-        settings: const VirtualStoreSettings(
-          businessId: '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a',
-          clientSecret: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-        ),
-        catalog: const {'schemaVersion': 1, 'products': []},
+  test('posts the store name and catalog without client credentials', () async {
+    final client = MockClient((request) async {
+      expect(
+        request.url.toString(),
+        'https://synthetix-pos.synthetixapp17.workers.dev/',
       );
-      expect(url, 'https://owner.github.io/tienda-id/tienda.html');
-      client.close();
-    },
-  );
+      expect(request.method, 'POST');
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      expect(request.headers['Content-Type'], 'application/json');
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      expect(body['businessId'], 'Tienda Central');
+      expect(body.containsKey('clientSecret'), isFalse);
+      expect(body['catalog'], {'schemaVersion': 1, 'products': []});
+      return http.Response(
+        '{"ok":true,"url":"https://owner.github.io/tienda-id/tienda.html"}',
+        200,
+      );
+    });
+
+    final url = await VirtualStorePublisher(client: client).publish(
+      settings: const VirtualStoreSettings(businessName: 'Tienda Central'),
+      catalog: const {'schemaVersion': 1, 'products': []},
+    );
+    expect(url, 'https://owner.github.io/tienda-id/tienda.html');
+    client.close();
+  });
 
   test('shows the JSON error returned by the Worker', () async {
     final client = MockClient(
-      (_) async => http.Response('{"error":"La clave no corresponde."}', 401),
+      (_) async => http.Response('{"error":"El catálogo no es válido."}', 400),
     );
 
     await expectLater(
       VirtualStorePublisher(client: client).publish(
-        settings: const VirtualStoreSettings(
-          businessId: '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a',
-          clientSecret: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-        ),
+        settings: const VirtualStoreSettings(businessName: 'Tienda Central'),
         catalog: const {'schemaVersion': 1},
       ),
       throwsA(
         isA<VirtualStorePublishException>().having(
           (error) => error.message,
           'message',
-          'La clave no corresponde.',
+          'El catálogo no es válido.',
         ),
       ),
     );
@@ -74,10 +62,7 @@ void main() {
 
     await expectLater(
       VirtualStorePublisher(client: client).publish(
-        settings: const VirtualStoreSettings(
-          businessId: '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a',
-          clientSecret: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-        ),
+        settings: const VirtualStoreSettings(businessName: 'Tienda Central'),
         catalog: const {'schemaVersion': 1},
       ),
       throwsA(

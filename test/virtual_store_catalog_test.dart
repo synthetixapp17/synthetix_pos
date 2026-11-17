@@ -11,8 +11,6 @@ void main() {
       whatsappNumber: '584120000000',
       primaryColor: 0xFF008C95,
       accentColor: 0xFFFFB300,
-      businessId: '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a',
-      clientSecret: 'test-secret',
     );
     final catalog = VirtualStoreCatalogBuilder().build(settings, [
       ProductModel.fromEntity(
@@ -39,7 +37,7 @@ void main() {
     expect(catalog['schemaVersion'], 1);
     expect(catalog['updatedAt'], '2026-11-15T00:00:00.000Z');
     expect(catalog['business'], {
-      'id': '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a',
+      'id': 'Café Central',
       'name': 'Café Central',
       'slogan': 'Café recién molido',
       'whatsapp': '584120000000',
@@ -51,22 +49,16 @@ void main() {
     expect((products.single['variants'] as List).single['id'], 'small');
   });
 
-  test('creates and serializes a persistent identity when migrating settings', () {
+  test('migrates legacy identity fields without retaining credentials', () {
     final settings = VirtualStoreSettings.fromJson({
       'businessName': 'Mi tienda',
+      'businessId': 'legacy-business-id',
+      'clientSecret': 'legacy-client-secret',
     });
 
-    expect(
-      settings.businessId,
-      matches(
-        RegExp(
-          r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
-        ),
-      ),
-    );
-    expect(settings.clientSecret, hasLength(43));
     final restored = VirtualStoreSettings.fromJson(settings.toJson());
-    expect(restored.businessId, settings.businessId);
-    expect(restored.clientSecret, settings.clientSecret);
+    expect(restored.businessName, settings.businessName);
+    expect(settings.toJson().containsKey('businessId'), isFalse);
+    expect(settings.toJson().containsKey('clientSecret'), isFalse);
   });
 }
