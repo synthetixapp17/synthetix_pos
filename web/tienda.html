@@ -15,104 +15,186 @@
       --muted: #64716e;
       --surface: #ffffff;
       --background: #f4f7f6;
+      --line: #e4e9e6;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
     body { margin: 0; color: var(--ink); background: var(--background); }
     a { color: inherit; }
-    .hero {
-      background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 76%, #111));
-      color: white;
-      padding: 38px 20px 34px;
-    }
-    .hero-inner, main, footer { width: min(1120px, 100% - 32px); margin: 0 auto; }
-    .brand { display: flex; align-items: center; gap: 16px; }
-    .logo {
-      width: 76px; height: 76px; flex: 0 0 76px; object-fit: contain;
-      border-radius: 20px; background: white; padding: 7px;
-    }
-    .brand h1 { margin: 0; font-size: clamp(1.7rem, 5vw, 2.5rem); line-height: 1.15; }
-    .brand p { margin: 8px 0 0; color: rgb(255 255 255 / 84%); }
-    .hero-link {
-      display: inline-flex; margin-top: 22px; padding: 11px 16px; border-radius: 999px;
-      background: var(--accent); color: #17211f; font-weight: 750; text-decoration: none;
-    }
-    main { padding: 30px 0 48px; }
-    .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
-    .search {
-      width: 100%; padding: 13px 15px; border: 1px solid #dce5e2; border-radius: 14px;
-      background: white; color: var(--ink); font: inherit; outline-color: var(--primary);
-    }
-    .count { color: var(--muted); white-space: nowrap; font-size: .9rem; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(235px, 1fr)); gap: 18px; }
-    .card {
-      overflow: hidden; border: 1px solid #e4ebe8; border-radius: 20px;
-      background: var(--surface); box-shadow: 0 5px 20px rgb(22 48 40 / 5%);
-    }
-    .product-image { display: block; width: 100%; height: 200px; object-fit: cover; background: #eaf0ee; }
-    .image-placeholder { height: 200px; display: grid; place-items: center; color: var(--muted); background: #eaf0ee; }
+    .announcement { padding: 9px 16px; background: #202824; color: #fff; text-align: center; font-size: .76rem; letter-spacing: .035em; }
+    .announcement strong { color: var(--accent); }
+    .site-header { position: sticky; z-index: 5; top: 0; border-bottom: 1px solid var(--line); background: rgb(255 255 255 / 94%); backdrop-filter: blur(14px); }
+    .header-inner, main, footer { width: min(1180px, 100% - 40px); margin: 0 auto; }
+    .header-inner { min-height: 78px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand { min-width: 0; display: flex; align-items: center; gap: 12px; }
+    .logo-wrap { width: 46px; height: 46px; flex: 0 0 46px; display: grid; place-items: center; overflow: hidden; border-radius: 15px; background: color-mix(in srgb, var(--primary) 11%, white); color: var(--primary); }
+    .logo { width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 4px; }
+    .brand h1 { overflow: hidden; margin: 0; font-size: 1rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: .76rem; }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .header-note { color: var(--muted); font-size: .82rem; }
+    .hero-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: 999px; background: var(--primary); color: #fff; font-size: .84rem; font-weight: 750; text-decoration: none; transition: transform .18s ease, filter .18s ease; }
+    .hero-link:hover, .order:hover { filter: brightness(.94); transform: translateY(-1px); }
+    main { padding: 34px 0 64px; }
+    .hero { position: relative; overflow: hidden; min-height: 290px; display: flex; align-items: center; padding: clamp(28px, 6vw, 62px); border-radius: 28px; background: linear-gradient(115deg, color-mix(in srgb, var(--primary) 94%, #101a16), var(--primary)); color: #fff; isolation: isolate; }
+    .hero::before, .hero::after { position: absolute; z-index: -1; content: ""; border: 1px solid rgb(255 255 255 / 15%); border-radius: 50%; }
+    .hero::before { width: 400px; height: 400px; right: 7%; top: -230px; box-shadow: 0 0 0 34px rgb(255 255 255 / 4%), 0 0 0 68px rgb(255 255 255 / 3%); }
+    .hero::after { width: 170px; height: 170px; right: 17%; bottom: -120px; background: rgb(255 255 255 / 5%); }
+    .hero-copy { max-width: 610px; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 7px 11px; border: 1px solid rgb(255 255 255 / 24%); border-radius: 999px; background: rgb(255 255 255 / 10%); color: rgb(255 255 255 / 92%); font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .eyebrow::before { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); content: ""; }
+    .hero h2 { max-width: 560px; margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2.3rem, 5.3vw, 4.25rem); font-weight: 500; letter-spacing: -.045em; line-height: 1.02; }
+    .hero-copy > p { max-width: 480px; margin: 15px 0 22px; color: rgb(255 255 255 / 82%); font-size: 1rem; line-height: 1.6; }
+    .hero .hero-link { background: var(--accent); color: var(--accent-ink, #202824); box-shadow: 0 8px 20px rgb(0 0 0 / 12%); }
+    .hero-art { position: absolute; right: 8%; top: 50%; width: 200px; height: 200px; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 24%); border-radius: 50%; background: rgb(255 255 255 / 8%); transform: translateY(-50%); }
+    .hero-art-inner { width: 148px; height: 148px; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 30%); border-radius: 50%; background: rgb(255 255 255 / 11%); color: #fff; font-size: 4rem; }
+    .catalog { padding-top: 50px; }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+    .section-kicker { margin: 0 0 6px; color: var(--primary); font-size: .7rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .section-heading h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.7rem, 4vw, 2.35rem); font-weight: 500; letter-spacing: -.035em; }
+    .section-caption { max-width: 340px; margin: 0; color: var(--muted); font-size: .88rem; line-height: 1.5; text-align: right; }
+    .toolbar { display: flex; gap: 16px; align-items: center; margin-bottom: 14px; }
+    .search-wrap { position: relative; flex: 1; }
+    .search-icon { position: absolute; top: 50%; left: 16px; color: var(--muted); transform: translateY(-50%); pointer-events: none; }
+    .search { width: 100%; padding: 14px 16px 14px 45px; border: 1px solid var(--line); border-radius: 13px; background: #fff; color: var(--ink); font: inherit; outline-color: var(--primary); }
+    .count { color: var(--muted); white-space: nowrap; font-size: .84rem; }
+    .category-list { display: flex; gap: 8px; overflow-x: auto; margin: 0 0 24px; padding: 2px 0 6px; scrollbar-width: thin; }
+    .category-chip { flex: 0 0 auto; padding: 9px 14px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--muted); font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+    .category-chip:hover, .category-chip.active { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+    .card { overflow: hidden; border: 1px solid var(--line); border-radius: 19px; background: var(--surface); box-shadow: 0 8px 26px rgb(32 40 36 / 4%); transition: transform .2s ease, box-shadow .2s ease; }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 16px 34px rgb(32 40 36 / 10%); }
+    .image-wrap { position: relative; overflow: hidden; background: #efefe9; }
+    .product-image { display: block; width: 100%; height: 225px; object-fit: cover; transition: transform .35s ease; }
+    .card:hover .product-image { transform: scale(1.035); }
+    .image-placeholder { height: 225px; display: grid; place-items: center; background: linear-gradient(145deg, color-mix(in srgb, var(--primary) 10%, white), color-mix(in srgb, var(--accent) 23%, white)); color: var(--primary); font-size: 2.8rem; }
+    .stock-badge { position: absolute; top: 12px; left: 12px; padding: 6px 9px; border: 1px solid rgb(255 255 255 / 70%); border-radius: 999px; background: rgb(255 255 255 / 92%); color: var(--ink); font-size: .68rem; font-weight: 750; backdrop-filter: blur(6px); }
     .card-content { padding: 16px; }
-    .category { margin: 0 0 6px; color: var(--primary); font-size: .78rem; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
-    .card h2 { margin: 0; font-size: 1.12rem; }
-    .description { min-height: 40px; margin: 8px 0 14px; color: var(--muted); font-size: .92rem; line-height: 1.45; }
-    .variant-select {
-      width: 100%; margin: 0 0 12px; padding: 10px; border: 1px solid #dce5e2;
-      border-radius: 10px; background: white; font: inherit;
-    }
-    .price-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-    .price { color: var(--primary); font-size: 1.25rem; font-weight: 800; }
-    .stock { color: var(--muted); font-size: .82rem; }
-    .order {
-      display: block; width: 100%; margin-top: 14px; padding: 12px;
-      border: 0; border-radius: 12px; background: var(--primary); color: white;
-      font: inherit; font-weight: 750; text-align: center; text-decoration: none;
-    }
-    .order:hover, .hero-link:hover { filter: brightness(.96); }
-    .order:focus-visible, .hero-link:focus-visible, .search:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-    .order.disabled { background: #9aa6a2; pointer-events: none; }
+    .category { margin: 0 0 7px; color: var(--primary); font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .card h3 { margin: 0; font-size: 1.02rem; font-weight: 750; line-height: 1.35; }
+    .description { min-height: 38px; margin: 7px 0 15px; color: var(--muted); font-size: .82rem; line-height: 1.5; }
+    .variant-select { width: 100%; margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font: inherit; font-size: .82rem; }
+    .price-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-top: 12px; border-top: 1px solid #f0f0eb; }
+    .price { color: var(--ink); font-size: 1.22rem; font-weight: 850; letter-spacing: -.025em; }
+    .stock { color: var(--muted); font-size: .72rem; }
+    .order { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 14px; padding: 12px; border: 0; border-radius: 11px; background: var(--primary); color: #fff; font: inherit; font-size: .84rem; font-weight: 750; text-align: center; text-decoration: none; transition: transform .18s ease, filter .18s ease; }
+    .order:focus-visible, .hero-link:focus-visible, .search:focus-visible, .category-chip:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .order.disabled { background: #a5aba7; pointer-events: none; }
     .state {
-      padding: 28px; border: 1px dashed #c9d5d1; border-radius: 18px;
-      color: var(--muted); text-align: center; background: white;
+      padding: 40px 24px; border: 1px dashed #d4d3ca; border-radius: 18px;
+      color: var(--muted); text-align: center; background: #fff;
     }
-    footer { padding: 0 0 28px; color: var(--muted); text-align: center; font-size: .84rem; }
+    footer { margin-top: 12px; padding: 26px 0 32px; border-top: 1px solid var(--line); color: var(--muted); text-align: center; font-size: .8rem; }
+    footer strong { color: var(--ink); }
+    @media (max-width: 720px) {
+      .hero-art { right: -54px; opacity: .46; }
+      .hero-copy { position: relative; z-index: 1; }
+      .section-caption { display: none; }
+    }
     @media (max-width: 520px) {
-      .hero { padding-top: 28px; }
-      .logo { width: 60px; height: 60px; flex-basis: 60px; border-radius: 16px; }
-      .toolbar { align-items: stretch; flex-direction: column; }
+      .announcement { font-size: .68rem; }
+      .header-inner, main, footer { width: min(100% - 28px, 1180px); }
+      .header-inner { min-height: 68px; gap: 10px; }
+      .logo-wrap { width: 40px; height: 40px; flex-basis: 40px; }
+      .brand p, .header-note { display: none; }
+      .hero-link { padding: 10px 12px; font-size: .75rem; }
+      main { padding-top: 20px; }
+      .hero { min-height: 300px; padding: 26px 22px; border-radius: 22px; }
+      .hero h2 { max-width: 330px; font-size: 2.55rem; }
+      .hero-copy > p { max-width: 280px; font-size: .9rem; }
+      .hero-art { right: -105px; width: 190px; height: 190px; }
+      .hero-art-inner { width: 138px; height: 138px; }
+      .catalog { padding-top: 36px; }
+      .section-heading { margin-bottom: 16px; }
+      .toolbar { align-items: stretch; flex-direction: column; gap: 8px; }
       .count { text-align: right; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .product-image, .image-placeholder { height: 155px; }
+      .card-content { padding: 12px; }
+      .card h3 { font-size: .9rem; }
+      .description { min-height: 44px; font-size: .75rem; }
+      .price { font-size: 1.02rem; }
+      .stock { font-size: .67rem; }
+      .order { padding: 10px 6px; font-size: .72rem; }
+    }
+    @media (max-width: 360px) {
+      .grid { grid-template-columns: 1fr; }
+      .product-image, .image-placeholder { height: 210px; }
     }
   </style>
 </head>
 <body>
-  <header class="hero">
-    <div class="hero-inner">
+  <div class="announcement">
+    Una experiencia especial para ti <strong>·</strong> Compra directo con nuestra tienda
+  </div>
+  <header class="site-header">
+    <div class="header-inner">
       <div class="brand">
-        <img class="logo" id="business-logo" alt="" hidden>
+        <div class="logo-wrap">
+          <span id="brand-fallback" aria-hidden="true">✦</span>
+          <img class="logo" id="business-logo" alt="" hidden>
+        </div>
         <div>
           <h1 id="business-name">Tienda virtual</h1>
-          <p id="business-slogan"></p>
+          <p id="business-slogan">Una selección pensada para ti</p>
         </div>
       </div>
-      <a class="hero-link" id="whatsapp-link" href="#" hidden>Haz tu pedido por WhatsApp</a>
+      <div class="header-actions">
+        <span class="header-note">Atención personalizada</span>
+        <a class="hero-link" id="whatsapp-link" href="#" hidden>
+          <span aria-hidden="true">↗</span> Contáctanos
+        </a>
+      </div>
     </div>
   </header>
   <main>
-    <div class="toolbar">
-      <input class="search" id="search" type="search" placeholder="Buscar productos..." aria-label="Buscar productos">
-      <span class="count" id="product-count"></span>
-    </div>
-    <div class="grid" id="product-grid"></div>
-    <div class="state" id="page-state" role="status">Cargando catálogo...</div>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <span class="eyebrow">Descubre nuestra selección</span>
+        <h2 id="hero-title">Detalles que hacen la diferencia.</h2>
+        <p id="hero-slogan">Encuentra tus favoritos y haz tu pedido de forma directa y sencilla.</p>
+        <a class="hero-link" href="#catalog">Explorar productos <span aria-hidden="true">↓</span></a>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="hero-art-inner">✦</div>
+      </div>
+    </section>
+    <section class="catalog" id="catalog" aria-labelledby="catalog-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Hecho para ti</p>
+          <h2 id="catalog-title">Nuestra selección</h2>
+        </div>
+        <p class="section-caption">Explora el catálogo y encuentra justo lo que estás buscando.</p>
+      </div>
+      <div class="toolbar">
+        <label class="search-wrap">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input class="search" id="search" type="search" placeholder="Buscar en la tienda..." aria-label="Buscar productos">
+        </label>
+        <span class="count" id="product-count"></span>
+      </div>
+      <div class="category-list" id="category-list" aria-label="Filtrar por categoría"></div>
+      <div class="grid" id="product-grid"></div>
+      <div class="state" id="page-state" role="status">Cargando catálogo...</div>
+    </section>
   </main>
-  <footer id="updated-at"></footer>
+  <footer>
+    <p id="updated-at"></p>
+    <strong id="footer-business-name">Tienda virtual</strong>
+    <span> · Una experiencia de compra directa y cercana</span>
+  </footer>
   <script>
     const query = new URLSearchParams(location.search);
     const requestedBusiness = query.get('negocio');
     const grid = document.getElementById('product-grid');
     const state = document.getElementById('page-state');
     const search = document.getElementById('search');
+    const categoryList = document.getElementById('category-list');
     let products = [];
+    let activeCategory = 'Todos';
 
     function safeImageSource(value) {
       if (typeof value !== 'string') return null;
@@ -145,9 +227,30 @@
       return `https://wa.me/${business.whatsapp}?text=${encodeURIComponent(text)}`;
     }
 
+    function renderCategories() {
+      const categories = ['Todos', ...new Set(
+        products.map((product) => product.category?.trim()).filter(Boolean)
+      )];
+      categoryList.replaceChildren(...categories.map((category) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `category-chip${activeCategory === category ? ' active' : ''}`;
+        button.textContent = category;
+        button.setAttribute('aria-pressed', String(activeCategory === category));
+        button.addEventListener('click', () => {
+          activeCategory = category;
+          renderCategories();
+          renderProducts();
+        });
+        return button;
+      }));
+    }
+
     function createProductCard(product) {
       const card = document.createElement('article');
       card.className = 'card';
+      const imageWrap = document.createElement('div');
+      imageWrap.className = 'image-wrap';
       const imageSource = safeImageSource(product.image);
       if (imageSource) {
         const image = document.createElement('img');
@@ -155,13 +258,19 @@
         image.src = imageSource;
         image.alt = product.name;
         image.loading = 'lazy';
-        card.append(image);
+        imageWrap.append(image);
       } else {
         const placeholder = document.createElement('div');
         placeholder.className = 'image-placeholder';
-        placeholder.textContent = 'Sin imagen';
-        card.append(placeholder);
+        placeholder.textContent = '✦';
+        placeholder.setAttribute('aria-label', 'Imagen no disponible');
+        imageWrap.append(placeholder);
       }
+      const stockBadge = document.createElement('span');
+      stockBadge.className = 'stock-badge';
+      stockBadge.textContent = Number(product.stock) > 0 ? 'Disponible' : 'Agotado';
+      imageWrap.append(stockBadge);
+      card.append(imageWrap);
 
       const content = document.createElement('div');
       content.className = 'card-content';
@@ -171,7 +280,7 @@
         category.textContent = product.category;
         content.append(category);
       }
-      const name = document.createElement('h2');
+      const name = document.createElement('h3');
       name.textContent = product.name;
       content.append(name);
       const description = document.createElement('p');
@@ -209,7 +318,7 @@
       content.append(priceRow);
       const order = document.createElement('a');
       order.className = 'order';
-      order.textContent = 'Pedir por WhatsApp';
+      order.textContent = '↗ Pedir por WhatsApp';
       order.target = '_blank';
       order.rel = 'noopener noreferrer';
       content.append(order);
@@ -218,6 +327,8 @@
       function updateAvailability() {
         const amount = selectedVariant ? selectedVariant.price : product.price;
         const available = selectedVariant ? selectedVariant.stock : product.stock;
+        stockBadge.textContent = available > 0 ? 'Disponible' : 'Agotado';
+        stockBadge.classList.toggle('sold-out', available <= 0);
         price.textContent = formatPrice(amount, product.currencyCode || 'USD');
         stock.textContent = available > 0 ? `${available} disponibles` : 'Agotado';
         order.href = orderUrl(product, selectedVariant);
@@ -231,15 +342,16 @@
     function renderProducts() {
       const term = search.value.trim().toLocaleLowerCase('es');
       const matching = products.filter((product) =>
+        (activeCategory === 'Todos' || product.category?.trim() === activeCategory) &&
         `${product.name} ${product.category || ''} ${product.description || ''}`
           .toLocaleLowerCase('es').includes(term));
       grid.replaceChildren(...matching.map(createProductCard));
       document.getElementById('product-count').textContent =
-        `${matching.length} ${matching.length === 1 ? 'producto' : 'productos'}`;
+        `${matching.length} ${matching.length === 1 ? 'producto' : 'productos'} en la tienda`;
       state.hidden = matching.length > 0;
       state.textContent = products.length
-        ? 'No se encontraron productos.'
-        : 'Esta tienda todavía no tiene productos publicados.';
+        ? 'No encontramos productos con esos filtros. Prueba otra búsqueda o categoría.'
+        : 'Pronto encontrarás aquí una selección especial de productos.';
     }
 
     async function loadStore() {
@@ -258,11 +370,30 @@
       window.storeBusiness = business;
       document.title = business.name || 'Tienda virtual';
       document.getElementById('business-name').textContent = business.name || 'Tienda virtual';
-      document.getElementById('business-slogan').textContent = business.slogan || '';
+      document.getElementById('business-slogan').textContent =
+        business.slogan || 'Una selección pensada para ti';
+      document.getElementById('hero-title').textContent =
+        business.name || 'Detalles que hacen la diferencia.';
+      document.getElementById('hero-slogan').textContent =
+        business.slogan || 'Encuentra tus favoritos y haz tu pedido de forma directa y sencilla.';
+      document.getElementById('footer-business-name').textContent =
+        business.name || 'Tienda virtual';
       const primary = business.colors?.primary;
       const accent = business.colors?.accent;
-      if (/^#[0-9a-f]{6}$/i.test(primary || '')) document.documentElement.style.setProperty('--primary', primary);
-      if (/^#[0-9a-f]{6}$/i.test(accent || '')) document.documentElement.style.setProperty('--accent', accent);
+      if (/^#[0-9a-f]{6}$/i.test(primary || '')) {
+        document.documentElement.style.setProperty('--primary', primary);
+        document.querySelector('meta[name="theme-color"]').content = primary;
+      }
+      if (/^#[0-9a-f]{6}$/i.test(accent || '')) {
+        document.documentElement.style.setProperty('--accent', accent);
+        const color = parseInt(accent.slice(1), 16);
+        const luminance = (0.2126 * ((color >> 16) & 255) +
+          0.7152 * ((color >> 8) & 255) + 0.0722 * (color & 255)) / 255;
+        document.documentElement.style.setProperty(
+          '--accent-ink',
+          luminance > 0.62 ? '#202824' : '#ffffff'
+        );
+      }
 
       const logo = safeImageSource(business.logo);
       if (logo) {
@@ -270,6 +401,7 @@
         image.src = logo;
         image.alt = `Logotipo de ${business.name}`;
         image.hidden = false;
+        document.getElementById('brand-fallback').hidden = true;
       }
       if (/^\d{8,15}$/.test(business.whatsapp || '')) {
         const whatsapp = document.getElementById('whatsapp-link');
@@ -279,6 +411,7 @@
       products = catalog.products.filter((product) =>
         product && typeof product.name === 'string' &&
         typeof product.price === 'number' && Number.isFinite(product.price));
+      renderCategories();
       renderProducts();
       if (catalog.updatedAt) {
         const date = new Date(catalog.updatedAt);

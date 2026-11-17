@@ -20,15 +20,25 @@ class VirtualStoreSettingsPage extends StatefulWidget {
 
 class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
   static const _colorOptions = [
-    ('Verde oscuro', 0xFF00695C),
+    ('Bosque', 0xFF176B55),
     ('Turquesa', 0xFF008C95),
     ('Esmeralda', 0xFF16845B),
-    ('Azul', 0xFF2457C5),
-    ('Morado', 0xFF7041A6),
-    ('Negro', 0xFF242424),
+    ('Oliva', 0xFF71833B),
+    ('Azul marino', 0xFF203864),
+    ('Cobalto', 0xFF2457C5),
+    ('Cielo', 0xFF378ADD),
+    ('Índigo', 0xFF4945A8),
+    ('Lavanda', 0xFF8064A2),
+    ('Ciruela', 0xFF773B67),
+    ('Rosa', 0xFFC34F79),
+    ('Coral', 0xFFE56B5D),
+    ('Terracota', 0xFFB65C3A),
+    ('Mandarina', 0xFFE78328),
+    ('Dorado', 0xFFB58A2A),
     ('Amarillo', 0xFFFFB300),
-    ('Naranja', 0xFFFFA62B),
     ('Aguamarina', 0xFF00A896),
+    ('Grafito', 0xFF343A40),
+    ('Negro', 0xFF242424),
   ];
 
   final _formKey = GlobalKey<FormState>();
@@ -344,43 +354,136 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
     final businessName = _businessName.text.trim();
     final slogan = _slogan.text.trim();
     return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: DecoratedBox(
+      borderRadius: BorderRadius.circular(22),
+      child: Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+          color: const Color(0xFFF7F6F2),
           border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
-              color: primary,
-              padding: const EdgeInsets.all(18),
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
               child: Row(
                 children: [
-                  _logoPreview(size: 54),
-                  const SizedBox(width: 14),
+                  Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.storefront_rounded, color: primary),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
+                    child: Text(
+                      businessName.isEmpty ? 'Tu tienda' : businessName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF202824),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.shopping_bag_outlined, color: primary),
+                ],
+              ),
+            ),
+            Container(
+              margin: const EdgeInsets.all(12),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [primary, Color.lerp(primary, Colors.black, 0.24)!],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -30,
+                    top: -55,
+                    child: Container(
+                      width: 180,
+                      height: 180,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          width: 28,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Text(
+                            'CATÁLOGO EXCLUSIVO',
+                            style: TextStyle(
+                              color: _textColorOn(primary),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 13),
                         Text(
                           businessName.isEmpty
-                              ? 'Nombre de tu tienda'
+                              ? 'Una experiencia de compra especial'
                               : businessName,
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(
                                 color: _textColorOn(primary),
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w800,
+                                height: 1.1,
                               ),
                         ),
                         if (slogan.isNotEmpty) ...[
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 7),
                           Text(
                             slogan,
-                            style: TextStyle(color: _textColorOn(primary)),
+                            style: TextStyle(
+                              color: _textColorOn(
+                                primary,
+                              ).withValues(alpha: 0.88),
+                            ),
                           ),
                         ],
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: null,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: secondary,
+                            foregroundColor: _textColorOn(secondary),
+                            disabledBackgroundColor: secondary,
+                            disabledForegroundColor: _textColorOn(secondary),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                          ),
+                          child: const Text('Explorar productos'),
+                        ),
                       ],
                     ),
                   ),
@@ -388,50 +491,81 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(18, 2, 18, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Así verán tus clientes la tienda',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  const Text(
+                    'Selección destacada',
+                    style: TextStyle(
+                      color: Color(0xFF202824),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 11),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE8E8E2)),
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.shopping_bag_outlined,
-                          color: primary,
-                          size: 32,
+                        Container(
+                          width: 68,
+                          height: 68,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Color.lerp(primary, Colors.white, 0.12)!,
+                                secondary.withValues(alpha: 0.7),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.local_mall_outlined,
+                            color: _textColorOn(secondary),
+                            size: 30,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         const Expanded(
-                          child: Text(
-                            'Producto de ejemplo\nPrecio y detalles del producto',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Producto destacado',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF202824),
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Calidad seleccionada para ti',
+                                style: TextStyle(
+                                  color: Color(0xFF777D78),
+                                  fontSize: 11,
+                                ),
+                              ),
+                              SizedBox(height: 7),
+                              Text(
+                                '\$ 24.00',
+                                style: TextStyle(
+                                  color: Color(0xFF202824),
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        Icon(Icons.arrow_forward_ios, color: primary, size: 16),
+                        Icon(Icons.arrow_forward_rounded, color: primary),
                       ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton(
-                      onPressed: null,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: secondary,
-                        foregroundColor: _textColorOn(secondary),
-                        disabledBackgroundColor: secondary,
-                        disabledForegroundColor: _textColorOn(secondary),
-                      ),
-                      child: const Text('Pedir por WhatsApp'),
                     ),
                   ),
                 ],
