@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "products": [
+    {
+      "id": "test",
+      "name": "Producto de prueba"
+    }
+  ]
+}
