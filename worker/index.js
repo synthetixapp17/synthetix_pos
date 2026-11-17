@@ -337,10 +337,16 @@ function isCatalogValid(catalog, businessId) {
       typeof catalog.business.whatsapp !== 'string' ||
       (catalog.business.whatsapp !== '' &&
         !/^\d{8,15}$/.test(catalog.business.whatsapp)) ||
+      (catalog.business.showUsdReference !== undefined &&
+        typeof catalog.business.showUsdReference !== 'boolean') ||
+      (catalog.business.showUsdReference === true &&
+        (!Number.isFinite(catalog.business.vesPerUsd) ||
+          catalog.business.vesPerUsd <= 0)) ||
       !catalog.business.colors ||
       !/^#[0-9a-f]{6}$/i.test(catalog.business.colors.primary) ||
       !/^#[0-9a-f]{6}$/i.test(catalog.business.colors.accent) ||
       !isSafeImageSource(catalog.business.logo) ||
+      !isSafeImageSource(catalog.business.banner ?? null) ||
       !Array.isArray(catalog.products) ||
       catalog.products.length > 10000) {
     return false;

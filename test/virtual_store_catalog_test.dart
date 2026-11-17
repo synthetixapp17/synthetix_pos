@@ -42,6 +42,9 @@ void main() {
       'slogan': 'Café recién molido',
       'whatsapp': '584120000000',
       'logo': null,
+      'banner': null,
+      'showUsdReference': false,
+      'vesPerUsd': null,
       'colors': {'primary': '#008c95', 'accent': '#ffb300'},
     });
     final products = catalog['products'] as List<Map<String, Object?>>;

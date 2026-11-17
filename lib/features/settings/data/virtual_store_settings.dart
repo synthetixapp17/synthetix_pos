@@ -1,19 +1,24 @@
 import 'dart:convert';
 
+import '../../../core/utils/app_currency.dart';
 import '../../../core/data/hive_database.dart';
 import '../../product/data/models/product_model.dart';
 
 const virtualStoreSettingsKey = 'virtual_store_settings';
 const virtualStoreWorkerUrl =
     'https://synthetix-pos.synthetixapp17.workers.dev/';
+const virtualStoreRateStorageKey = 'multi_rate_calculator_rates';
 
 class VirtualStoreSettings {
   final String businessName;
   final String slogan;
   final String whatsappNumber;
   final String logo;
+  final String banner;
   final int primaryColor;
   final int accentColor;
+  final bool showUsdReference;
+  final String exchangeRateSource;
   final DateTime? lastPublishedAt;
   final String publishedUrl;
 
@@ -22,8 +27,11 @@ class VirtualStoreSettings {
     this.slogan = '',
     this.whatsappNumber = '',
     this.logo = '',
+    this.banner = '',
     this.primaryColor = 0xFF00695C,
     this.accentColor = 0xFFFFB300,
+    this.showUsdReference = false,
+    this.exchangeRateSource = 'USDT',
     this.lastPublishedAt,
     this.publishedUrl = '',
   });
@@ -50,9 +58,11 @@ class VirtualStoreSettings {
   factory VirtualStoreSettings.fromJson(Map<String, dynamic> json) {
     final primaryColor = json['primaryColor'];
     final accentColor = json['accentColor'];
+    final showUsdReference = json['showUsdReference'];
     final lastPublishedAt = json['lastPublishedAt'];
     if ((primaryColor != null && primaryColor is! int) ||
         (accentColor != null && accentColor is! int) ||
+        (showUsdReference != null && showUsdReference is! bool) ||
         (lastPublishedAt != null && lastPublishedAt is! String)) {
       throw const FormatException(
         'Hay valores inválidos en la configuración de la tienda virtual.',
@@ -63,8 +73,13 @@ class VirtualStoreSettings {
       slogan: _stringValue(json, 'slogan'),
       whatsappNumber: _stringValue(json, 'whatsappNumber'),
       logo: _stringValue(json, 'logo'),
+      banner: _stringValue(json, 'banner'),
       primaryColor: primaryColor as int? ?? 0xFF00695C,
       accentColor: accentColor as int? ?? 0xFFFFB300,
+      showUsdReference: showUsdReference as bool? ?? false,
+      exchangeRateSource: _stringValue(json, 'exchangeRateSource').isEmpty
+          ? 'USDT'
+          : _stringValue(json, 'exchangeRateSource'),
       lastPublishedAt: lastPublishedAt == null
           ? null
           : DateTime.tryParse(lastPublishedAt as String),
@@ -77,11 +92,37 @@ class VirtualStoreSettings {
     'slogan': slogan,
     'whatsappNumber': whatsappNumber,
     'logo': logo,
+    'banner': banner,
     'primaryColor': primaryColor,
     'accentColor': accentColor,
+    'showUsdReference': showUsdReference,
+    'exchangeRateSource': exchangeRateSource,
     'lastPublishedAt': lastPublishedAt?.toIso8601String(),
     'publishedUrl': publishedUrl,
   };
+
+  static double? platformVesPerUsd(String source) {
+    final rates = HiveDatabase.settingsBox.get(virtualStoreRateStorageKey);
+    if (rates is Map) {
+      final savedRate = rates[source];
+      if (savedRate is Map) {
+        final value = savedRate['value'];
+        if (value is num && value.isFinite && value > 0) {
+          return value.toDouble();
+        }
+      }
+    }
+
+    if (source == 'App') {
+      try {
+        final rate = AppCurrency.rateFor('VES');
+        return rate.isFinite && rate > 0 ? rate : null;
+      } on StateError {
+        return null;
+      }
+    }
+    return null;
+  }
 
   static String _stringValue(Map<String, dynamic> json, String key) {
     final value = json[key];
@@ -109,7 +150,12 @@ class VirtualStoreCatalogBuilder {
         'name': settings.businessName,
         'slogan': settings.slogan,
         'whatsapp': settings.whatsappNumber,
-        'logo': settings.logo.isEmpty ? null : settings.logo,
+        'logo': _imageDataUrl(settings.logo),
+        'banner': _imageDataUrl(settings.banner),
+        'showUsdReference': settings.showUsdReference,
+        'vesPerUsd': settings.showUsdReference
+            ? _requiredVesRate(settings)
+            : null,
         'colors': {
           'primary': colorToHex(settings.primaryColor),
           'accent': colorToHex(settings.accentColor),
@@ -122,17 +168,57 @@ class VirtualStoreCatalogBuilder {
             'name': product.name,
             'description': product.description,
             'category': product.category,
-            'price': product.price,
-            'currencyCode': product.currencyCode,
+            'price': settings.showUsdReference
+                ? _convertToUsd(product.price, product.currencyCode)
+                : product.price,
+            'currencyCode': settings.showUsdReference
+                ? AppCurrency.baseCode
+                : product.currencyCode,
             'stock': product.stock,
             'unitLabel': product.unitLabel,
             'image': _imageDataUrl(product.imageData),
             'variants': product.variants
-                .map((variant) => variant.toJson())
+                .map(
+                  (variant) => {
+                    ...variant.toJson(),
+                    if (settings.showUsdReference)
+                      'price': _convertToUsd(
+                        variant.price,
+                        product.currencyCode,
+                      ),
+                  },
+                )
                 .toList(),
           },
       ],
     };
+  }
+
+  static double _requiredVesRate(VirtualStoreSettings settings) {
+    final rate = VirtualStoreSettings.platformVesPerUsd(
+      settings.exchangeRateSource,
+    );
+    if (rate == null) {
+      throw FormatException(
+        'No hay una tasa VES válida guardada para ${settings.exchangeRateSource}. '
+        'Actualízala en la calculadora de tasas e inténtalo de nuevo.',
+      );
+    }
+    return rate;
+  }
+
+  static double _convertToUsd(double amount, String currencyCode) {
+    if (currencyCode == AppCurrency.baseCode) return amount;
+    try {
+      final rate = AppCurrency.rateFor(currencyCode);
+      final converted = amount / rate;
+      if (!converted.isFinite) throw const FormatException();
+      return converted;
+    } on StateError {
+      throw FormatException(
+        'No se puede convertir $currencyCode a USD con las tasas configuradas.',
+      );
+    }
   }
 
   static String colorToHex(int color) =>
@@ -141,6 +227,7 @@ class VirtualStoreCatalogBuilder {
   static String? _imageDataUrl(String? source) {
     if (source == null || source.isEmpty) return null;
     if (source.startsWith('data:image/')) return source;
+    if (Uri.tryParse(source)?.scheme == 'https') return source;
 
     final bytes = base64Decode(source);
     final mimeType = _imageMimeType(bytes);

@@ -19,6 +19,10 @@ acepta `POST /publish`). El catálogo debe repetir el nombre en
       "id": "Tienda de Luis",
       "name": "Tienda de Luis",
       "whatsapp": "",
+      "logo": null,
+      "banner": null,
+      "showUsdReference": false,
+      "vesPerUsd": null,
       "colors": {
         "primary": "#008c95",
         "accent": "#ffb300"
@@ -29,10 +33,20 @@ acepta `POST /publish`). El catálogo debe repetir el nombre en
 }
 ```
 
+La app permite elegir colores, cargar un logo y un banner (cada imagen debe
+pesar como máximo 1 MB) y publicar precios en USD con referencia en bolívares.
+Al activar la referencia, `vesPerUsd` debe ser una tasa positiva guardada en la
+calculadora de tasas de la app; el catálogo normaliza los precios del inventario
+a USD antes de incluir la referencia.
+
 El Worker convierte el nombre a un slug seguro y crea un repositorio público
 `tienda-{slug}` en `GITHUB_OWNER`. Publica `tienda.html` y `productos.json`,
 habilita GitHub Pages y devuelve la URL pública. Cloudflare KV conserva el
 repositorio asociado al slug para futuras actualizaciones.
+
+Los pedidos acordados por WhatsApp se registran y administran localmente en la
+app. Al marcar uno como entregado, se registra una venta en el historial del
+POS y se descuenta el inventario; los pedidos no se sincronizan con el Worker.
 
 Esta modalidad no autentica al dueño de la tienda: cualquier persona puede
 publicar o sobrescribir el catálogo asociado al mismo nombre. El limitador
