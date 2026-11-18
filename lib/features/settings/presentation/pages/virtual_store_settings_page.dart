@@ -199,7 +199,9 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
         setState(() {
           _publishedUrl = publishedUrl;
         });
-        _showMessage('Tienda actualizada y publicada correctamente.');
+        _showMessage(
+          'Tienda publicada. Las páginas abiertas recibirán los cambios en hasta 15 segundos.',
+        );
       }
     } catch (error) {
       if (mounted) _showMessage('No se pudo actualizar la tienda: $error');

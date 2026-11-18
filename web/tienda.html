@@ -325,6 +325,8 @@
     let cart = [];
     let detailProduct = null;
     let detailVariant = null;
+    let lastCatalogUpdatedAt = null;
+    let isLoadingCatalog = false;
 
     function safeImageSource(value) {
       if (typeof value !== 'string') return null;
@@ -824,86 +826,140 @@
       return `Hola, quiero hacer el siguiente pedido:\n${lines.join('\n')}\n${totalLines.join('\n')}`;
     }
 
-    async function loadStore() {
-      if (!requestedBusiness) throw new Error('Falta el identificador de la tienda en el enlace.');
-      const response = await fetch(`./productos.json?actualizado=${Date.now()}`, { cache: 'no-store' });
-      if (!response.ok) throw new Error(`No se pudo cargar el catálogo (HTTP ${response.status}).`);
-      const catalog = await response.json();
-      if (catalog.schemaVersion !== 1 || !catalog.business || !Array.isArray(catalog.products)) {
-        throw new Error('El catálogo publicado tiene un formato no compatible.');
+    function catalogUrls() {
+      const repository = location.pathname.split('/').filter(Boolean)[0];
+      const githubOwner = location.hostname.endsWith('.github.io')
+        ? location.hostname.slice(0, -'.github.io'.length)
+        : '';
+      if (githubOwner && /^[A-Za-z0-9._-]+$/.test(repository || '')) {
+        return [
+          `https://raw.githubusercontent.com/${encodeURIComponent(githubOwner)}/${encodeURIComponent(repository)}/main/productos.json?actualizado=${Date.now()}`,
+          `./productos.json?actualizado=${Date.now()}`
+        ];
       }
-      if (catalog.business.id !== requestedBusiness) {
-        throw new Error('El enlace no corresponde a esta tienda.');
-      }
+      return [`./productos.json?actualizado=${Date.now()}`];
+    }
 
-      const business = catalog.business;
-      storeBusiness = business;
-      document.title = business.name || 'Tienda virtual';
-      document.getElementById('business-name').textContent = business.name || 'Tienda virtual';
-      document.getElementById('business-slogan').textContent =
-        business.slogan || 'Una selección pensada para ti';
-      document.getElementById('hero-title').textContent =
-        business.name || 'Detalles que hacen la diferencia.';
-      document.getElementById('hero-slogan').textContent =
-        business.slogan || 'Encuentra tus favoritos y haz tu pedido de forma directa y sencilla.';
-      document.getElementById('footer-business-name').textContent =
-        business.name || 'Tienda virtual';
-      const primary = business.colors?.primary;
-      const accent = business.colors?.accent;
-      if (/^#[0-9a-f]{6}$/i.test(primary || '')) {
-        document.documentElement.style.setProperty('--primary', primary);
-        document.querySelector('meta[name="theme-color"]').content = primary;
-      }
-      if (/^#[0-9a-f]{6}$/i.test(accent || '')) {
-        document.documentElement.style.setProperty('--accent', accent);
-        const color = parseInt(accent.slice(1), 16);
-        const luminance = (0.2126 * ((color >> 16) & 255) +
-          0.7152 * ((color >> 8) & 255) + 0.0722 * (color & 255)) / 255;
-        document.documentElement.style.setProperty(
-          '--accent-ink',
-          luminance > 0.62 ? '#202824' : '#ffffff'
-        );
-      }
-
-      const logo = safeImageSource(business.logo);
-      if (logo) {
-        const image = document.getElementById('business-logo');
-        image.src = logo;
-        image.alt = `Logotipo de ${business.name}`;
-        image.hidden = false;
-        document.getElementById('brand-fallback').hidden = true;
-      }
-      const banner = safeImageSource(business.banner);
-      if (banner) {
-        const image = document.getElementById('business-banner');
-        image.src = banner;
-        image.alt = '';
-        image.hidden = false;
-        document.querySelector('.hero').classList.add('has-banner');
-      }
-      if (/^\d{8,15}$/.test(business.whatsapp || '')) {
-        const genericMessage = `Hola, tengo una consulta sobre ${business.name || 'la tienda'}.`;
-        const whatsapp = document.getElementById('whatsapp-link');
-        whatsapp.href = `https://wa.me/${business.whatsapp}?text=${encodeURIComponent(genericMessage)}`;
-        whatsapp.hidden = false;
-        const floatingWhatsapp = document.getElementById('floating-whatsapp');
-        floatingWhatsapp.href = whatsapp.href;
-        floatingWhatsapp.hidden = false;
-      }
-      products = catalog.products.filter((product) =>
-        product && typeof product.name === 'string' &&
-        typeof product.price === 'number' && Number.isFinite(product.price));
-      restoreCart();
-      updateCartBadge();
-      renderCart();
-      renderCategories();
-      renderProducts();
-      if (catalog.updatedAt) {
-        const date = new Date(catalog.updatedAt);
-        if (!Number.isNaN(date.getTime())) {
-          document.getElementById('updated-at').textContent =
-            `Catálogo actualizado ${new Intl.DateTimeFormat('es').format(date)}`;
+    async function fetchCatalog() {
+      let lastError;
+      for (const url of catalogUrls()) {
+        try {
+          const response = await fetch(url, { cache: 'no-store' });
+          if (!response.ok) {
+            lastError = new Error(`No se pudo cargar el catálogo (HTTP ${response.status}).`);
+            continue;
+          }
+          return await response.json();
+        } catch (error) {
+          lastError = error;
         }
+      }
+      throw new Error(
+        `No se pudo cargar el catálogo desde GitHub ni desde la tienda. ${lastError?.message || ''}`.trim()
+      );
+    }
+
+    function updateCatalogStatus(updatedAt) {
+      const date = new Date(updatedAt);
+      if (!Number.isNaN(date.getTime())) {
+        document.getElementById('updated-at').textContent =
+          `Catálogo actualizado ${new Intl.DateTimeFormat('es').format(date)}`;
+      }
+    }
+
+    async function loadStore() {
+      if (isLoadingCatalog) return;
+      if (!requestedBusiness) throw new Error('Falta el identificador de la tienda en el enlace.');
+      isLoadingCatalog = true;
+      try {
+        const catalog = await fetchCatalog();
+        if (catalog.schemaVersion !== 1 || !catalog.business || !Array.isArray(catalog.products)) {
+          throw new Error('El catálogo publicado tiene un formato no compatible.');
+        }
+        if (catalog.business.id !== requestedBusiness) {
+          throw new Error('El enlace no corresponde a esta tienda.');
+        }
+        if (lastCatalogUpdatedAt && catalog.updatedAt === lastCatalogUpdatedAt) {
+          updateCatalogStatus(catalog.updatedAt);
+          return;
+        }
+
+        const business = catalog.business;
+        storeBusiness = business;
+        document.title = business.name || 'Tienda virtual';
+        document.getElementById('business-name').textContent = business.name || 'Tienda virtual';
+        document.getElementById('business-slogan').textContent =
+          business.slogan || 'Una selección pensada para ti';
+        document.getElementById('hero-title').textContent =
+          business.name || 'Detalles que hacen la diferencia.';
+        document.getElementById('hero-slogan').textContent =
+          business.slogan || 'Encuentra tus favoritos y haz tu pedido de forma directa y sencilla.';
+        document.getElementById('footer-business-name').textContent =
+          business.name || 'Tienda virtual';
+        const primary = business.colors?.primary;
+        const accent = business.colors?.accent;
+        if (/^#[0-9a-f]{6}$/i.test(primary || '')) {
+          document.documentElement.style.setProperty('--primary', primary);
+          document.querySelector('meta[name="theme-color"]').content = primary;
+        }
+        if (/^#[0-9a-f]{6}$/i.test(accent || '')) {
+          document.documentElement.style.setProperty('--accent', accent);
+          const color = parseInt(accent.slice(1), 16);
+          const luminance = (0.2126 * ((color >> 16) & 255) +
+            0.7152 * ((color >> 8) & 255) + 0.0722 * (color & 255)) / 255;
+          document.documentElement.style.setProperty(
+            '--accent-ink',
+            luminance > 0.62 ? '#202824' : '#ffffff'
+          );
+        }
+
+        const image = document.getElementById('business-logo');
+        const logo = safeImageSource(business.logo);
+        image.hidden = !logo;
+        image.src = logo || '';
+        image.alt = logo ? `Logotipo de ${business.name}` : '';
+        document.getElementById('brand-fallback').hidden = Boolean(logo);
+
+        const bannerImage = document.getElementById('business-banner');
+        const banner = safeImageSource(business.banner);
+        bannerImage.hidden = !banner;
+        bannerImage.src = banner || '';
+        document.querySelector('.hero').classList.toggle('has-banner', Boolean(banner));
+
+        const whatsapp = document.getElementById('whatsapp-link');
+        const floatingWhatsapp = document.getElementById('floating-whatsapp');
+        const hasWhatsapp = /^\d{8,15}$/.test(business.whatsapp || '');
+        whatsapp.hidden = !hasWhatsapp;
+        floatingWhatsapp.hidden = !hasWhatsapp;
+        if (hasWhatsapp) {
+          const genericMessage = `Hola, tengo una consulta sobre ${business.name || 'la tienda'}.`;
+          whatsapp.href = `https://wa.me/${business.whatsapp}?text=${encodeURIComponent(genericMessage)}`;
+          floatingWhatsapp.href = whatsapp.href;
+        }
+
+        products = catalog.products.filter((product) =>
+          product && typeof product.name === 'string' &&
+          typeof product.price === 'number' && Number.isFinite(product.price));
+        lastCatalogUpdatedAt = catalog.updatedAt || null;
+        restoreCart();
+        updateCartBadge();
+        renderCart();
+        renderCategories();
+        renderProducts();
+        updateCatalogStatus(catalog.updatedAt);
+
+        if (detailProduct) {
+          const refreshedProduct = products.find((product) => product.id === detailProduct.id);
+          if (refreshedProduct) {
+            openProductDetails(refreshedProduct, detailVariant?.id);
+          } else {
+            productDialog.close();
+            detailProduct = null;
+            detailVariant = null;
+          }
+        }
+      } finally {
+        isLoadingCatalog = false;
       }
     }
 
@@ -941,6 +997,13 @@
       state.textContent = error.message || 'No se pudo cargar la tienda.';
       grid.replaceChildren();
     });
+    window.setInterval(() => {
+      loadStore().catch((error) => {
+        console.error('No se pudo comprobar si hay cambios en la tienda.', error);
+        document.getElementById('updated-at').textContent =
+          'No se pudo comprobar si hay cambios. Se volverá a intentar automáticamente.';
+      });
+    }, 15000);
   </script>
 </body>
 </html>
