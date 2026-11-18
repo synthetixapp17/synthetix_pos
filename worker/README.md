@@ -6,19 +6,22 @@ El endpoint que usa la app es:
 https://synthetix-pos.synthetixapp17.workers.dev/
 ```
 
-La app publica el nombre de la tienda como `businessId` en `POST /` (también se
-acepta `POST /publish`). El catálogo debe repetir el nombre en
-`catalog.business.id`:
+La app genera y guarda localmente un `businessId` UUID y un `clientSecret`
+aleatorio de 43 caracteres. Publica `POST /` (también se acepta `POST /publish`)
+con ambos valores y el catálogo, cuyo `catalog.business.id` debe coincidir con
+el UUID:
 
 ```json
 {
-  "businessId": "Tienda de Luis",
+  "businessId": "<UUID generado por la app>",
+  "clientSecret": "<secreto generado por la app>",
   "catalog": {
     "schemaVersion": 1,
     "business": {
-      "id": "Tienda de Luis",
+      "id": "<el mismo UUID>",
       "name": "Tienda de Luis",
       "whatsapp": "",
+      "whatsappMessage": "",
       "logo": null,
       "banner": null,
       "showUsdReference": false,
@@ -39,22 +42,23 @@ Al activar la referencia, `vesPerUsd` debe ser una tasa positiva guardada en la
 calculadora de tasas de la app; el catálogo normaliza los precios del inventario
 a USD antes de incluir la referencia.
 
-El Worker convierte el nombre a un slug seguro y crea un repositorio público
-`tienda-{slug}` en `GITHUB_OWNER`. Publica `tienda.html` y `productos.json`,
-habilita GitHub Pages y devuelve la URL pública. Cloudflare KV conserva el
-repositorio asociado al slug para futuras actualizaciones. En cada publicación,
-compara la plantilla configurada con la versión del repositorio y la actualiza
-si cambió, de modo que las tiendas ya creadas reciban los cambios del diseño.
+El Worker crea un repositorio público `tienda-{businessId}` en `GITHUB_OWNER`.
+Publica `tienda.html` y `productos.json`, habilita GitHub Pages y devuelve la
+URL pública. Cloudflare KV conserva el hash SHA-256 del secreto y el repositorio
+asociado al UUID; cada publicación verifica el secreto antes de actualizar la
+tienda. El secreto nunca se escribe en el catálogo ni en el repositorio. En cada
+publicación, el Worker compara la plantilla configurada con la versión del
+repositorio y la actualiza si cambió, de modo que las tiendas ya creadas
+reciban los cambios del diseño.
 
 Los pedidos acordados por WhatsApp se registran y administran localmente en la
 app. Al marcar uno como entregado, se registra una venta en el historial del
 POS y se descuenta el inventario; los pedidos no se sincronizan con el Worker.
 
-Esta modalidad no autentica al dueño de la tienda: cualquier persona puede
-publicar o sobrescribir el catálogo asociado al mismo nombre. El limitador
-reduce ráfagas por IP, pero el nombre no es una credencial ni demuestra
-propiedad. El `GITHUB_TOKEN` sigue siendo necesario y debe permanecer como
-secreto del Worker; nunca se envía a Flutter.
+El nombre de la tienda es público y no se usa como credencial. La app envía el
+`clientSecret` por HTTPS y el Worker solo conserva su hash en Cloudflare KV. El
+`GITHUB_TOKEN` también permanece como secreto del Worker; nunca se envía a
+Flutter ni se incluye en el repositorio.
 
 ## Configuración de Cloudflare
 

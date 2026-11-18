@@ -5,12 +5,17 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('builds a public catalog with store branding and product variants', () {
+    const businessId = '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a';
+    const clientSecret = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
     const settings = VirtualStoreSettings(
       businessName: 'Café Central',
       slogan: 'Café recién molido',
       whatsappNumber: '584120000000',
+      whatsappMessage: 'Hola, quiero más información.',
       primaryColor: 0xFF008C95,
       accentColor: 0xFFFFB300,
+      businessId: businessId,
+      clientSecret: clientSecret,
     );
     final catalog = VirtualStoreCatalogBuilder().build(settings, [
       ProductModel.fromEntity(
@@ -37,10 +42,11 @@ void main() {
     expect(catalog['schemaVersion'], 1);
     expect(catalog['updatedAt'], '2026-11-15T00:00:00.000Z');
     expect(catalog['business'], {
-      'id': 'Café Central',
+      'id': businessId,
       'name': 'Café Central',
       'slogan': 'Café recién molido',
       'whatsapp': '584120000000',
+      'whatsappMessage': 'Hola, quiero más información.',
       'logo': null,
       'banner': null,
       'showUsdReference': false,
@@ -50,18 +56,32 @@ void main() {
     final products = catalog['products'] as List<Map<String, Object?>>;
     expect(products.single['name'], 'Café');
     expect((products.single['variants'] as List).single['id'], 'small');
+    expect(
+      VirtualStoreSettings.fromJson(settings.toJson()).whatsappMessage,
+      'Hola, quiero más información.',
+    );
   });
 
-  test('migrates legacy identity fields without retaining credentials', () {
-    final settings = VirtualStoreSettings.fromJson({
-      'businessName': 'Mi tienda',
-      'businessId': 'legacy-business-id',
-      'clientSecret': 'legacy-client-secret',
-    });
+  test(
+    'creates and serializes a persistent identity when migrating settings',
+    () {
+      final settings = VirtualStoreSettings.fromJson({
+        'businessName': 'Mi tienda',
+      });
 
-    final restored = VirtualStoreSettings.fromJson(settings.toJson());
-    expect(restored.businessName, settings.businessName);
-    expect(settings.toJson().containsKey('businessId'), isFalse);
-    expect(settings.toJson().containsKey('clientSecret'), isFalse);
-  });
+      final restored = VirtualStoreSettings.fromJson(settings.toJson());
+      expect(restored.businessName, settings.businessName);
+      expect(
+        settings.businessId,
+        matches(
+          RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          ),
+        ),
+      );
+      expect(settings.clientSecret, hasLength(43));
+      expect(restored.businessId, settings.businessId);
+      expect(restored.clientSecret, settings.clientSecret);
+    },
+  );
 }

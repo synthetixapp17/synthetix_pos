@@ -19,7 +19,7 @@ The `Deploy Flutter Web to GitHub Pages` workflow runs tests and builds the web 
 
 ### Virtual storefront
 
-The static storefront template is [`web/tienda.html`](./web/tienda.html). The app publishes the store name and catalog to the Cloudflare Worker, which creates a public repository and enables GitHub Pages. Store settings include custom colors, a logo and a banner; prices can also show a USD amount with a bolívar reference using the selected saved platform rate. The app can register WhatsApp orders manually and, when marked delivered, records the sale and deducts inventory. The GitHub token stays in a Cloudflare Worker secret and is never sent to the app. Store names are not authentication: anyone who knows a store name can update its catalog. Published catalogs, images, store details, and WhatsApp numbers are public. See [`worker/README.md`](./worker/README.md) for deployment configuration.
+The static storefront template is [`web/tienda.html`](./web/tienda.html). The app publishes the store name and catalog to the Cloudflare Worker, which creates a public repository and enables GitHub Pages. Store settings include custom colors, a logo and a banner; prices can also show a USD amount with a bolívar reference using the selected saved platform rate. The store includes shareable links for individual products, and the app can register WhatsApp orders manually and, when marked delivered, records the sale and deducts inventory. Store publishing is authenticated with a per-store secret; GitHub credentials stay in a Cloudflare Worker secret and are never sent to the app. Published catalogs, images, store details, and WhatsApp numbers are public. See [`worker/README.md`](./worker/README.md) for deployment configuration.
 
 ## 🎯 Project Scope
 

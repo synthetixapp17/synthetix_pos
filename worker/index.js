@@ -72,46 +72,47 @@ export default {
     }
 
     const businessId = body?.businessId;
+    const clientSecret = body?.clientSecret;
     if (typeof businessId !== 'string' ||
-        !businessId.trim() ||
-        businessId.trim().length > 80) {
-      return json({ error: 'El nombre de la tienda no es válido.' }, 400, cors);
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(businessId) ||
+        typeof clientSecret !== 'string' ||
+        !/^[A-Za-z0-9_-]{43}$/.test(clientSecret)) {
+      return json({ error: 'La identidad de la tienda no es válida.' }, 400, cors);
     }
 
-    const storeName = businessId.trim();
-    const storeSlug = normalizeStoreSlug(storeName);
-    if (!storeSlug) {
-      return json({ error: 'El nombre debe incluir letras o números.' }, 400, cors);
-    }
-
+    const normalizedBusinessId = businessId.toLowerCase();
     const catalog = body.catalog;
-    if (!isCatalogValid(catalog, storeName)) {
+    if (!isCatalogValid(catalog, normalizedBusinessId)) {
       return json({ error: 'El catálogo no es válido o no corresponde a esta tienda.' }, 400, cors);
     }
 
-    const configKey = `store:${storeSlug}`;
+    let clientSecretHash;
+    try {
+      clientSecretHash = await hashSecret(clientSecret);
+    } catch {
+      return json({ error: 'No se pudo validar la identidad de la tienda.' }, 500, cors);
+    }
+
+    const configKey = `store:${normalizedBusinessId}`;
     let storeConfig;
     let isFirstRequest = false;
     try {
       const stored = await env.STORE_CONFIGS.get(configKey);
       if (stored) {
         storeConfig = JSON.parse(stored);
-        if (storeConfig.businessId !== storeName) {
-          return json(
-            { error: 'El nombre de tienda coincide con otro nombre publicado.' },
-            409,
-            cors,
-          );
+        if (!constantTimeEqual(storeConfig.clientSecretHash, clientSecretHash)) {
+          return json({ error: 'La clave secreta no corresponde a esta tienda.' }, 401, cors);
         }
       } else {
         isFirstRequest = true;
         storeConfig = {
-          businessId: storeName,
-          repository: `tienda-${storeSlug}`,
+          businessId: normalizedBusinessId,
+          clientSecretHash,
+          repository: `tienda-${normalizedBusinessId}`,
         };
       }
     } catch {
-      return json({ error: 'No se pudo consultar la tienda.' }, 503, cors);
+      return json({ error: 'No se pudo consultar la identidad de la tienda.' }, 503, cors);
     }
 
     const owner = env.GITHUB_OWNER.trim();
@@ -161,7 +162,7 @@ export default {
           branch,
           path: 'tienda.html',
           contents: template.contents,
-          message: `Configurar tienda ${storeName}`,
+          message: `Configurar tienda ${normalizedBusinessId}`,
           githubHeaders,
           cors,
         });
@@ -176,7 +177,7 @@ export default {
         branch,
         path: 'productos.json',
         contents: catalogBytes,
-        message: `Actualizar tienda ${storeName}`,
+        message: `Actualizar tienda ${normalizedBusinessId}`,
         githubHeaders,
         cors,
       });
@@ -191,7 +192,7 @@ export default {
     }
 
     const url = `https://${owner.toLowerCase()}.github.io/${storeConfig.repository}/tienda.html` +
-      `?negocio=${encodeURIComponent(storeName)}`;
+      `?negocio=${encodeURIComponent(normalizedBusinessId)}`;
     return json({ ok: true, url }, 200, cors);
   },
 };
@@ -227,17 +228,6 @@ async function ensureRepository(owner, repository, headers, isFirstRequest, cors
     if (retry.ok && !isFirstRequest) return retry.json();
   }
   return githubError(created, cors);
-}
-
-function normalizeStoreSlug(name) {
-  const slug = name
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .replace(/[-_]{2,}/g, '-');
-  return /^[a-z0-9][a-z0-9_-]{0,79}$/.test(slug) ? slug : null;
 }
 
 async function fetchStoreTemplate(templateUrl, appOrigin) {
@@ -338,6 +328,9 @@ function isCatalogValid(catalog, businessId) {
       typeof catalog.business.whatsapp !== 'string' ||
       (catalog.business.whatsapp !== '' &&
         !/^\d{8,15}$/.test(catalog.business.whatsapp)) ||
+      (catalog.business.whatsappMessage !== undefined &&
+        (typeof catalog.business.whatsappMessage !== 'string' ||
+          catalog.business.whatsappMessage.length > 300)) ||
       (catalog.business.showUsdReference !== undefined &&
         typeof catalog.business.showUsdReference !== 'boolean') ||
       (catalog.business.showUsdReference === true &&
@@ -386,6 +379,25 @@ function isSafeImageSource(source) {
   } catch {
     return false;
   }
+}
+
+async function hashSecret(secret) {
+  const bytes = new TextEncoder().encode(secret);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0')).join('');
+}
+
+function constantTimeEqual(first, second) {
+  if (typeof first !== 'string' || typeof second !== 'string') return false;
+  const firstBytes = new TextEncoder().encode(first);
+  const secondBytes = new TextEncoder().encode(second);
+  if (firstBytes.length !== secondBytes.length) return false;
+  let difference = 0;
+  for (let index = 0; index < firstBytes.length; index++) {
+    difference |= firstBytes[index] ^ secondBytes[index];
+  }
+  return difference === 0;
 }
 
 function corsHeaders(origin, allowedOrigins) {

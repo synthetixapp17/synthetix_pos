@@ -1,24 +1,62 @@
 import 'dart:convert';
+import 'dart:math';
+
+import 'package:uuid/uuid.dart';
 
 import '../../../core/utils/app_currency.dart';
 import '../../../core/data/hive_database.dart';
 import '../../product/data/models/product_model.dart';
+import 'virtual_store_identity_storage.dart';
 
 const virtualStoreSettingsKey = 'virtual_store_settings';
 const virtualStoreWorkerUrl =
     'https://synthetix-pos.synthetixapp17.workers.dev/';
 const virtualStoreRateStorageKey = 'multi_rate_calculator_rates';
+const _businessIdStorageKey = 'virtual_store_business_id';
+const _clientSecretStorageKey = 'virtual_store_client_secret';
+
+String _newBusinessId() => const Uuid().v4();
+
+String _newClientSecret() {
+  final random = Random.secure();
+  return base64Url
+      .encode(List<int>.generate(32, (_) => random.nextInt(256)))
+      .replaceAll('=', '');
+}
+
+(String, String) _getOrCreateIdentity(String businessId, String clientSecret) {
+  final storedBusinessId = readVirtualStoreIdentity(_businessIdStorageKey);
+  final storedClientSecret = readVirtualStoreIdentity(_clientSecretStorageKey);
+  final resolvedBusinessId = storedBusinessId ?? businessId;
+  final resolvedClientSecret = storedClientSecret ?? clientSecret;
+  final hasValidBusinessId = RegExp(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+    caseSensitive: false,
+  ).hasMatch(resolvedBusinessId);
+  final hasValidClientSecret = RegExp(
+    r'^[A-Za-z0-9_-]{43}$',
+  ).hasMatch(resolvedClientSecret);
+  final identity = hasValidBusinessId && hasValidClientSecret
+      ? (resolvedBusinessId.toLowerCase(), resolvedClientSecret)
+      : (_newBusinessId(), _newClientSecret());
+  writeVirtualStoreIdentity(_businessIdStorageKey, identity.$1);
+  writeVirtualStoreIdentity(_clientSecretStorageKey, identity.$2);
+  return identity;
+}
 
 class VirtualStoreSettings {
   final String businessName;
   final String slogan;
   final String whatsappNumber;
+  final String whatsappMessage;
   final String logo;
   final String banner;
   final int primaryColor;
   final int accentColor;
   final bool showUsdReference;
   final String exchangeRateSource;
+  final String businessId;
+  final String clientSecret;
   final DateTime? lastPublishedAt;
   final String publishedUrl;
 
@@ -26,12 +64,15 @@ class VirtualStoreSettings {
     this.businessName = '',
     this.slogan = '',
     this.whatsappNumber = '',
+    this.whatsappMessage = '',
     this.logo = '',
     this.banner = '',
     this.primaryColor = 0xFF00695C,
     this.accentColor = 0xFFFFB300,
     this.showUsdReference = false,
     this.exchangeRateSource = 'USDT',
+    this.businessId = '',
+    this.clientSecret = '',
     this.lastPublishedAt,
     this.publishedUrl = '',
   });
@@ -49,9 +90,12 @@ class VirtualStoreSettings {
     }
 
     final shop = HiveDatabase.shopBox.get('shop_details');
+    final (businessId, clientSecret) = _getOrCreateIdentity('', '');
     return VirtualStoreSettings(
       businessName: shop?.name ?? '',
       whatsappNumber: shop?.phoneNumber ?? '',
+      businessId: businessId,
+      clientSecret: clientSecret,
     );
   }
 
@@ -68,10 +112,15 @@ class VirtualStoreSettings {
         'Hay valores inválidos en la configuración de la tienda virtual.',
       );
     }
+    final identity = _getOrCreateIdentity(
+      _stringValue(json, 'businessId'),
+      _stringValue(json, 'clientSecret'),
+    );
     return VirtualStoreSettings(
       businessName: _stringValue(json, 'businessName'),
       slogan: _stringValue(json, 'slogan'),
       whatsappNumber: _stringValue(json, 'whatsappNumber'),
+      whatsappMessage: _stringValue(json, 'whatsappMessage'),
       logo: _stringValue(json, 'logo'),
       banner: _stringValue(json, 'banner'),
       primaryColor: primaryColor as int? ?? 0xFF00695C,
@@ -80,6 +129,8 @@ class VirtualStoreSettings {
       exchangeRateSource: _stringValue(json, 'exchangeRateSource').isEmpty
           ? 'USDT'
           : _stringValue(json, 'exchangeRateSource'),
+      businessId: identity.$1,
+      clientSecret: identity.$2,
       lastPublishedAt: lastPublishedAt == null
           ? null
           : DateTime.tryParse(lastPublishedAt as String),
@@ -91,12 +142,15 @@ class VirtualStoreSettings {
     'businessName': businessName,
     'slogan': slogan,
     'whatsappNumber': whatsappNumber,
+    'whatsappMessage': whatsappMessage,
     'logo': logo,
     'banner': banner,
     'primaryColor': primaryColor,
     'accentColor': accentColor,
     'showUsdReference': showUsdReference,
     'exchangeRateSource': exchangeRateSource,
+    'businessId': businessId,
+    'clientSecret': clientSecret,
     'lastPublishedAt': lastPublishedAt?.toIso8601String(),
     'publishedUrl': publishedUrl,
   };
@@ -146,10 +200,11 @@ class VirtualStoreCatalogBuilder {
       'schemaVersion': 1,
       'updatedAt': (updatedAt ?? DateTime.now()).toUtc().toIso8601String(),
       'business': {
-        'id': settings.businessName.trim(),
+        'id': settings.businessId,
         'name': settings.businessName,
         'slogan': settings.slogan,
         'whatsapp': settings.whatsappNumber,
+        'whatsappMessage': settings.whatsappMessage.trim(),
         'logo': _imageDataUrl(settings.logo),
         'banner': _imageDataUrl(settings.banner),
         'showUsdReference': settings.showUsdReference,

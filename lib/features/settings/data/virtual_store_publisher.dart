@@ -23,11 +23,20 @@ class VirtualStorePublisher {
     required VirtualStoreSettings settings,
     required Map<String, Object?> catalog,
   }) async {
-    final businessId = settings.businessName.trim();
-    if (businessId.isEmpty) {
-      throw const FormatException('Ingresa el nombre de la tienda.');
+    if (!RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          caseSensitive: false,
+        ).hasMatch(settings.businessId) ||
+        !RegExp(r'^[A-Za-z0-9_-]{43}$').hasMatch(settings.clientSecret)) {
+      throw const FormatException(
+        'No se pudo crear la identidad segura de la tienda.',
+      );
     }
-    final body = jsonEncode({'businessId': businessId, 'catalog': catalog});
+    final body = jsonEncode({
+      'businessId': settings.businessId,
+      'clientSecret': settings.clientSecret,
+      'catalog': catalog,
+    });
     if (utf8.encode(body).length > VirtualStoreCatalogBuilder.maxCatalogBytes) {
       throw const FormatException(
         'El catálogo supera 4 MB. Reduce o elimina algunas imágenes.',

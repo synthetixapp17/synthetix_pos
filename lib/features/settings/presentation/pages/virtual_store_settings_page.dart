@@ -25,6 +25,7 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
   late final TextEditingController _businessName;
   late final TextEditingController _slogan;
   late final TextEditingController _whatsappNumber;
+  late final TextEditingController _whatsappMessage;
   late String _logo;
   late String _banner;
   late int _primaryColor;
@@ -44,6 +45,9 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
     _whatsappNumber = TextEditingController(
       text: _initialSettings.whatsappNumber.replaceAll(RegExp(r'\D'), ''),
     );
+    _whatsappMessage = TextEditingController(
+      text: _initialSettings.whatsappMessage,
+    );
     _logo = _initialSettings.logo;
     _banner = _initialSettings.banner;
     _primaryColor = _initialSettings.primaryColor;
@@ -60,6 +64,7 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
     _businessName.dispose();
     _slogan.dispose();
     _whatsappNumber.dispose();
+    _whatsappMessage.dispose();
     super.dispose();
   }
 
@@ -69,12 +74,15 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
       businessName: _businessName.text.trim(),
       slogan: _slogan.text.trim(),
       whatsappNumber: _whatsappNumber.text.replaceAll(RegExp(r'\D'), ''),
+      whatsappMessage: _whatsappMessage.text.trim(),
       logo: _logo,
       banner: _banner,
       primaryColor: _primaryColor,
       accentColor: _accentColor,
       showUsdReference: _showUsdReference,
       exchangeRateSource: _exchangeRateSource,
+      businessId: _initialSettings.businessId,
+      clientSecret: _initialSettings.clientSecret,
       lastPublishedAt: _initialSettings.lastPublishedAt,
       publishedUrl: _initialSettings.publishedUrl,
     );
@@ -156,6 +164,45 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
     }
   }
 
+  Future<void> _previewImage(String title, ImageProvider image) =>
+      showDialog<void>(
+        context: context,
+        builder: (context) => Dialog(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * .8,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Cerrar vista previa',
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  Expanded(
+                    child: InteractiveViewer(
+                      child: Image(image: image, fit: BoxFit.contain),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
   Future<void> _publish() async {
     if (_isPublishing) return;
     final settings = _readForm();
@@ -182,12 +229,15 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
         businessName: settings.businessName,
         slogan: settings.slogan,
         whatsappNumber: settings.whatsappNumber,
+        whatsappMessage: settings.whatsappMessage,
         logo: settings.logo,
         banner: settings.banner,
         primaryColor: settings.primaryColor,
         accentColor: settings.accentColor,
         showUsdReference: settings.showUsdReference,
         exchangeRateSource: settings.exchangeRateSource,
+        businessId: settings.businessId,
+        clientSecret: settings.clientSecret,
         lastPublishedAt: DateTime.now(),
         publishedUrl: publishedUrl,
       );
@@ -200,7 +250,7 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
           _publishedUrl = publishedUrl;
         });
         _showMessage(
-          'Tienda publicada. Las páginas abiertas recibirán los cambios en hasta 15 segundos.',
+          'Tienda publicada. Los cambios pueden tardar unos minutos en aparecer para todos los clientes.',
         );
       }
     } catch (error) {
@@ -250,6 +300,8 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final logoImage = _imageProvider(_logo);
+    final bannerImage = _imageProvider(_banner);
     return Scaffold(
       appBar: AppBar(title: const Text('Tienda virtual')),
       body: Center(
@@ -265,7 +317,7 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
                   child: const Padding(
                     padding: EdgeInsets.all(16),
                     child: Text(
-                      'Personaliza la imagen y los colores de tu tienda, administra pedidos y publica el catálogo para tus clientes.',
+                      'Personaliza la imagen y los colores de tu tienda, administra pedidos y publica el catálogo para tus clientes. La tienda comprueba cambios cada 15 segundos, aunque la publicación puede tardar unos minutos.',
                     ),
                   ),
                 ),
@@ -318,6 +370,21 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
                     return null;
                   },
                 ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _whatsappMessage,
+                  decoration: const InputDecoration(
+                    labelText: 'Mensaje del botón flotante de WhatsApp',
+                    hintText: 'Hola, quisiera más información sobre la tienda.',
+                    helperText:
+                        'Si lo dejas vacío, se usará un mensaje automático.',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                  maxLength: 300,
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
                 const SizedBox(height: 22),
                 Text(
                   'Identidad visual',
@@ -326,8 +393,11 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
                 const SizedBox(height: 10),
                 _StoreImagePicker(
                   title: 'Logo',
-                  image: _imageProvider(_logo),
+                  image: logoImage,
                   onPick: () => _pickImage(forBanner: false),
+                  onPreview: logoImage == null
+                      ? null
+                      : () => _previewImage('Logo', logoImage),
                   onRemove: _logo.isEmpty
                       ? null
                       : () => setState(() => _logo = ''),
@@ -335,8 +405,11 @@ class _VirtualStoreSettingsPageState extends State<VirtualStoreSettingsPage> {
                 const SizedBox(height: 12),
                 _StoreImagePicker(
                   title: 'Banner de portada',
-                  image: _imageProvider(_banner),
+                  image: bannerImage,
                   onPick: () => _pickImage(forBanner: true),
+                  onPreview: bannerImage == null
+                      ? null
+                      : () => _previewImage('Banner de portada', bannerImage),
                   onRemove: _banner.isEmpty
                       ? null
                       : () => setState(() => _banner = ''),
@@ -481,6 +554,7 @@ class _StoreImagePicker extends StatelessWidget {
   final String title;
   final ImageProvider? image;
   final VoidCallback onPick;
+  final VoidCallback? onPreview;
   final VoidCallback? onRemove;
   final bool isBanner;
 
@@ -488,35 +562,50 @@ class _StoreImagePicker extends StatelessWidget {
     required this.title,
     required this.image,
     required this.onPick,
+    required this.onPreview,
     required this.onRemove,
     this.isBanner = false,
   });
 
   @override
   Widget build(BuildContext context) => Card(
-    clipBehavior: Clip.antiAlias,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (image != null)
-          Image(
-            image: image!,
-            height: isBanner ? 130 : 110,
-            fit: isBanner ? BoxFit.cover : BoxFit.contain,
-          )
-        else
-          SizedBox(
-            height: isBanner ? 110 : 90,
-            child: Icon(
-              isBanner ? Icons.panorama_outlined : Icons.storefront_outlined,
-              size: 36,
-            ),
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
-          child: Row(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        children: [
+          Row(
             children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(isBanner ? 10 : 999),
+                child: SizedBox(
+                  width: isBanner ? 104 : 64,
+                  height: isBanner ? 58 : 64,
+                  child: image == null
+                      ? Icon(
+                          isBanner
+                              ? Icons.panorama_outlined
+                              : Icons.storefront_outlined,
+                          size: 30,
+                        )
+                      : Image(
+                          image: image!,
+                          fit: isBanner ? BoxFit.cover : BoxFit.contain,
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(child: Text(title)),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (onPreview != null)
+                TextButton.icon(
+                  onPressed: onPreview,
+                  icon: const Icon(Icons.zoom_in),
+                  label: const Text('Ver grande'),
+                ),
               IconButton(
                 tooltip: image == null ? 'Subir $title' : 'Cambiar $title',
                 onPressed: onPick,
@@ -530,8 +619,8 @@ class _StoreImagePicker extends StatelessWidget {
                 ),
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }

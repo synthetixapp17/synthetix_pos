@@ -29,8 +29,8 @@
     .header-inner, main, footer { width: min(1180px, 100% - 40px); margin: 0 auto; }
     .header-inner { min-height: 78px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
     .brand { min-width: 0; display: flex; align-items: center; gap: 12px; }
-    .logo-wrap { width: 46px; height: 46px; flex: 0 0 46px; display: grid; place-items: center; overflow: hidden; border-radius: 15px; background: color-mix(in srgb, var(--primary) 11%, white); color: var(--primary); }
-    .logo { width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 4px; }
+    .logo-wrap { width: 46px; height: 46px; flex: 0 0 46px; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: color-mix(in srgb, var(--primary) 11%, white); color: var(--primary); }
+    .logo { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #fff; padding: 3px; }
     .brand h1 { overflow: hidden; margin: 0; font-size: 1rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
     .brand p { margin: 3px 0 0; color: var(--muted); font-size: .76rem; }
     .header-actions { display: flex; align-items: center; gap: 10px; }
@@ -73,18 +73,30 @@
     .card:hover .product-image { transform: scale(1.035); }
     .image-placeholder { height: 225px; display: grid; place-items: center; background: linear-gradient(145deg, color-mix(in srgb, var(--primary) 10%, white), color-mix(in srgb, var(--accent) 23%, white)); color: var(--primary); font-size: 2.8rem; }
     .stock-badge { position: absolute; top: 12px; left: 12px; padding: 6px 9px; border: 1px solid rgb(255 255 255 / 70%); border-radius: 999px; background: rgb(255 255 255 / 92%); color: var(--ink); font-size: .68rem; font-weight: 750; backdrop-filter: blur(6px); }
+    .share-product { position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 70%); border-radius: 50%; background: rgb(255 255 255 / 94%); color: var(--ink); box-shadow: 0 4px 14px rgb(0 0 0 / 12%); cursor: pointer; backdrop-filter: blur(6px); transition: color .18s ease, transform .18s ease; }
+    .share-product:hover { color: var(--primary); transform: translateY(-2px); }
+    .share-product:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .share-product svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .card.shared-product { border-color: var(--primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 22%, transparent), 0 16px 34px rgb(32 40 36 / 10%); }
     .card-content { padding: 16px; }
     .category { margin: 0 0 7px; color: var(--primary); font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
     .card h3 { margin: 0; font-size: 1.02rem; font-weight: 750; line-height: 1.35; }
     .description { min-height: 38px; margin: 7px 0 15px; color: var(--muted); font-size: .82rem; line-height: 1.5; }
     .variant-select { width: 100%; margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font: inherit; font-size: .82rem; }
     .price-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-top: 12px; border-top: 1px solid #f0f0eb; }
-    .price { color: var(--ink); font-size: 1.22rem; font-weight: 850; letter-spacing: -.025em; }
+    .price { display: flex; flex-direction: column; align-items: flex-start; color: var(--ink); font-size: 1rem; font-weight: 780; letter-spacing: -.01em; }
     .price-reference { display: block; margin-top: 3px; color: var(--muted); font-size: .68rem; font-weight: 600; letter-spacing: 0; }
     .stock { color: var(--muted); font-size: .72rem; }
     .order { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 14px; padding: 12px; border: 0; border-radius: 11px; background: var(--primary); color: #fff; font: inherit; font-size: .84rem; font-weight: 750; text-align: center; text-decoration: none; transition: transform .18s ease, filter .18s ease; }
     .order:focus-visible, .hero-link:focus-visible, .search:focus-visible, .category-chip:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
     .order.disabled { background: #a5aba7; pointer-events: none; }
+    .card-actions { display: grid; grid-template-columns: minmax(0, 1fr) 42px; gap: 10px; align-items: center; margin-top: 14px; }
+    .product-whatsapp { min-height: 42px; margin: 0; padding: 10px; background: #168b52; }
+    .product-whatsapp:disabled { background: #a5aba7; cursor: not-allowed; }
+    .add-to-cart { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: #fff; color: var(--primary); font: inherit; font-size: 1.45rem; font-weight: 500; cursor: pointer; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+    .add-to-cart:hover:not(:disabled) { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .add-to-cart:focus-visible, .product-whatsapp:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .add-to-cart:disabled { color: #a5aba7; cursor: not-allowed; }
     .card { cursor: pointer; }
     .card:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
     .icon-button { position: relative; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: #fff; color: var(--ink); cursor: pointer; }
@@ -132,6 +144,7 @@
     .floating-whatsapp { position: fixed; z-index: 6; right: max(20px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); width: 58px; height: 58px; display: grid; place-items: center; border-radius: 50%; background: #25d366; color: #fff; box-shadow: 0 8px 25px rgb(0 0 0 / 22%); text-decoration: none; transition: transform .18s ease, box-shadow .18s ease; }
     .floating-whatsapp:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgb(0 0 0 / 25%); }
     .floating-whatsapp svg { width: 29px; height: 29px; fill: currentColor; }
+    .share-feedback { position: fixed; z-index: 8; right: max(16px, env(safe-area-inset-right)); bottom: max(86px, calc(env(safe-area-inset-bottom) + 82px)); left: max(16px, env(safe-area-inset-left)); width: fit-content; max-width: min(440px, calc(100% - 32px)); margin: 0 auto; padding: 12px 16px; border-radius: 12px; background: #202824; color: #fff; box-shadow: 0 8px 26px rgb(0 0 0 / 22%); font-size: .84rem; text-align: center; }
     .state {
       padding: 40px 24px; border: 1px dashed #d4d3ca; border-radius: 18px;
       color: var(--muted); text-align: center; background: #fff;
@@ -207,9 +220,6 @@
           </svg>
           <span class="cart-count" id="cart-count" aria-live="polite" aria-atomic="true">0</span>
         </button>
-        <a class="hero-link" id="whatsapp-link" href="#" hidden>
-          <span aria-hidden="true">↗</span> Contáctanos
-        </a>
       </div>
     </div>
   </header>
@@ -256,6 +266,7 @@
       <path d="M16.02 3C8.86 3 3.04 8.79 3.04 15.92c0 2.28.6 4.5 1.75 6.46L3 29l6.83-1.78a13.04 13.04 0 0 0 6.18 1.56h.01c7.16 0 12.98-5.8 12.98-12.93 0-3.46-1.35-6.71-3.81-9.16A12.91 12.91 0 0 0 16.02 3Zm0 23.58h-.01c-1.91 0-3.78-.51-5.41-1.49l-.39-.23-4.05 1.06 1.08-3.93-.25-.4a10.7 10.7 0 0 1-1.65-5.67c0-5.9 4.8-10.69 10.7-10.69 2.86 0 5.55 1.11 7.57 3.13a10.62 10.62 0 0 1 3.13 7.56c0 5.9-4.8 10.69-10.71 10.69Zm5.88-8.01c-.32-.16-1.9-.94-2.2-1.05-.3-.1-.51-.16-.73.16-.21.32-.83 1.05-1.02 1.27-.19.21-.38.24-.7.08-.32-.16-1.36-.5-2.59-1.58-.96-.85-1.61-1.9-1.8-2.22-.19-.32-.02-.49.14-.65.14-.14.32-.37.48-.56.16-.19.21-.32.32-.54.1-.21.05-.4-.03-.56-.08-.16-.73-1.75-1-2.4-.26-.63-.53-.54-.73-.55l-.62-.01c-.22 0-.57.08-.86.4-.3.32-1.13 1.1-1.13 2.69 0 1.58 1.16 3.12 1.32 3.34.16.21 2.29 3.48 5.54 4.88.77.33 1.37.53 1.84.68.77.24 1.47.21 2.02.13.62-.09 1.9-.78 2.17-1.53.27-.75.27-1.4.19-1.53-.08-.13-.29-.21-.62-.37Z"></path>
     </svg>
   </a>
+  <p class="share-feedback" id="share-feedback" role="status" aria-live="polite" hidden></p>
   <dialog id="product-dialog" aria-labelledby="detail-name">
     <div class="dialog-content">
       <div class="dialog-header">
@@ -312,6 +323,8 @@
   <script>
     const query = new URLSearchParams(location.search);
     const requestedBusiness = query.get('negocio');
+    const requestedProduct = query.get('producto');
+    const requestedVariant = query.get('presentacion');
     const grid = document.getElementById('product-grid');
     const state = document.getElementById('page-state');
     const search = document.getElementById('search');
@@ -327,6 +340,8 @@
     let detailVariant = null;
     let lastCatalogUpdatedAt = null;
     let isLoadingCatalog = false;
+    let hasHighlightedSharedProduct = false;
+    let shareFeedbackTimer = null;
 
     function safeImageSource(value) {
       if (typeof value !== 'string') return null;
@@ -354,14 +369,18 @@
       }).format(amount)}`;
     }
 
-    function formatStorePrice(amount, currency) {
-      const price = formatPrice(amount, currency);
+    function storePriceParts(amount, currency) {
       const vesPerUsd = Number(storeBusiness?.vesPerUsd);
-      if (!storeBusiness?.showUsdReference || currency !== 'USD' ||
-          !Number.isFinite(vesPerUsd) || vesPerUsd <= 0) {
-        return price;
-      }
-      return `${price} · Ref. ${formatBolivars(amount * vesPerUsd)}`;
+      const reference = storeBusiness?.showUsdReference && currency === 'USD' &&
+          Number.isFinite(vesPerUsd) && vesPerUsd > 0
+        ? formatBolivars(amount * vesPerUsd)
+        : '';
+      return { price: formatPrice(amount, currency), reference };
+    }
+
+    function formatStorePrice(amount, currency) {
+      const { price, reference } = storePriceParts(amount, currency);
+      return reference ? `${price} · Ref. ${reference}` : price;
     }
 
     function productVariants(product) {
@@ -570,16 +589,22 @@
       saveCart();
     }
 
-    function addToCart(product, variant, quantity) {
+    function addToCart(
+      product,
+      variant,
+      quantity,
+      noticeElement = document.getElementById('detail-notice'),
+      closeDetails = true
+    ) {
       const stock = availableStock(product, variant);
       const requested = Number(quantity);
       if (!Number.isInteger(requested) || requested < 1) {
-        setNotice(document.getElementById('detail-notice'), 'Ingresa una cantidad válida.');
-        return;
+        setNotice(noticeElement, 'Ingresa una cantidad válida.');
+        return false;
       }
       if (stock < 1) {
-        setNotice(document.getElementById('detail-notice'), 'Este producto está agotado.');
-        return;
+        setNotice(noticeElement, 'Este producto está agotado.');
+        return false;
       }
       const key = cartKey(product.id, variant?.id);
       const current = cart.find((item) => cartKey(item.productId, item.variantId) === key);
@@ -595,15 +620,18 @@
         });
       }
       setNotice(
-        document.getElementById('detail-notice'),
+        noticeElement,
         nextQuantity < desiredQuantity
           ? `Se agregó la cantidad disponible: ${nextQuantity}.`
           : `${product.name} se agregó al carrito.`
       );
       saveCart();
-      window.setTimeout(() => {
-        if (productDialog.open) productDialog.close();
-      }, 450);
+      if (closeDetails) {
+        window.setTimeout(() => {
+          if (productDialog.open) productDialog.close();
+        }, 450);
+      }
+      return true;
     }
 
     function updateProductDetail() {
@@ -665,9 +693,72 @@
 
     function openWhatsApp(message) {
       const phone = storeBusiness?.whatsapp || '';
-      if (!/^\d{8,15}$/.test(phone)) return;
+      if (!/^\d{8,15}$/.test(phone)) return false;
       const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-      window.open(url, '_blank', 'noopener,noreferrer');
+      const popup = window.open(url, '_blank');
+      if (!popup) return false;
+      popup.opener = null;
+      return true;
+    }
+
+    function productOrderMessage(product, variant) {
+      const option = variantLabel(variant);
+      const name = `${product.name}${option ? ` (${option})` : ''}`;
+      const price = formatStorePrice(
+        unitPrice(product, variant),
+        product.currencyCode || 'USD'
+      );
+      return `Hola, quiero pedir 1 ${name} por ${price}.`;
+    }
+
+    function showShareFeedback(message) {
+      const feedback = document.getElementById('share-feedback');
+      feedback.textContent = message;
+      feedback.hidden = false;
+      window.clearTimeout(shareFeedbackTimer);
+      shareFeedbackTimer = window.setTimeout(() => {
+        feedback.hidden = true;
+      }, 3500);
+    }
+
+    async function shareProduct(product, variant) {
+      const shareUrl = new URL(location.href);
+      shareUrl.searchParams.set('producto', String(product.id));
+      if (variant?.id) {
+        shareUrl.searchParams.set('presentacion', String(variant.id));
+      } else {
+        shareUrl.searchParams.delete('presentacion');
+      }
+      const option = variantLabel(variant);
+      const productName = `${product.name}${option ? ` (${option})` : ''}`;
+      const shareData = {
+        title: product.name,
+        text: `${productName} · ${formatStorePrice(
+          unitPrice(product, variant),
+          product.currencyCode || 'USD'
+        )}`,
+        url: shareUrl.href
+      };
+
+      if (typeof navigator.share === 'function') {
+        try {
+          await navigator.share(shareData);
+          showShareFeedback('Producto compartido.');
+          return;
+        } catch (error) {
+          if (error?.name === 'AbortError') return;
+          console.error('No se pudo compartir el producto directamente.', error);
+        }
+      }
+
+      try {
+        await navigator.clipboard.writeText(shareUrl.href);
+        showShareFeedback('Enlace del producto copiado.');
+      } catch (error) {
+        console.error('No se pudo copiar el enlace del producto.', error);
+        window.prompt('Copia el enlace de este producto:', shareUrl.href);
+        showShareFeedback('El enlace está listo para copiar.');
+      }
     }
 
     function renderCategories() {
@@ -692,6 +783,7 @@
     function createProductCard(product) {
       const card = document.createElement('article');
       card.className = 'card';
+      card.dataset.productId = String(product.id);
       card.tabIndex = 0;
       card.setAttribute('role', 'group');
       card.setAttribute('aria-label', `Ver detalles de ${product.name}`);
@@ -716,6 +808,17 @@
       stockBadge.className = 'stock-badge';
       stockBadge.textContent = Number(product.stock) > 0 ? 'Disponible' : 'Agotado';
       imageWrap.append(stockBadge);
+      const share = document.createElement('button');
+      share.className = 'share-product';
+      share.type = 'button';
+      share.title = `Compartir ${product.name}`;
+      share.setAttribute('aria-label', `Compartir ${product.name}`);
+      share.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.6 6.8-4.1M8.6 13.4l6.8 4.1"></path></svg>';
+      share.addEventListener('click', (event) => {
+        event.stopPropagation();
+        shareProduct(product, selectedVariant);
+      });
+      imageWrap.append(share);
       card.append(imageWrap);
 
       const content = document.createElement('div');
@@ -762,16 +865,37 @@
       stock.className = 'stock';
       priceRow.append(price, stock);
       content.append(priceRow);
-      const order = document.createElement('a');
-      order.className = 'order';
-      order.textContent = 'Ver detalle';
-      order.href = '#';
+      const actions = document.createElement('div');
+      actions.className = 'card-actions';
+      const order = document.createElement('button');
+      order.className = 'order product-whatsapp';
+      order.type = 'button';
+      order.textContent = 'Pedir por WhatsApp';
       order.addEventListener('click', (event) => {
-        event.preventDefault();
         event.stopPropagation();
-        openProductDetails(product, selectedVariant?.id);
+        openWhatsApp(productOrderMessage(product, selectedVariant));
       });
-      content.append(order);
+      const add = document.createElement('button');
+      add.className = 'add-to-cart';
+      add.type = 'button';
+      add.textContent = '+';
+      add.setAttribute('aria-label', `Agregar ${product.name} al carrito`);
+      add.title = `Agregar ${product.name} al carrito`;
+      add.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (addToCart(
+          product,
+          selectedVariant,
+          1,
+          document.getElementById('cart-notice'),
+          false
+        )) {
+          add.textContent = '✓';
+          window.setTimeout(() => { add.textContent = '+'; }, 900);
+        }
+      });
+      actions.append(order, add);
+      content.append(actions);
       card.append(content);
 
       function updateAvailability() {
@@ -779,8 +903,16 @@
         const available = selectedVariant ? selectedVariant.stock : product.stock;
         stockBadge.textContent = available > 0 ? 'Disponible' : 'Agotado';
         stockBadge.classList.toggle('sold-out', available <= 0);
-        price.textContent = formatStorePrice(amount, product.currencyCode || 'USD');
+        const parts = storePriceParts(amount, product.currencyCode || 'USD');
+        const reference = document.createElement('small');
+        reference.className = 'price-reference';
+        reference.textContent = parts.reference ? `Ref. ${parts.reference}` : '';
+        reference.hidden = !parts.reference;
+        price.replaceChildren(document.createTextNode(parts.price), reference);
         stock.textContent = available > 0 ? `${available} disponibles` : 'Agotado';
+        order.disabled = available <= 0 ||
+          !/^\d{8,15}$/.test(storeBusiness?.whatsapp || '');
+        add.disabled = available <= 0;
       }
       card.addEventListener('click', (event) => {
         if (event.target.closest('select, button, a')) return;
@@ -926,15 +1058,16 @@
         bannerImage.src = banner || '';
         document.querySelector('.hero').classList.toggle('has-banner', Boolean(banner));
 
-        const whatsapp = document.getElementById('whatsapp-link');
         const floatingWhatsapp = document.getElementById('floating-whatsapp');
         const hasWhatsapp = /^\d{8,15}$/.test(business.whatsapp || '');
-        whatsapp.hidden = !hasWhatsapp;
         floatingWhatsapp.hidden = !hasWhatsapp;
         if (hasWhatsapp) {
-          const genericMessage = `Hola, tengo una consulta sobre ${business.name || 'la tienda'}.`;
-          whatsapp.href = `https://wa.me/${business.whatsapp}?text=${encodeURIComponent(genericMessage)}`;
-          floatingWhatsapp.href = whatsapp.href;
+          const genericMessage = typeof business.whatsappMessage === 'string' &&
+              business.whatsappMessage.trim()
+            ? business.whatsappMessage.trim()
+            : `Hola, tengo una consulta sobre ${business.name || 'la tienda'}.`;
+          floatingWhatsapp.href =
+            `https://wa.me/${business.whatsapp}?text=${encodeURIComponent(genericMessage)}`;
         }
 
         products = catalog.products.filter((product) =>
@@ -947,6 +1080,35 @@
         renderCategories();
         renderProducts();
         updateCatalogStatus(catalog.updatedAt);
+
+        if (requestedProduct && !hasHighlightedSharedProduct) {
+          hasHighlightedSharedProduct = true;
+          const sharedProduct = products.find(
+            (product) => String(product.id) === requestedProduct
+          );
+          const sharedCard = [...grid.children].find(
+            (card) => card.dataset.productId === requestedProduct
+          );
+          if (sharedProduct && sharedCard) {
+            if (requestedVariant) {
+              const variantIndex = productVariants(sharedProduct).findIndex(
+                (variant) => String(variant.id) === requestedVariant
+              );
+              const variantSelect = sharedCard.querySelector('.variant-select');
+              if (variantSelect && variantIndex >= 0) {
+                variantSelect.value = String(variantIndex);
+                variantSelect.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            }
+            sharedCard.classList.add('shared-product');
+            sharedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            sharedCard.focus({ preventScroll: true });
+            window.setTimeout(
+              () => sharedCard.classList.remove('shared-product'),
+              3500
+            );
+          }
+        }
 
         if (detailProduct) {
           const refreshedProduct = products.find((product) => product.id === detailProduct.id);
@@ -964,6 +1126,7 @@
     }
 
     document.getElementById('cart-toggle').addEventListener('click', () => {
+      setNotice(document.getElementById('cart-notice'), '');
       renderCart();
       if (!cartDialog.open) cartDialog.showModal();
     });
@@ -983,7 +1146,18 @@
       );
     });
     document.getElementById('cart-checkout').addEventListener('click', () => {
-      if (cart.length) openWhatsApp(checkoutMessage());
+      if (!cart.length) return;
+      if (openWhatsApp(checkoutMessage())) {
+        cart = [];
+        setNotice(document.getElementById('cart-notice'), '');
+        saveCart();
+        cartDialog.close();
+      } else {
+        setNotice(
+          document.getElementById('cart-notice'),
+          'No se pudo abrir WhatsApp. Revisa el bloqueador de ventanas y vuelve a intentarlo.'
+        );
+      }
     });
     productDialog.addEventListener('click', (event) => {
       if (event.target === productDialog) productDialog.close();
