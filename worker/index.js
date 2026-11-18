@@ -151,9 +151,10 @@ export default {
         await env.STORE_CONFIGS.put(configKey, JSON.stringify(storeConfig));
       }
 
-      if (!storeConfig.templatePublished) {
-        const template = await fetchStoreTemplate(env.APP_TEMPLATE_URL, env.APP_ORIGIN);
-        if (!template.ok) return json({ error: template.error }, template.status, cors);
+      const template = await fetchStoreTemplate(env.APP_TEMPLATE_URL, env.APP_ORIGIN);
+      if (!template.ok) return json({ error: template.error }, template.status, cors);
+      const templateHash = await hashTemplate(template.contents);
+      if (storeConfig.templateHash !== templateHash) {
         const templateResult = await writeGithubFile({
           owner,
           repository: storeConfig.repository,
@@ -165,7 +166,7 @@ export default {
           cors,
         });
         if (templateResult instanceof Response) return templateResult;
-        storeConfig.templatePublished = true;
+        storeConfig.templateHash = templateHash;
       }
 
       const catalogBytes = new TextEncoder().encode(JSON.stringify(catalog, null, 2));
@@ -451,4 +452,9 @@ function toBase64(bytes) {
     binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
   }
   return btoa(binary);
+}
+
+async function hashTemplate(bytes) {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  return Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }

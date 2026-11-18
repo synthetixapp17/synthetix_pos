@@ -42,7 +42,9 @@ a USD antes de incluir la referencia.
 El Worker convierte el nombre a un slug seguro y crea un repositorio público
 `tienda-{slug}` en `GITHUB_OWNER`. Publica `tienda.html` y `productos.json`,
 habilita GitHub Pages y devuelve la URL pública. Cloudflare KV conserva el
-repositorio asociado al slug para futuras actualizaciones.
+repositorio asociado al slug para futuras actualizaciones. En cada publicación,
+compara la plantilla configurada con la versión del repositorio y la actualiza
+si cambió, de modo que las tiendas ya creadas reciban los cambios del diseño.
 
 Los pedidos acordados por WhatsApp se registran y administran localmente en la
 app. Al marcar uno como entregado, se registra una venta en el historial del
