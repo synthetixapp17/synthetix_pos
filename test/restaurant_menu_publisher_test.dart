@@ -7,13 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
-  const businessId = '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a';
-  const clientSecret = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
-
   const settings = RestaurantMenuPublicationSettings(
     restaurantName: 'Casa Verde',
-    businessId: businessId,
-    clientSecret: clientSecret,
   );
   const menu = {
     'format': 'synthetix_restaurant_menu',
@@ -21,16 +16,15 @@ void main() {
     'menu': {'categories': <Map<String, Object?>>[], 'products': <Map<String, Object?>>[]},
   };
 
-  test('posts a separately authenticated restaurant menu', () async {
+  test('posts the restaurant menu without an identity or secret', () async {
     final client = MockClient((request) async {
       expect(request.url.toString(), restaurantMenuWorkerUrl);
       expect(request.method, 'POST');
       expect(request.headers.containsKey('Authorization'), isFalse);
       final body = jsonDecode(request.body) as Map<String, dynamic>;
-      expect(body['siteType'], 'restaurant');
-      expect(body['businessId'], businessId);
-      expect(body['clientSecret'], clientSecret);
-      expect(body['menu'], menu);
+      expect(body['format'], 'synthetix_restaurant_menu');
+      expect(body['version'], 1);
+      expect(body['menu'], menu['menu']);
       return http.Response(
         '{"ok":true,"url":"https://owner.github.io/menu-id/menu.html"}',
         200,
@@ -43,18 +37,6 @@ void main() {
 
     expect(url, 'https://owner.github.io/menu-id/menu.html');
     client.close();
-  });
-
-  test('rejects invalid publication identity', () async {
-    await expectLater(
-      RestaurantMenuPublisher().publish(
-        settings: const RestaurantMenuPublicationSettings(
-          restaurantName: 'Casa Verde',
-        ),
-        menu: menu,
-      ),
-      throwsFormatException,
-    );
   });
 
   test('surfaces Worker errors', () async {
