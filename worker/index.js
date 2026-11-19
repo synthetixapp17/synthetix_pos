@@ -98,10 +98,12 @@ export default {
     }
 
     const normalizedBusinessId = businessId.toLowerCase();
-    const publication = isRestaurant ? body.menu : body.catalog;
+    const publication = isRestaurant
+      ? (body.menu ?? body.catalog)
+      : body.catalog;
     const validPublication = isRestaurant
-      ? isRestaurantMenuValid(publication)
-      : isCatalogValid(publication, normalizedBusinessId);
+      ? isCatalogValid(publication)
+      : isStoreCatalogValid(publication, normalizedBusinessId);
     if (!validPublication) {
       return json(
         { error: 'La publicación no es válida o no corresponde a esta identidad.' },
@@ -358,7 +360,64 @@ async function ensurePages(owner, repository, branch, headers, cors) {
   return created.ok ? null : githubError(created, cors);
 }
 
-function isCatalogValid(catalog, businessId) {
+function isCatalogValid(catalog) {
+  if (!catalog ||
+      typeof catalog !== 'object' ||
+      catalog.format !== 'synthetix_restaurant_menu' ||
+      catalog.version !== 1 ||
+      !catalog.menu ||
+      typeof catalog.menu !== 'object') {
+    return false;
+  }
+
+  const { categories, products } = catalog.menu;
+  if (!Array.isArray(categories) ||
+      categories.length > 100 ||
+      !Array.isArray(products) ||
+      products.length > 2000) {
+    return false;
+  }
+
+  const categoryIds = new Set();
+  for (const category of categories) {
+    if (!category ||
+        typeof category !== 'object' ||
+        typeof category.id !== 'string' ||
+        !category.id.trim() ||
+        typeof category.name !== 'string' ||
+        !category.name.trim() ||
+        categoryIds.has(category.id)) {
+      return false;
+    }
+    categoryIds.add(category.id);
+  }
+
+  const productIds = new Set();
+  for (const product of products) {
+    if (!product ||
+        typeof product !== 'object' ||
+        typeof product.id !== 'string' ||
+        !product.id.trim() ||
+        productIds.has(product.id) ||
+        typeof product.categoryId !== 'string' ||
+        !categoryIds.has(product.categoryId) ||
+        typeof product.name !== 'string' ||
+        !product.name.trim() ||
+        typeof product.price !== 'number' ||
+        !Number.isFinite(product.price) ||
+        product.price < 0 ||
+        typeof product.currencyCode !== 'string' ||
+        !/^[A-Za-z]{3}$/.test(product.currencyCode) ||
+        typeof product.isAvailable !== 'boolean') {
+      return false;
+    }
+    productIds.add(product.id);
+  }
+
+  return true;
+}
+
+function isStoreCatalogValid(catalog, businessId) {
   if (!catalog ||
       typeof catalog !== 'object' ||
       catalog.schemaVersion !== 1 ||
@@ -367,23 +426,6 @@ function isCatalogValid(catalog, businessId) {
       catalog.business.id !== businessId ||
       typeof catalog.business.name !== 'string' ||
       !catalog.business.name.trim() ||
-      typeof catalog.business.slogan !== 'string' ||
-      typeof catalog.business.whatsapp !== 'string' ||
-      (catalog.business.whatsapp !== '' &&
-        !/^\d{8,15}$/.test(catalog.business.whatsapp)) ||
-      (catalog.business.whatsappMessage !== undefined &&
-        (typeof catalog.business.whatsappMessage !== 'string' ||
-          catalog.business.whatsappMessage.length > 300)) ||
-      (catalog.business.showUsdReference !== undefined &&
-        typeof catalog.business.showUsdReference !== 'boolean') ||
-      (catalog.business.showUsdReference === true &&
-        (!Number.isFinite(catalog.business.vesPerUsd) ||
-          catalog.business.vesPerUsd <= 0)) ||
-      !catalog.business.colors ||
-      !/^#[0-9a-f]{6}$/i.test(catalog.business.colors.primary) ||
-      !/^#[0-9a-f]{6}$/i.test(catalog.business.colors.accent) ||
-      !isSafeImageSource(catalog.business.logo) ||
-      !isSafeImageSource(catalog.business.banner ?? null) ||
       !Array.isArray(catalog.products) ||
       catalog.products.length > 10000) {
     return false;
@@ -394,77 +436,10 @@ function isCatalogValid(catalog, businessId) {
     product.id.length > 0 &&
     typeof product.name === 'string' &&
     product.name.trim().length > 0 &&
-    Number.isFinite(product.price) && product.price >= 0 &&
-    Number.isFinite(product.stock) &&
+    Number.isFinite(product.price) &&
+    product.price >= 0 &&
     typeof product.currencyCode === 'string' &&
-    /^[A-Z]{3}$/.test(product.currencyCode) &&
-    isSafeImageSource(product.image) &&
-    Array.isArray(product.variants) &&
-    product.variants.every((variant) =>
-      variant &&
-      typeof variant.id === 'string' &&
-      Number.isFinite(variant.price) &&
-      variant.price >= 0 &&
-      Number.isFinite(variant.stock) &&
-      variant.attributes &&
-      typeof variant.attributes === 'object' &&
-      !Array.isArray(variant.attributes)));
-}
-
-function isRestaurantMenuValid(publication) {
-  if (!publication ||
-      typeof publication !== 'object' ||
-      publication.format !== 'synthetix_restaurant_menu' ||
-      publication.version !== 1 ||
-      !publication.menu ||
-      typeof publication.menu !== 'object') {
-    return false;
-  }
-
-  const menu = publication.menu;
-  if (!Array.isArray(menu.categories) ||
-      menu.categories.length > 100 ||
-      !Array.isArray(menu.products) ||
-      menu.products.length > 2000) {
-    return false;
-  }
-
-  const categoryIds = new Set();
-  for (const category of menu.categories) {
-    if (!category ||
-        typeof category.id !== 'string' ||
-        !category.id ||
-        categoryIds.has(category.id) ||
-        typeof category.name !== 'string' ||
-        !category.name.trim() ||
-        typeof category.description !== 'string') {
-      return false;
-    }
-    categoryIds.add(category.id);
-  }
-
-  const productIds = new Set();
-  return menu.products.every((product) => {
-    if (!product ||
-        typeof product.id !== 'string' ||
-        !product.id ||
-        productIds.has(product.id) ||
-        typeof product.categoryId !== 'string' ||
-        !categoryIds.has(product.categoryId) ||
-        typeof product.name !== 'string' ||
-        !product.name.trim() ||
-        typeof product.description !== 'string' ||
-        !Number.isFinite(product.price) ||
-        product.price < 0 ||
-        typeof product.currencyCode !== 'string' ||
-        !/^[A-Z]{3}$/.test(product.currencyCode) ||
-        typeof product.isAvailable !== 'boolean' ||
-        !isSafeImageSource(product.image ?? null)) {
-      return false;
-    }
-    productIds.add(product.id);
-    return true;
-  });
+    /^[A-Z]{3}$/.test(product.currencyCode));
 }
 
 function isSafeImageSource(source) {
