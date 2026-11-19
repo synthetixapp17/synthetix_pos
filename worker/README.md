@@ -1,110 +1,48 @@
-# Worker de publicación de tiendas y cartas de restaurante
+# Worker de publicación de carta digital
 
-El endpoint que usa la app para publicar tiendas y cartas de restaurante es:
+El Worker recibe el JSON de la carta digital que genera la app Flutter en
+`POST /` o `POST /publish`. No requiere `businessId`, `clientSecret`,
+`Authorization` ni un nombre de repositorio en el cuerpo.
 
-```text
-https://synthetix-pos.synthetixapp17.workers.dev/
-```
+El documento debe incluir `format: "synthetix_restaurant_menu"`, `version: 1`
+y `menu` con arreglos `categories` y `products`. La app envía este documento
+directamente como JSON.
 
-La app genera y guarda localmente un `businessId` UUID y un `clientSecret`
-aleatorio de 43 caracteres. Publica `POST /` (también se acepta `POST /publish`)
-con ambos valores y el catálogo, cuyo `catalog.business.id` debe coincidir con
-el UUID:
+Un `GET /` o `GET /health` devuelve el estado del servicio. El endpoint de
+publicación responde con la URL de GitHub Pages:
 
 ```json
-{
-  "businessId": "<UUID generado por la app>",
-  "clientSecret": "<secreto generado por la app>",
-  "catalog": {
-    "schemaVersion": 1,
-    "business": {
-      "id": "<el mismo UUID>",
-      "name": "Tienda de Luis",
-      "whatsapp": "",
-      "whatsappMessage": "",
-      "logo": null,
-      "banner": null,
-      "showUsdReference": false,
-      "vesPerUsd": null,
-      "colors": {
-        "primary": "#008c95",
-        "accent": "#ffb300"
-      }
-    },
-    "products": []
-  }
-}
+{"ok":true,"url":"https://synthetixapp17.github.io/menu-restaurante-general/menu.html"}
 ```
 
-La app permite elegir colores, cargar un logo y un banner (cada imagen debe
-pesar como máximo 1 MB) y publicar precios en USD con referencia en bolívares.
-Al activar la referencia, `vesPerUsd` debe ser una tasa positiva guardada en la
-calculadora de tasas de la app; el catálogo normaliza los precios del inventario
-a USD antes de incluir la referencia.
+## Configuración
 
-El Worker crea un repositorio público `tienda-{businessId}` en `GITHUB_OWNER`.
-Publica `tienda.html` y `productos.json`, habilita GitHub Pages y devuelve la
-URL pública. Cloudflare KV conserva el hash SHA-256 del secreto y el repositorio
-asociado al UUID; cada publicación verifica el secreto antes de actualizar la
-tienda. El secreto nunca se escribe en el catálogo ni en el repositorio. En cada
-publicación, el Worker compara la plantilla configurada con la versión del
-repositorio y la actualiza si cambió, de modo que las tiendas ya creadas
-reciban los cambios del diseño.
-
-Los pedidos acordados por WhatsApp se registran y administran localmente en la
-app. Al marcar uno como entregado, se registra una venta en el historial del
-POS y se descuenta el inventario; los pedidos no se sincronizan con el Worker.
-
-El nombre de la tienda es público y no se usa como credencial. La app envía el
-`clientSecret` por HTTPS y el Worker solo conserva su hash en Cloudflare KV. El
-`GITHUB_TOKEN` también permanece como secreto del Worker; nunca se envía a
-Flutter ni se incluye en el repositorio.
-
-## Carta digital del restaurante
-
-Desde la sesión **Restaurante**, la consola de menú digital publica las
-categorías y productos existentes con identidad y diseño propios. El request
-usa `siteType: "restaurant"`, `menu`, `businessId` y `clientSecret`; el Worker
-guarda la identidad en una clave KV separada de la tienda, crea
-`menu-{businessId}` y publica `menu.html` junto con `menu.json`. Cada menú tiene
-un enlace público independiente, logotipo lateral, buscador, categorías,
-opciones disponibles y pedidos por WhatsApp.
-
-Configura `APP_RESTAURANT_TEMPLATE_URL` con la URL desplegada de
-`web/restaurant_menu.html` en el mismo origen permitido. Los cambios en la
-carta se reflejan al volver a publicarla. La identidad y autenticación son
-independientes de las de la tienda virtual.
-
-## Configuración de Cloudflare
-
-1. Crea un namespace KV:
-
-   ```powershell
-   wrangler kv namespace create STORE_CONFIGS
-   ```
-
-   Copia el ID devuelto y reemplaza `REPLACE_WITH_KV_NAMESPACE_ID` en
-   `wrangler.toml`.
-2. En `wrangler.toml`, configura `GITHUB_OWNER` con la cuenta propietaria del
-   token, `APP_ORIGIN` con el origen del frontend y
-   `APP_TEMPLATE_URL` con la URL desplegada de `web/tienda.html`, y
-   `APP_RESTAURANT_TEMPLATE_URL` con la URL desplegada de
-   `web/restaurant_menu.html`.
-   El Worker verifica que la plantilla pertenezca a `APP_ORIGIN`.
-3. Crea un token de GitHub limitado a esa cuenta, con permisos de repositorio
-   **Administration: Read and write**, **Contents: Read and write** y
-   **Pages: Read and write**. El Worker solo lo recibe como secreto de
-   Cloudflare:
+1. En `wrangler.toml`, configura `GITHUB_OWNER`, `APP_ORIGIN`,
+   `APP_RESTAURANT_TEMPLATE_URL` y `RESTAURANT_REPOSITORY`. El repositorio es
+   fijo en la configuración del Worker; el cuerpo de la petición no puede
+   elegir otro repositorio.
+2. `PUBLISH_RATE_LIMITER` debe permitir hasta 10 publicaciones por minuto y
+   por IP. No elimines esa binding.
+3. Guarda el token como secreto de Cloudflare, no en el código:
 
    ```powershell
    wrangler secret put GITHUB_TOKEN --config worker/wrangler.toml
    ```
-4. Despliega:
+
+   El token necesita permisos para crear/acceder al repositorio configurado,
+   publicar sus archivos y habilitar GitHub Pages.
+4. Despliega el Worker:
 
    ```powershell
    wrangler deploy --config worker/wrangler.toml
    ```
 
-El binding `PUBLISH_RATE_LIMITER` permite hasta 10 publicaciones por minuto y
-por IP. El catálogo y las imágenes que se publican son públicos. No añadas
-`GITHUB_TOKEN` al código, a `wrangler.toml` ni al repositorio.
+   Prueba el estado con `GET https://<nombre-del-worker>.workers.dev/health`.
+
+## Seguridad
+
+Este endpoint no autentica a quien publica: cualquiera que alcance la ruta
+puede intentar reemplazar la carta del repositorio fijo. CORS no es
+autenticación; el límite por IP solo reduce abuso. Para una publicación
+protegida antes de usarlo con datos reales, añade Cloudflare Turnstile u otro
+mecanismo de autenticación y envía su prueba desde la app.

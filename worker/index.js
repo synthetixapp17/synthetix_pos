@@ -42,10 +42,27 @@ export default {
     if (!env.GITHUB_TOKEN ||
         !env.GITHUB_OWNER ||
         !env.APP_ORIGIN ||
-        !env.APP_RESTAURANT_TEMPLATE_URL) {
+        !env.APP_RESTAURANT_TEMPLATE_URL ||
+        !env.PUBLISH_RATE_LIMITER) {
       return json({
-        error: 'El servicio no está configurado. Faltan GITHUB_TOKEN, GITHUB_OWNER, APP_ORIGIN o APP_RESTAURANT_TEMPLATE_URL.',
+        error: 'El servicio no está configurado. Faltan GITHUB_TOKEN, GITHUB_OWNER, APP_ORIGIN, APP_RESTAURANT_TEMPLATE_URL o PUBLISH_RATE_LIMITER.',
       }, 503, cors);
+    }
+
+    let rateLimit;
+    try {
+      rateLimit = await env.PUBLISH_RATE_LIMITER.limit({
+        key: request.headers.get('CF-Connecting-IP') || 'unknown',
+      });
+    } catch {
+      return json({
+        error: 'No se pudo comprobar el límite de publicaciones.',
+      }, 503, cors);
+    }
+    if (!rateLimit.success) {
+      return json({
+        error: 'Se alcanzó el límite de publicaciones. Inténtalo más tarde.',
+      }, 429, cors);
     }
 
     const contentLength = Number(request.headers.get('Content-Length') || 0);
@@ -70,12 +87,12 @@ export default {
       return json({ error: 'El cuerpo no contiene JSON válido.' }, 400, cors);
     }
 
-    const publication = body?.menu ?? body?.catalog ?? body;
-    if (!isCatalogValid(publication)) {
+    if (!isCatalogValid(body)) {
       return json({
         error: 'El menú no es válido. Se requiere format, version, menu.categories y menu.products.',
       }, 400, cors);
     }
+    const publication = body;
 
     const owner = env.GITHUB_OWNER.trim();
     if (!/^[A-Za-z0-9-]{1,39}$/.test(owner)) {
@@ -84,12 +101,12 @@ export default {
       }, 503, cors);
     }
 
-    const repository = body?.repository ??
-      env.RESTAURANT_REPOSITORY ??
-      DEFAULT_REPOSITORY;
+    const repository = env.RESTAURANT_REPOSITORY || DEFAULT_REPOSITORY;
     if (typeof repository !== 'string' ||
         !/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(repository)) {
-      return json({ error: 'El nombre del repositorio no es válido.' }, 400, cors);
+      return json({
+        error: 'RESTAURANT_REPOSITORY no está configurado correctamente.',
+      }, 503, cors);
     }
 
     const githubHeaders = {
@@ -106,6 +123,7 @@ export default {
         owner,
         repository,
         githubHeaders,
+        cors,
       );
     } catch {
       return json({
@@ -140,6 +158,7 @@ export default {
         contents: template.contents,
         message: 'Publicar plantilla del menú del restaurante',
         githubHeaders,
+        cors,
       });
       if (templateResult instanceof Response) {
         return templateResult;
@@ -156,6 +175,7 @@ export default {
         contents: menuBytes,
         message: 'Actualizar menú del restaurante',
         githubHeaders,
+        cors,
       });
       if (menuResult instanceof Response) {
         return menuResult;
@@ -166,6 +186,7 @@ export default {
         repository,
         branch,
         githubHeaders,
+        cors,
       );
       if (pagesResult instanceof Response) {
         return pagesResult;
@@ -240,7 +261,7 @@ function isCatalogValid(catalog) {
   return true;
 }
 
-async function ensureRepository(owner, repository, githubHeaders) {
+async function ensureRepository(owner, repository, githubHeaders, cors) {
   const repositoryUrl =
     `${GITHUB_API}/repos/${encodeURIComponent(owner)}/` +
     encodeURIComponent(repository);
@@ -251,7 +272,7 @@ async function ensureRepository(owner, repository, githubHeaders) {
     return current.json();
   }
   if (current.status !== 404) {
-    return githubError(current);
+    return githubError(current, cors);
   }
 
   const created = await fetch(`${GITHUB_API}/user/repos`, {
@@ -270,10 +291,10 @@ async function ensureRepository(owner, repository, githubHeaders) {
   if (created.ok) {
     return created.json();
   }
-  return githubError(created);
+  return githubError(created, cors);
 }
 
-async function ensurePages(owner, repository, branch, githubHeaders) {
+async function ensurePages(owner, repository, branch, githubHeaders, cors) {
   const pagesUrl =
     `${GITHUB_API}/repos/${encodeURIComponent(owner)}/` +
     `${encodeURIComponent(repository)}/pages`;
@@ -284,7 +305,7 @@ async function ensurePages(owner, repository, branch, githubHeaders) {
     return null;
   }
   if (current.status !== 404) {
-    return githubError(current);
+    return githubError(current, cors);
   }
 
   const created = await fetch(pagesUrl, {
@@ -300,7 +321,7 @@ async function ensurePages(owner, repository, branch, githubHeaders) {
   if (created.ok) {
     return null;
   }
-  return githubError(created);
+  return githubError(created, cors);
 }
 
 async function fetchTemplate(templateUrl, appOrigin) {
@@ -363,6 +384,7 @@ async function writeGithubFile({
   contents,
   message,
   githubHeaders,
+  cors,
 }) {
   const fileUrl =
     `${GITHUB_API}/repos/${encodeURIComponent(owner)}/` +
@@ -377,7 +399,7 @@ async function writeGithubFile({
     const currentFile = await current.json();
     sha = currentFile.sha;
   } else if (current.status !== 404) {
-    return githubError(current);
+    return githubError(current, cors);
   }
 
   const bytes = contents instanceof Uint8Array
@@ -394,7 +416,7 @@ async function writeGithubFile({
     }),
   });
   if (!update.ok) {
-    return githubError(update);
+    return githubError(update, cors);
   }
   return null;
 }
@@ -448,7 +470,7 @@ function json(value, status, headers = {}) {
   });
 }
 
-async function githubError(response) {
+async function githubError(response, cors) {
   let detail = '';
   try {
     const body = await response.json();
@@ -460,7 +482,11 @@ async function githubError(response) {
   }
   const message = `GitHub rechazó la publicación (HTTP ${response.status})` +
     (detail ? `: ${detail}` : '.');
-  return json({ error: message }, response.status === 409 ? 409 : 502);
+  return json(
+    { error: message },
+    response.status === 409 ? 409 : 502,
+    cors,
+  );
 }
 
 function toBase64(bytes) {
