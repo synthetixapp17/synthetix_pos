@@ -199,6 +199,8 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
     if (_processingFile) return;
     setState(() => _processingFile = true);
     try {
+      final completeMenu = _repository.load();
+      _repository.validate(completeMenu);
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
       await SharePlus.instance.share(
         ShareParams(
@@ -206,7 +208,7 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
           text: 'Categorías, productos, disponibilidad e imágenes del menú.',
           files: [
             XFile.fromData(
-              RestaurantMenuBackup().encode(_menu),
+              RestaurantMenuBackup().encode(completeMenu),
               mimeType: 'application/json',
             ),
           ],

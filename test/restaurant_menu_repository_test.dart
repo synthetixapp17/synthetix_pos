@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:billing_app/core/data/hive_database.dart';
 import 'package:billing_app/features/restaurant/data/restaurant_menu_repository.dart';
 import 'package:billing_app/features/restaurant/domain/entities/restaurant_menu.dart';
+import 'package:billing_app/features/product/data/models/product_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
@@ -13,6 +14,10 @@ void main() {
     directory = await Directory.systemTemp.createTemp('restaurant-menu-test-');
     Hive.init(directory.path);
     await Hive.openBox(HiveDatabase.settingsBoxName);
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(ProductModelAdapter());
+    }
+    await Hive.openBox<ProductModel>(HiveDatabase.productBoxName);
   });
 
   tearDown(() async {
@@ -89,5 +94,27 @@ void main() {
     );
 
     expect(() => repository.validate(menu), throwsFormatException);
+  });
+
+  test('loads restaurant products from the local catalog when menu is empty', () {
+    HiveDatabase.productBox.put(
+      'coffee',
+      const ProductModel(
+        id: 'coffee',
+        name: 'Café',
+        barcode: 'coffee',
+        price: 2.5,
+        stock: 10,
+        description: 'Tostado',
+        currencyCode: 'USD',
+        category: 'Bebidas',
+      ),
+    );
+
+    final menu = RestaurantMenuRepository().load();
+
+    expect(menu.categories.single.name, 'Bebidas');
+    expect(menu.products.single.name, 'Café');
+    expect(menu.products.single.price, 2.5);
   });
 }
