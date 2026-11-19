@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#315c46">
+  <meta name="description" content="Carta digital del restaurante">
+  <title>Menú del restaurante</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --primary: #315c46;
+      --accent: #d8a15d;
+      --ink: #252822;
+      --muted: #73766f;
+      --paper: #fbf9f4;
+      --surface: #fff;
+      --line: #e9e5dc;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: var(--paper); }
+    button, input { font: inherit; }
+    a { color: inherit; }
+    .page-shell { width: min(1380px, 100% - 48px); margin: 0 auto; padding: 32px 0 56px; display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: clamp(24px, 5vw, 68px); align-items: start; }
+    .brand-panel { position: sticky; top: 28px; min-height: 560px; display: flex; flex-direction: column; align-items: flex-start; padding: 30px; overflow: hidden; border-radius: 28px; background: var(--primary); color: #fff; box-shadow: 0 20px 55px rgb(26 38 29 / 14%); isolation: isolate; }
+    .brand-panel::before, .brand-panel::after { position: absolute; z-index: -1; border: 1px solid rgb(255 255 255 / 13%); border-radius: 50%; content: ""; }
+    .brand-panel::before { width: 350px; height: 350px; right: -210px; top: -150px; box-shadow: 0 0 0 28px rgb(255 255 255 / 4%), 0 0 0 56px rgb(255 255 255 / 3%); }
+    .brand-panel::after { width: 230px; height: 230px; left: -150px; bottom: -100px; background: rgb(255 255 255 / 4%); }
+    .brand-kicker { margin: 0 0 22px; color: rgb(255 255 255 / 77%); font-size: .68rem; font-weight: 850; letter-spacing: .16em; text-transform: uppercase; }
+    .logo-frame { width: min(100%, 220px); aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border: 6px solid rgb(255 255 255 / 88%); border-radius: 28px; background: #fff; box-shadow: 0 14px 36px rgb(0 0 0 / 19%); }
+    .logo { width: 100%; height: 100%; object-fit: cover; }
+    .logo-placeholder { color: var(--primary); font-size: 4.2rem; }
+    .brand-panel h1 { margin: 24px 0 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2rem, 3.2vw, 2.8rem); font-weight: 500; letter-spacing: -.04em; line-height: 1.05; overflow-wrap: anywhere; }
+    .brand-slogan { margin: 12px 0 0; color: rgb(255 255 255 / 78%); font-size: .94rem; line-height: 1.6; }
+    .brand-rule { width: 54px; height: 3px; margin: 24px 0; border-radius: 9px; background: var(--accent); }
+    .brand-actions { width: 100%; display: grid; gap: 10px; margin-top: auto; padding-top: 30px; }
+    .brand-button { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border: 1px solid rgb(255 255 255 / 27%); border-radius: 13px; background: rgb(255 255 255 / 9%); color: #fff; font-size: .85rem; font-weight: 750; text-align: center; text-decoration: none; cursor: pointer; transition: background .18s ease, transform .18s ease; }
+    .brand-button:hover { background: rgb(255 255 255 / 17%); transform: translateY(-1px); }
+    .brand-button.order-link { border-color: var(--accent); background: var(--accent); color: #29251f; }
+    .brand-button:focus-visible, .share-button:focus-visible, .search:focus-visible, .category-link:focus-visible, .item-order:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .brand-footnote { margin: 18px 0 0; color: rgb(255 255 255 / 59%); font-size: .68rem; line-height: 1.5; }
+    .menu-main { min-width: 0; padding: 10px 0; }
+    .topline { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 30px; }
+    .eyebrow { margin: 0 0 7px; color: var(--primary); font-size: .68rem; font-weight: 850; letter-spacing: .16em; text-transform: uppercase; }
+    .topline h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2rem, 4vw, 3rem); font-weight: 500; letter-spacing: -.045em; }
+    .topline-copy { max-width: 480px; margin: 9px 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+    .share-button { width: 46px; height: 46px; flex: 0 0 46px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--primary); cursor: pointer; }
+    .share-button:hover:not(:disabled) { border-color: var(--primary); }
+    .share-button:disabled { opacity: .48; cursor: not-allowed; }
+    .toolbar { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+    .search-wrap { position: relative; flex: 1; }
+    .search-wrap svg { position: absolute; top: 50%; left: 15px; width: 18px; height: 18px; color: var(--muted); transform: translateY(-50%); pointer-events: none; }
+    .search { width: 100%; padding: 13px 15px 13px 43px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); color: var(--ink); outline-color: var(--primary); }
+    .item-count { color: var(--muted); font-size: .8rem; white-space: nowrap; }
+    .category-nav { display: flex; gap: 8px; overflow-x: auto; margin: 0 0 34px; padding: 2px 2px 8px; scrollbar-width: thin; }
+    .category-link { flex: 0 0 auto; padding: 9px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: .78rem; font-weight: 750; text-decoration: none; transition: border-color .18s ease, color .18s ease; }
+    .category-link:hover { border-color: var(--primary); color: var(--primary); }
+    .menu-section { margin: 0 0 34px; scroll-margin-top: 22px; }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    .section-heading h3 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.7rem; font-weight: 500; letter-spacing: -.025em; }
+    .section-heading p { max-width: 360px; margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.5; text-align: right; }
+    .menu-items { display: grid; }
+    .menu-item { min-width: 0; display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 17px 0; border-bottom: 1px dashed #ded9ce; }
+    .item-photo { width: 82px; height: 72px; display: grid; place-items: center; overflow: hidden; border-radius: 14px; background: color-mix(in srgb, var(--primary) 8%, white); color: var(--primary); }
+    .item-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .item-info { min-width: 0; }
+    .item-name { margin: 0; font-size: 1rem; font-weight: 800; line-height: 1.35; }
+    .item-description { margin: 5px 0 0; color: var(--muted); font-size: .8rem; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
+    .item-state { display: inline-flex; margin-top: 8px; padding: 4px 8px; border-radius: 999px; background: #e8f1eb; color: #315c46; font-size: .64rem; font-weight: 800; }
+    .item-state.unavailable { background: #f5e9e5; color: #994b39; }
+    .item-side { min-width: 100px; display: grid; justify-items: end; gap: 8px; }
+    .item-price { color: var(--primary); font-size: .94rem; font-weight: 850; white-space: nowrap; }
+    .item-order { padding: 7px 11px; border: 1px solid var(--primary); border-radius: 999px; background: transparent; color: var(--primary); font-size: .72rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
+    .item-order:hover { background: var(--primary); color: #fff; }
+    .item-order.disabled { border-color: var(--line); color: #999; pointer-events: none; }
+    .empty-state { padding: 26px; border: 1px dashed var(--line); border-radius: 16px; color: var(--muted); text-align: center; }
+    .page-state { padding: 54px 24px; color: var(--muted); text-align: center; }
+    .page-state.error { color: #9c3d31; }
+    .share-toast { position: fixed; z-index: 4; left: 50%; bottom: 24px; width: fit-content; max-width: calc(100% - 32px); padding: 12px 16px; border-radius: 12px; background: #242924; color: #fff; box-shadow: 0 12px 28px rgb(0 0 0 / 22%); font-size: .82rem; transform: translateX(-50%); }
+    .footer { margin-top: 42px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .74rem; }
+    @media (max-width: 850px) {
+      .page-shell { width: min(760px, 100% - 32px); grid-template-columns: 1fr; gap: 28px; padding-top: 16px; }
+      .brand-panel { position: relative; top: auto; min-height: 0; display: grid; grid-template-columns: 130px minmax(0, 1fr); align-items: center; gap: 0 22px; padding: 22px; border-radius: 23px; }
+      .brand-kicker { grid-column: 1 / -1; margin-bottom: 14px; }
+      .logo-frame { width: 130px; grid-row: span 4; border-width: 4px; border-radius: 21px; }
+      .brand-panel h1 { margin: 0; font-size: clamp(1.7rem, 5vw, 2.3rem); }
+      .brand-slogan { margin-top: 7px; }
+      .brand-rule { width: 40px; margin: 13px 0; }
+      .brand-actions { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 8px; padding-top: 14px; }
+      .brand-footnote { grid-column: 1 / -1; margin-top: 11px; }
+      .menu-main { padding-top: 0; }
+    }
+    @media (max-width: 520px) {
+      .page-shell { width: min(100% - 24px, 500px); padding-bottom: 32px; }
+      .brand-panel { grid-template-columns: 86px minmax(0, 1fr); gap: 0 15px; padding: 17px; }
+      .brand-kicker { margin-bottom: 12px; font-size: .6rem; }
+      .logo-frame { width: 86px; border-width: 3px; border-radius: 16px; }
+      .logo-placeholder { font-size: 2.7rem; }
+      .brand-panel h1 { font-size: 1.55rem; }
+      .brand-slogan { font-size: .78rem; }
+      .brand-rule { height: 2px; margin: 9px 0; }
+      .brand-button { min-height: 42px; padding: 9px 8px; font-size: .75rem; }
+      .topline { margin-bottom: 23px; }
+      .topline h2 { font-size: 2rem; }
+      .topline-copy { font-size: .82rem; }
+      .toolbar { align-items: stretch; flex-direction: column; gap: 8px; }
+      .item-count { text-align: right; }
+      .category-nav { margin-bottom: 26px; }
+      .section-heading { align-items: flex-start; flex-direction: column; gap: 5px; }
+      .section-heading p { text-align: left; }
+      .menu-item { grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: start; }
+      .item-photo { width: 64px; height: 64px; border-radius: 12px; }
+      .item-side { grid-column: 2; width: 100%; display: flex; align-items: center; justify-content: space-between; }
+      .item-name { font-size: .91rem; }
+      .item-description { font-size: .75rem; }
+      .footer { margin-top: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <aside class="brand-panel">
+      <p class="brand-kicker">Carta del restaurante</p>
+      <div class="logo-frame">
+        <img class="logo" id="restaurant-logo" alt="" hidden>
+        <span class="logo-placeholder" id="logo-placeholder" aria-hidden="true">✦</span>
+      </div>
+      <h1 id="restaurant-name">Nuestro restaurante</h1>
+      <p class="brand-slogan" id="restaurant-slogan">Una experiencia para disfrutar.</p>
+      <span class="brand-rule" aria-hidden="true"></span>
+      <div class="brand-actions">
+        <a class="brand-button order-link" id="restaurant-whatsapp" href="#" target="_blank" rel="noopener noreferrer" hidden>
+          Pedir por WhatsApp
+        </a>
+        <button class="brand-button" id="share-menu" type="button" disabled>Compartir menú</button>
+      </div>
+      <p class="brand-footnote">Productos y disponibilidad sujetos a cambios.</p>
+    </aside>
+
+    <section class="menu-main" aria-labelledby="menu-title">
+      <div class="topline">
+        <div>
+          <p class="eyebrow">Preparado para ti</p>
+          <h2 id="menu-title">Nuestra carta</h2>
+          <p class="topline-copy">Explora los sabores de la casa y encuentra algo que te encante.</p>
+        </div>
+        <button class="share-button" id="share-menu-icon" type="button" aria-label="Compartir menú" title="Compartir menú" disabled>
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle>
+            <path d="m8.7 10.7 6.6-4.4m-6.6 9 6.6 4.4"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="toolbar">
+        <label class="search-wrap">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4 4"></path>
+          </svg>
+          <input class="search" id="search" type="search" placeholder="Buscar en la carta..." aria-label="Buscar en la carta" disabled>
+        </label>
+        <span class="item-count" id="item-count"></span>
+      </div>
+      <nav class="category-nav" id="category-nav" aria-label="Categorías de la carta"></nav>
+      <div id="menu-content" aria-live="polite">
+        <div class="page-state" id="page-state" role="status">Cargando carta...</div>
+      </div>
+      <footer class="footer" id="menu-footer">Carta digital</footer>
+    </section>
+  </main>
+  <div class="share-toast" id="share-toast" role="status" hidden></div>
+  <script>
+    const state = document.getElementById('page-state');
+    const menuContent = document.getElementById('menu-content');
+    const categoryNav = document.getElementById('category-nav');
+    const search = document.getElementById('search');
+    const shareButtons = [
+      document.getElementById('share-menu'),
+      document.getElementById('share-menu-icon'),
+    ];
+    let menuData = null;
+    let toastTimer = null;
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[character]);
+    }
+
+    function safeImageSource(value) {
+      if (typeof value !== 'string') return null;
+      if (/^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+=*$/.test(value)) return value;
+      try {
+        const url = new URL(value);
+        return url.protocol === 'https:' ? url.href : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function formatPrice(amount, currency) {
+      try {
+        return new Intl.NumberFormat('es', {
+          style: 'currency',
+          currency,
+          maximumFractionDigits: 2
+        }).format(amount);
+      } catch {
+        return `${Number(amount).toFixed(2)} ${currency}`;
+      }
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('share-toast');
+      toast.textContent = message;
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.hidden = true; }, 2800);
+    }
+
+    function orderUrl(product) {
+      const business = menuData.business;
+      const phone = business.whatsapp;
+      if (!/^\d{8,15}$/.test(phone)) return null;
+      const baseMessage = business.whatsappMessage.trim() || 'Hola, quisiera hacer un pedido.';
+      const message = `${baseMessage}\n\n${product.name} — ${formatPrice(product.price, product.currencyCode)}`;
+      return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    }
+
+    function renderMenu() {
+      const query = search.value.trim().toLocaleLowerCase('es');
+      const filteredCategories = menuData.categories
+        .map((category, index) => ({
+          category,
+          index,
+          products: menuData.products.filter((product) =>
+            product.categoryId === category.id &&
+            `${product.name} ${product.description}`.toLocaleLowerCase('es').includes(query))
+        }))
+        .filter((entry) => entry.products.length > 0);
+
+      categoryNav.innerHTML = filteredCategories.map(({ category, index }) =>
+        `<a class="category-link" href="#section-${index}">${escapeHtml(category.name)}</a>`
+      ).join('');
+
+      const total = filteredCategories.reduce((count, entry) => count + entry.products.length, 0);
+      document.getElementById('item-count').textContent =
+        `${total} ${total === 1 ? 'opción' : 'opciones'}`;
+
+      if (total === 0) {
+        menuContent.innerHTML = '<div class="empty-state">No encontramos opciones con esa búsqueda.</div>';
+        return;
+      }
+
+      menuContent.innerHTML = filteredCategories.map(({ category, index, products }) => `
+        <section class="menu-section" id="section-${index}">
+          <div class="section-heading">
+            <h3>${escapeHtml(category.name)}</h3>
+            ${category.description ? `<p>${escapeHtml(category.description)}</p>` : ''}
+          </div>
+          <div class="menu-items">
+            ${products.map((product) => {
+              const image = safeImageSource(product.image);
+              const order = orderUrl(product);
+              return `
+                <article class="menu-item">
+                  <div class="item-photo">
+                    ${image
+                      ? `<img src="${escapeHtml(image)}" alt="" loading="lazy">`
+                      : '<span aria-hidden="true">✦</span>'}
+                  </div>
+                  <div class="item-info">
+                    <h4 class="item-name">${escapeHtml(product.name)}</h4>
+                    ${product.description
+                      ? `<p class="item-description">${escapeHtml(product.description)}</p>`
+                      : ''}
+                    <span class="item-state ${product.isAvailable ? '' : 'unavailable'}">
+                      ${product.isAvailable ? 'Disponible' : 'No disponible por ahora'}
+                    </span>
+                  </div>
+                  <div class="item-side">
+                    <span class="item-price">${formatPrice(product.price, product.currencyCode)}</span>
+                    ${product.isAvailable && order
+                      ? `<a class="item-order" href="${escapeHtml(order)}" target="_blank" rel="noopener noreferrer">Pedir</a>`
+                      : `<span class="item-order disabled">${product.isAvailable ? 'Consultar' : 'Agotado'}</span>`}
+                  </div>
+                </article>`;
+            }).join('')}
+          </div>
+        </section>
+      `).join('');
+    }
+
+    async function shareMenu() {
+      if (!menuData) {
+        showToast('La carta aún no está lista para compartirse.');
+        return;
+      }
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: menuData.business.name,
+            text: `Mira la carta de ${menuData.business.name}`,
+            url: location.href
+          });
+        } else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(location.href);
+          showToast('Enlace de la carta copiado.');
+        } else {
+          showToast('Copia el enlace desde la barra del navegador para compartirlo.');
+        }
+      } catch (error) {
+        if (error?.name !== 'AbortError') showToast('No se pudo compartir el enlace.');
+      }
+    }
+
+    function applyBranding(business) {
+      if (/^#[0-9a-f]{6}$/i.test(business.colors?.primary || '')) {
+        document.documentElement.style.setProperty('--primary', business.colors.primary);
+        document.querySelector('meta[name="theme-color"]').content = business.colors.primary;
+      }
+      if (/^#[0-9a-f]{6}$/i.test(business.colors?.accent || '')) {
+        document.documentElement.style.setProperty('--accent', business.colors.accent);
+      }
+      document.title = `Menú | ${business.name}`;
+      document.getElementById('restaurant-name').textContent = business.name;
+      document.getElementById('restaurant-slogan').textContent =
+        business.slogan || 'Una experiencia para disfrutar.';
+      document.getElementById('menu-footer').textContent =
+        `Carta digital de ${business.name}`;
+
+      const logo = safeImageSource(business.logo);
+      if (logo) {
+        const image = document.getElementById('restaurant-logo');
+        image.src = logo;
+        image.alt = `Logotipo de ${business.name}`;
+        image.hidden = false;
+        document.getElementById('logo-placeholder').hidden = true;
+      }
+      const phone = business.whatsapp;
+      const contact = document.getElementById('restaurant-whatsapp');
+      if (/^\d{8,15}$/.test(phone)) {
+        const message = business.whatsappMessage.trim() || 'Hola, quisiera hacer un pedido.';
+        contact.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+        contact.hidden = false;
+      }
+    }
+
+    async function loadMenu() {
+      try {
+        const url = new URL('menu.json', location.href);
+        url.searchParams.set('_', String(Date.now()));
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!data || data.schemaVersion !== 1 || !data.business ||
+            !Array.isArray(data.categories) || !Array.isArray(data.products)) {
+          throw new Error('El formato de la carta no es válido.');
+        }
+        menuData = data;
+        applyBranding(data.business);
+        search.disabled = false;
+        shareButtons.forEach((button) => { button.disabled = false; });
+        state.remove();
+        renderMenu();
+      } catch (error) {
+        state.classList.add('error');
+        state.textContent =
+          'No se pudo cargar la carta. Intenta actualizar la página o contacta al restaurante.';
+        console.error('Error loading restaurant menu:', error);
+      }
+    }
+
+    search.addEventListener('input', renderMenu);
+    shareButtons.forEach((button) => button.addEventListener('click', shareMenu));
+    loadMenu();
+  </script>
+</body>
+</html>

@@ -205,8 +205,8 @@ class VirtualStoreCatalogBuilder {
         'slogan': settings.slogan,
         'whatsapp': settings.whatsappNumber,
         'whatsappMessage': settings.whatsappMessage.trim(),
-        'logo': _imageDataUrl(settings.logo),
-        'banner': _imageDataUrl(settings.banner),
+        'logo': imageDataUrl(settings.logo),
+        'banner': imageDataUrl(settings.banner),
         'showUsdReference': settings.showUsdReference,
         'vesPerUsd': settings.showUsdReference
             ? _requiredVesRate(settings)
@@ -231,7 +231,7 @@ class VirtualStoreCatalogBuilder {
                 : product.currencyCode,
             'stock': product.stock,
             'unitLabel': product.unitLabel,
-            'image': _imageDataUrl(product.imageData),
+            'image': imageDataUrl(product.imageData),
             'variants': product.variants
                 .map(
                   (variant) => {
@@ -279,7 +279,7 @@ class VirtualStoreCatalogBuilder {
   static String colorToHex(int color) =>
       '#${color.toRadixString(16).padLeft(8, '0').substring(2)}';
 
-  static String? _imageDataUrl(String? source) {
+  static String? imageDataUrl(String? source) {
     if (source == null || source.isEmpty) return null;
     if (source.startsWith('data:image/')) return source;
     if (Uri.tryParse(source)?.scheme == 'https') return source;
@@ -311,6 +311,6 @@ class VirtualStoreCatalogBuilder {
         String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP') {
       return 'image/webp';
     }
-    throw const FormatException('Hay una imagen de producto inválida.');
+    throw const FormatException('Hay una imagen con formato no válido.');
   }
 }

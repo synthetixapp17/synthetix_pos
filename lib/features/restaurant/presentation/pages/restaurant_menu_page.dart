@@ -344,6 +344,13 @@ class _RestaurantMenuPageState extends State<RestaurantMenuPage> {
         title: const Text('Menú del restaurante'),
         actions: [
           IconButton(
+            tooltip: 'Configurar menú digital',
+            onPressed: _loading || _processingFile
+                ? null
+                : () => context.push('/restaurant/digital-menu'),
+            icon: const Icon(Icons.public_rounded),
+          ),
+          IconButton(
             tooltip: 'Actualizar menú',
             onPressed: _loading || _processingFile ? null : _load,
             icon: const Icon(Icons.refresh_rounded),

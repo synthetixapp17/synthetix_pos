@@ -723,6 +723,10 @@ class _RestaurantPageState extends State<RestaurantPage> {
     }
   }
 
+  void _openDigitalMenuSettings() {
+    context.push('/restaurant/digital-menu');
+  }
+
   Future<void> _handleReservationAction(
     TableReservation reservation,
     bool seat,
@@ -785,6 +789,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
             tooltip: 'Opciones del restaurante',
             onSelected: (value) {
               if (value == 'menu') _openRestaurantMenu();
+              if (value == 'digital-menu') _openDigitalMenuSettings();
             },
             itemBuilder: (context) => const [
               PopupMenuItem(
@@ -793,6 +798,14 @@ class _RestaurantPageState extends State<RestaurantPage> {
                   leading: Icon(Icons.restaurant_menu_rounded),
                   title: Text('Menú del restaurante'),
                   subtitle: Text('Productos y categorías'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'digital-menu',
+                child: ListTile(
+                  leading: Icon(Icons.public_rounded),
+                  title: Text('Menú digital público'),
+                  subtitle: Text('Personalizar y compartir'),
                 ),
               ),
             ],
@@ -829,6 +842,7 @@ class _RestaurantPageState extends State<RestaurantPage> {
                     onCreateTable: _createTable,
                     onCreateReservation: () => _createReservation(),
                     onManageMenu: _openRestaurantMenu,
+                    onConfigureDigitalMenu: _openDigitalMenuSettings,
                   ),
                   const SizedBox(height: 22),
                   Row(
@@ -980,6 +994,7 @@ class _RestaurantHeader extends StatelessWidget {
   final VoidCallback onCreateTable;
   final VoidCallback onCreateReservation;
   final VoidCallback onManageMenu;
+  final VoidCallback onConfigureDigitalMenu;
 
   const _RestaurantHeader({
     required this.tableCount,
@@ -989,6 +1004,7 @@ class _RestaurantHeader extends StatelessWidget {
     required this.onCreateTable,
     required this.onCreateReservation,
     required this.onManageMenu,
+    required this.onConfigureDigitalMenu,
   });
 
   @override
@@ -1145,6 +1161,11 @@ class _RestaurantHeader extends StatelessWidget {
                     onPressed: onManageMenu,
                     icon: const Icon(Icons.restaurant_menu_rounded),
                     label: const Text('Menú'),
+                  ),
+                  TextButton.icon(
+                    onPressed: onConfigureDigitalMenu,
+                    icon: const Icon(Icons.public_rounded),
+                    label: const Text('Menú digital'),
                   ),
                 ],
               ),

@@ -32,7 +32,6 @@ export default {
     if (!env.GITHUB_TOKEN ||
         !env.GITHUB_OWNER ||
         !env.APP_ORIGIN ||
-        !env.APP_TEMPLATE_URL ||
         !env.STORE_CONFIGS ||
         !env.PUBLISH_RATE_LIMITER) {
       return json({ error: 'El servicio de publicación no está configurado.' }, 503, cors);
@@ -51,7 +50,7 @@ export default {
 
     const contentLength = Number(request.headers.get('Content-Length') || 0);
     if (contentLength > MAX_BODY_BYTES) {
-      return json({ error: 'El catálogo supera el límite de 4 MB.' }, 413, cors);
+      return json({ error: 'La publicación supera el límite de 4 MB.' }, 413, cors);
     }
 
     let rawBody;
@@ -61,7 +60,7 @@ export default {
       return json({ error: 'No se pudo leer la solicitud.' }, 400, cors);
     }
     if (rawBody === null) {
-      return json({ error: 'El catálogo supera el límite de 4 MB.' }, 413, cors);
+      return json({ error: 'La publicación supera el límite de 4 MB.' }, 413, cors);
     }
 
     let body;
@@ -71,29 +70,54 @@ export default {
       return json({ error: 'El cuerpo de la solicitud no contiene JSON válido.' }, 400, cors);
     }
 
+    const siteType = body?.siteType ?? 'store';
+    if (siteType !== 'store' && siteType !== 'restaurant') {
+      return json({ error: 'El tipo de publicación no es válido.' }, 400, cors);
+    }
+
+    const isRestaurant = siteType === 'restaurant';
+    const siteLabel = isRestaurant ? 'el menú del restaurante' : 'la tienda';
+    const templateUrl = isRestaurant
+      ? env.APP_RESTAURANT_TEMPLATE_URL
+      : env.APP_TEMPLATE_URL;
+    if (!templateUrl) {
+      return json(
+        { error: `No está configurada la plantilla para ${siteLabel}.` },
+        503,
+        cors,
+      );
+    }
+
     const businessId = body?.businessId;
     const clientSecret = body?.clientSecret;
     if (typeof businessId !== 'string' ||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(businessId) ||
         typeof clientSecret !== 'string' ||
         !/^[A-Za-z0-9_-]{43}$/.test(clientSecret)) {
-      return json({ error: 'La identidad de la tienda no es válida.' }, 400, cors);
+      return json({ error: 'La identidad de la publicación no es válida.' }, 400, cors);
     }
 
     const normalizedBusinessId = businessId.toLowerCase();
-    const catalog = body.catalog;
-    if (!isCatalogValid(catalog, normalizedBusinessId)) {
-      return json({ error: 'El catálogo no es válido o no corresponde a esta tienda.' }, 400, cors);
+    const publication = isRestaurant ? body.menu : body.catalog;
+    const validPublication = isRestaurant
+      ? isRestaurantMenuValid(publication, normalizedBusinessId)
+      : isCatalogValid(publication, normalizedBusinessId);
+    if (!validPublication) {
+      return json(
+        { error: 'La publicación no es válida o no corresponde a esta identidad.' },
+        400,
+        cors,
+      );
     }
 
     let clientSecretHash;
     try {
       clientSecretHash = await hashSecret(clientSecret);
     } catch {
-      return json({ error: 'No se pudo validar la identidad de la tienda.' }, 500, cors);
+      return json({ error: 'No se pudo validar la identidad de la publicación.' }, 500, cors);
     }
 
-    const configKey = `store:${normalizedBusinessId}`;
+    const configKey = `${siteType}:${normalizedBusinessId}`;
     let storeConfig;
     let isFirstRequest = false;
     try {
@@ -101,18 +125,22 @@ export default {
       if (stored) {
         storeConfig = JSON.parse(stored);
         if (!constantTimeEqual(storeConfig.clientSecretHash, clientSecretHash)) {
-          return json({ error: 'La clave secreta no corresponde a esta tienda.' }, 401, cors);
+          const error = isRestaurant
+            ? 'La clave secreta no corresponde a este menú.'
+            : 'La clave secreta no corresponde a esta tienda.';
+          return json({ error }, 401, cors);
         }
       } else {
         isFirstRequest = true;
         storeConfig = {
+          siteType,
           businessId: normalizedBusinessId,
           clientSecretHash,
-          repository: `tienda-${normalizedBusinessId}`,
+          repository: `${isRestaurant ? 'menu' : 'tienda'}-${normalizedBusinessId}`,
         };
       }
     } catch {
-      return json({ error: 'No se pudo consultar la identidad de la tienda.' }, 503, cors);
+      return json({ error: 'No se pudo consultar la identidad de la publicación.' }, 503, cors);
     }
 
     const owner = env.GITHUB_OWNER.trim();
@@ -125,7 +153,7 @@ export default {
       Authorization: `Bearer ${env.GITHUB_TOKEN.trim()}`,
       'Content-Type': 'application/json',
       'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'Synthetix-Store-Publisher',
+      'User-Agent': 'Synthetix-Publisher',
     };
 
     let repository;
@@ -133,12 +161,13 @@ export default {
       repository = await ensureRepository(
         owner,
         storeConfig.repository,
+        isRestaurant ? 'Carta digital del restaurante' : 'Tienda virtual',
         githubHeaders,
         isFirstRequest,
         cors,
       );
     } catch {
-      return json({ error: 'No se pudo preparar el repositorio de la tienda.' }, 502, cors);
+      return json({ error: `No se pudo preparar el repositorio para ${siteLabel}.` }, 502, cors);
     }
     if (repository instanceof Response) return repository;
 
@@ -152,7 +181,11 @@ export default {
         await env.STORE_CONFIGS.put(configKey, JSON.stringify(storeConfig));
       }
 
-      const template = await fetchStoreTemplate(env.APP_TEMPLATE_URL, env.APP_ORIGIN);
+      const template = await fetchStoreTemplate(
+        templateUrl,
+        env.APP_ORIGIN,
+        isRestaurant ? 'del menú del restaurante' : 'de la tienda',
+      );
       if (!template.ok) return json({ error: template.error }, template.status, cors);
       const templateHash = await hashTemplate(template.contents);
       if (storeConfig.templateHash !== templateHash) {
@@ -160,9 +193,9 @@ export default {
           owner,
           repository: storeConfig.repository,
           branch,
-          path: 'tienda.html',
+          path: isRestaurant ? 'menu.html' : 'tienda.html',
           contents: template.contents,
-          message: `Configurar tienda ${normalizedBusinessId}`,
+          message: `Configurar ${siteLabel} ${normalizedBusinessId}`,
           githubHeaders,
           cors,
         });
@@ -170,14 +203,16 @@ export default {
         storeConfig.templateHash = templateHash;
       }
 
-      const catalogBytes = new TextEncoder().encode(JSON.stringify(catalog, null, 2));
+      const publicationBytes = new TextEncoder().encode(
+        JSON.stringify(publication, null, 2),
+      );
       const catalogResult = await writeGithubFile({
         owner,
         repository: storeConfig.repository,
         branch,
-        path: 'productos.json',
-        contents: catalogBytes,
-        message: `Actualizar tienda ${normalizedBusinessId}`,
+        path: isRestaurant ? 'menu.json' : 'productos.json',
+        contents: publicationBytes,
+        message: `Actualizar ${siteLabel} ${normalizedBusinessId}`,
         githubHeaders,
         cors,
       });
@@ -188,16 +223,24 @@ export default {
 
       await env.STORE_CONFIGS.put(configKey, JSON.stringify(storeConfig));
     } catch {
-      return json({ error: 'No se pudo publicar el catálogo de la tienda.' }, 502, cors);
+      return json({ error: `No se pudo publicar ${siteLabel}.` }, 502, cors);
     }
 
-    const url = `https://${owner.toLowerCase()}.github.io/${storeConfig.repository}/tienda.html` +
+    const page = isRestaurant ? 'menu.html' : 'tienda.html';
+    const url = `https://${owner.toLowerCase()}.github.io/${storeConfig.repository}/${page}` +
       `?negocio=${encodeURIComponent(normalizedBusinessId)}`;
     return json({ ok: true, url }, 200, cors);
   },
 };
 
-async function ensureRepository(owner, repository, headers, isFirstRequest, cors) {
+async function ensureRepository(
+  owner,
+  repository,
+  description,
+  headers,
+  isFirstRequest,
+  cors,
+) {
   const repositoryUrl = `${GITHUB_API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}`;
   const current = await fetch(repositoryUrl, { headers });
   if (current.ok) {
@@ -213,7 +256,7 @@ async function ensureRepository(owner, repository, headers, isFirstRequest, cors
     headers,
     body: JSON.stringify({
       name: repository,
-      description: 'Catálogo público de tienda virtual',
+      description,
       private: false,
       auto_init: true,
       has_issues: false,
@@ -230,7 +273,7 @@ async function ensureRepository(owner, repository, headers, isFirstRequest, cors
   return githubError(created, cors);
 }
 
-async function fetchStoreTemplate(templateUrl, appOrigin) {
+async function fetchStoreTemplate(templateUrl, appOrigin, siteLabel) {
   let template;
   try {
     template = new URL(templateUrl);
@@ -247,14 +290,14 @@ async function fetchStoreTemplate(templateUrl, appOrigin) {
       headers: { Accept: 'text/html' },
     });
   } catch {
-    return { ok: false, status: 503, error: 'No se pudo cargar la plantilla de la tienda.' };
+    return { ok: false, status: 503, error: `No se pudo cargar la plantilla ${siteLabel}.` };
   }
   if (!response.ok) {
-    return { ok: false, status: 503, error: 'La plantilla pública de la tienda no está disponible.' };
+    return { ok: false, status: 503, error: `La plantilla pública ${siteLabel} no está disponible.` };
   }
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.length > MAX_TEMPLATE_BYTES) {
-    return { ok: false, status: 503, error: 'La plantilla de la tienda supera el tamaño permitido.' };
+    return { ok: false, status: 503, error: `La plantilla ${siteLabel} supera el tamaño permitido.` };
   }
   return { ok: true, contents: bytes };
 }
@@ -366,6 +409,72 @@ function isCatalogValid(catalog, businessId) {
       variant.attributes &&
       typeof variant.attributes === 'object' &&
       !Array.isArray(variant.attributes)));
+}
+
+function isRestaurantMenuValid(menu, businessId) {
+  if (!menu ||
+      typeof menu !== 'object' ||
+      menu.schemaVersion !== 1 ||
+      !menu.business ||
+      typeof menu.business !== 'object' ||
+      menu.business.id !== businessId ||
+      typeof menu.business.name !== 'string' ||
+      !menu.business.name.trim() ||
+      menu.business.name.length > 120 ||
+      typeof menu.business.slogan !== 'string' ||
+      menu.business.slogan.length > 160 ||
+      typeof menu.business.whatsapp !== 'string' ||
+      (menu.business.whatsapp !== '' &&
+        !/^\d{8,15}$/.test(menu.business.whatsapp)) ||
+      typeof menu.business.whatsappMessage !== 'string' ||
+      menu.business.whatsappMessage.length > 300 ||
+      !menu.business.colors ||
+      !/^#[0-9a-f]{6}$/i.test(menu.business.colors.primary) ||
+      !/^#[0-9a-f]{6}$/i.test(menu.business.colors.accent) ||
+      !isSafeImageSource(menu.business.logo) ||
+      !Array.isArray(menu.categories) ||
+      menu.categories.length > 100 ||
+      !Array.isArray(menu.products) ||
+      menu.products.length > 2000) {
+    return false;
+  }
+
+  const categoryIds = new Set();
+  for (const category of menu.categories) {
+    if (!category ||
+        typeof category.id !== 'string' ||
+        !category.id ||
+        categoryIds.has(category.id) ||
+        typeof category.name !== 'string' ||
+        !category.name.trim() ||
+        typeof category.description !== 'string') {
+      return false;
+    }
+    categoryIds.add(category.id);
+  }
+
+  const productIds = new Set();
+  return menu.products.every((product) => {
+    if (!product ||
+        typeof product.id !== 'string' ||
+        !product.id ||
+        productIds.has(product.id) ||
+        typeof product.categoryId !== 'string' ||
+        !categoryIds.has(product.categoryId) ||
+        typeof product.name !== 'string' ||
+        !product.name.trim() ||
+        typeof product.description !== 'string' ||
+        !Number.isFinite(product.price) ||
+        product.price < 0 ||
+        typeof product.currencyCode !== 'string' ||
+        !/^[A-Z]{3}$/.test(product.currencyCode) ||
+        typeof product.isAvailable !== 'boolean' ||
+        !isSafeImageSource(product.image ?? null)) {
+      return false;
+    }
+    productIds.add(product.id);
+    return true;
+  });
 }
 
 function isSafeImageSource(source) {

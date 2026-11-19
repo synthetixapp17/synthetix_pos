@@ -21,6 +21,10 @@ The `Deploy Flutter Web to GitHub Pages` workflow runs tests and builds the web 
 
 The static storefront template is [`web/tienda.html`](./web/tienda.html). The app publishes the store name and catalog to the Cloudflare Worker, which creates a public repository and enables GitHub Pages. Store settings include custom colors, a logo and a banner; prices can also show a USD amount with a bolívar reference using the selected saved platform rate. The store includes shareable links for individual products, and the app can register WhatsApp orders manually and, when marked delivered, records the sale and deducts inventory. Store publishing is authenticated with a per-store secret; GitHub credentials stay in a Cloudflare Worker secret and are never sent to the app. Published catalogs, images, store details, and WhatsApp numbers are public. See [`worker/README.md`](./worker/README.md) for deployment configuration.
 
+### Public restaurant menu
+
+The restaurant session includes a digital menu console for branding and publishing the existing restaurant categories and products. Its separate [`web/restaurant_menu.html`](./web/restaurant_menu.html) template uses a restaurant-style layout with a large side logo, category-based menu sections, search, sharing, and WhatsApp ordering. Restaurant menu publication uses its own authenticated identity and repository, separate from the virtual storefront. Published menu details, images, and contact information are public. Configure `APP_RESTAURANT_TEMPLATE_URL` in the Worker before publishing; see [`worker/README.md`](./worker/README.md).
+
 ## 🎯 Project Scope
 
 This application serves as a complete offline POS system for small to medium-sized retail shops. It streamlines the checkout process, catalog management, and receipt generation securely entirely on-device.

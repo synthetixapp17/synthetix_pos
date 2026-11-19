@@ -1,6 +1,6 @@
-# Worker de publicación de tiendas
+# Worker de publicación de tiendas y cartas de restaurante
 
-El endpoint que usa la app es:
+El endpoint que usa la app para publicar tiendas y cartas de restaurante es:
 
 ```text
 https://synthetix-pos.synthetixapp17.workers.dev/
@@ -60,6 +60,21 @@ El nombre de la tienda es público y no se usa como credencial. La app envía el
 `GITHUB_TOKEN` también permanece como secreto del Worker; nunca se envía a
 Flutter ni se incluye en el repositorio.
 
+## Carta digital del restaurante
+
+Desde la sesión **Restaurante**, la consola de menú digital publica las
+categorías y productos existentes con identidad y diseño propios. El request
+usa `siteType: "restaurant"`, `menu`, `businessId` y `clientSecret`; el Worker
+guarda la identidad en una clave KV separada de la tienda, crea
+`menu-{businessId}` y publica `menu.html` junto con `menu.json`. Cada menú tiene
+un enlace público independiente, logotipo lateral, buscador, categorías,
+opciones disponibles y pedidos por WhatsApp.
+
+Configura `APP_RESTAURANT_TEMPLATE_URL` con la URL desplegada de
+`web/restaurant_menu.html` en el mismo origen permitido. Los cambios en la
+carta se reflejan al volver a publicarla. La identidad y autenticación son
+independientes de las de la tienda virtual.
+
 ## Configuración de Cloudflare
 
 1. Crea un namespace KV:
@@ -72,7 +87,9 @@ Flutter ni se incluye en el repositorio.
    `wrangler.toml`.
 2. En `wrangler.toml`, configura `GITHUB_OWNER` con la cuenta propietaria del
    token, `APP_ORIGIN` con el origen del frontend y
-   `APP_TEMPLATE_URL` con la URL desplegada de `web/tienda.html`.
+   `APP_TEMPLATE_URL` con la URL desplegada de `web/tienda.html`, y
+   `APP_RESTAURANT_TEMPLATE_URL` con la URL desplegada de
+   `web/restaurant_menu.html`.
    El Worker verifica que la plantilla pertenezca a `APP_ORIGIN`.
 3. Crea un token de GitHub limitado a esa cuenta, con permisos de repositorio
    **Administration: Read and write**, **Contents: Read and write** y

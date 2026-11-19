@@ -31,6 +31,7 @@ import '../../features/credit/presentation/pages/credit_detail_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
 import '../../features/restaurant/presentation/pages/restaurant_page.dart';
 import '../../features/restaurant/presentation/pages/restaurant_menu_page.dart';
+import '../../features/restaurant/presentation/pages/restaurant_digital_menu_settings_page.dart';
 
 final router = GoRouter(
   initialLocation: '/welcome',
@@ -82,6 +83,11 @@ final router = GoRouter(
             GoRoute(
               path: 'menu',
               builder: (context, state) => const RestaurantMenuPage(),
+            ),
+            GoRoute(
+              path: 'digital-menu',
+              builder: (context, state) =>
+                  const RestaurantDigitalMenuSettingsPage(),
             ),
           ],
         ),
