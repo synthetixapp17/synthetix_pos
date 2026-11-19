@@ -407,7 +407,7 @@ function isCatalogValid(catalog) {
         !Number.isFinite(product.price) ||
         product.price < 0 ||
         typeof product.currencyCode !== 'string' ||
-        !/^[A-Za-z]{3}$/.test(product.currencyCode) ||
+        !/^[A-Z]{3}$/.test(product.currencyCode) ||
         typeof product.isAvailable !== 'boolean') {
       return false;
     }
