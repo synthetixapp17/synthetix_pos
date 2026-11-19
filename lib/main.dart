@@ -17,6 +17,13 @@ import 'features/customer/presentation/bloc/customer_bloc.dart';
 import 'features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'features/reports/presentation/bloc/reports_bloc.dart';
 import 'features/reports/domain/usecases/reports_usecases.dart';
+import 'features/restaurant/presentation/pages/restaurant_menu_catalog_page.dart';
+
+enum AppMode { pos, menu }
+
+const AppMode appMode = bool.fromEnvironment('MENU_MODE')
+    ? AppMode.menu
+    : AppMode.pos;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +41,20 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (appMode == AppMode.menu) {
+      return MaterialApp(
+        title: 'Menú digital',
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.light,
+        debugShowCheckedModeBanner: false,
+        locale: const Locale('es'),
+        supportedLocales: const [Locale('es'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        home: const RestaurantMenuCatalogPage(),
+      );
+    }
+
     return MultiBlocProvider(
       providers: [
         BlocProvider<ProductBloc>(

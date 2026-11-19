@@ -222,21 +222,20 @@
     }
 
     function orderUrl(product) {
-      const business = menuData.business;
-      const phone = business.whatsapp;
+      const phone = menuData.whatsapp;
       if (!/^\d{8,15}$/.test(phone)) return null;
-      const baseMessage = business.whatsappMessage.trim() || 'Hola, quisiera hacer un pedido.';
+      const baseMessage = menuData.whatsappMessage?.trim() || 'Hola, quisiera hacer un pedido.';
       const message = `${baseMessage}\n\n${product.name} — ${formatPrice(product.price, product.currencyCode)}`;
       return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     }
 
     function renderMenu() {
       const query = search.value.trim().toLocaleLowerCase('es');
-      const filteredCategories = menuData.categories
+      const filteredCategories = menuData.menu.categories
         .map((category, index) => ({
           category,
           index,
-          products: menuData.products.filter((product) =>
+          products: menuData.menu.products.filter((product) =>
             product.categoryId === category.id &&
             `${product.name} ${product.description}`.toLocaleLowerCase('es').includes(query))
         }))
@@ -302,8 +301,8 @@
       try {
         if (navigator.share) {
           await navigator.share({
-            title: menuData.business.name,
-            text: `Mira la carta de ${menuData.business.name}`,
+            title: 'Mira nuestra carta',
+            text: 'Mira nuestra carta',
             url: location.href
           });
         } else if (navigator.clipboard?.writeText) {
@@ -317,33 +316,13 @@
       }
     }
 
-    function applyBranding(business) {
-      if (/^#[0-9a-f]{6}$/i.test(business.colors?.primary || '')) {
-        document.documentElement.style.setProperty('--primary', business.colors.primary);
-        document.querySelector('meta[name="theme-color"]').content = business.colors.primary;
-      }
-      if (/^#[0-9a-f]{6}$/i.test(business.colors?.accent || '')) {
-        document.documentElement.style.setProperty('--accent', business.colors.accent);
-      }
-      document.title = `Menú | ${business.name}`;
-      document.getElementById('restaurant-name').textContent = business.name;
-      document.getElementById('restaurant-slogan').textContent =
-        business.slogan || 'Una experiencia para disfrutar.';
-      document.getElementById('menu-footer').textContent =
-        `Carta digital de ${business.name}`;
-
-      const logo = safeImageSource(business.logo);
-      if (logo) {
-        const image = document.getElementById('restaurant-logo');
-        image.src = logo;
-        image.alt = `Logotipo de ${business.name}`;
-        image.hidden = false;
-        document.getElementById('logo-placeholder').hidden = true;
-      }
-      const phone = business.whatsapp;
+    function applyBranding() {
+      document.title = 'Menú del restaurante';
+      document.getElementById('menu-footer').textContent = 'Carta digital';
+      const phone = menuData.whatsapp;
       const contact = document.getElementById('restaurant-whatsapp');
       if (/^\d{8,15}$/.test(phone)) {
-        const message = business.whatsappMessage.trim() || 'Hola, quisiera hacer un pedido.';
+        const message = menuData.whatsappMessage?.trim() || 'Hola, quisiera hacer un pedido.';
         contact.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
         contact.hidden = false;
       }
@@ -356,12 +335,16 @@
         const response = await fetch(url, { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-        if (!data || data.schemaVersion !== 1 || !data.business ||
-            !Array.isArray(data.categories) || !Array.isArray(data.products)) {
+        if (!data ||
+            data.format !== 'synthetix_restaurant_menu' ||
+            data.version !== 1 ||
+            !data.menu ||
+            !Array.isArray(data.menu.categories) ||
+            !Array.isArray(data.menu.products)) {
           throw new Error('El formato de la carta no es válido.');
         }
         menuData = data;
-        applyBranding(data.business);
+        applyBranding();
         search.disabled = false;
         shareButtons.forEach((button) => { button.disabled = false; });
         state.remove();

@@ -224,43 +224,33 @@ class RestaurantMenuCatalogBuilder {
     DateTime? updatedAt,
   }) {
     return {
-      'schemaVersion': 1,
-      'updatedAt': (updatedAt ?? DateTime.now()).toUtc().toIso8601String(),
-      'business': {
-        'id': settings.businessId.toLowerCase(),
-        'name': settings.restaurantName.trim(),
-        'slogan': settings.slogan.trim(),
-        'whatsapp': settings.whatsappNumber.replaceAll(RegExp(r'\D'), ''),
-        'whatsappMessage': settings.whatsappMessage.trim(),
-        'logo': VirtualStoreCatalogBuilder.imageDataUrl(settings.logoData),
-        'colors': {
-          'primary': VirtualStoreCatalogBuilder.colorToHex(
-            settings.primaryColor,
-          ),
-          'accent': VirtualStoreCatalogBuilder.colorToHex(settings.accentColor),
-        },
+      'format': 'synthetix_restaurant_menu',
+      'version': 1,
+      'whatsapp': settings.whatsappNumber.replaceAll(RegExp(r'\D'), ''),
+      'whatsappMessage': settings.whatsappMessage.trim(),
+      'menu': {
+        'categories': [
+          for (final category in menu.categories)
+            {
+              'id': category.id,
+              'name': category.name.trim(),
+              'description': category.description.trim(),
+            },
+        ],
+        'products': [
+          for (final product in menu.products)
+            {
+              'id': product.id,
+              'categoryId': product.categoryId,
+              'name': product.name.trim(),
+              'description': product.description.trim(),
+              'price': product.price,
+              'currencyCode': product.currencyCode,
+              'isAvailable': product.isAvailable,
+              'image': VirtualStoreCatalogBuilder.imageDataUrl(product.imageData),
+            },
+        ],
       },
-      'categories': [
-        for (final category in menu.categories)
-          {
-            'id': category.id,
-            'name': category.name.trim(),
-            'description': category.description.trim(),
-          },
-      ],
-      'products': [
-        for (final product in menu.products)
-          {
-            'id': product.id,
-            'categoryId': product.categoryId,
-            'name': product.name.trim(),
-            'description': product.description.trim(),
-            'price': product.price,
-            'currencyCode': product.currencyCode,
-            'isAvailable': product.isAvailable,
-            'image': VirtualStoreCatalogBuilder.imageDataUrl(product.imageData),
-          },
-      ],
     };
   }
 }

@@ -74,14 +74,16 @@ void main() {
     );
 
     final payload = RestaurantMenuCatalogBuilder().build(settings, menu);
-    final business = payload['business'] as Map<String, Object?>;
-    final products = payload['products'] as List<Map<String, Object?>>;
+    final nestedMenu = payload['menu'] as Map<String, Object?>;
+    final products =
+        nestedMenu['products'] as List<Map<String, Object?>>;
 
-    expect(payload['schemaVersion'], 1);
-    expect(business['id'], settings.businessId);
-    expect(business['whatsapp'], '584121234567');
-    expect(business.containsKey('clientSecret'), isFalse);
-    expect(payload['categories'], hasLength(1));
+    expect(payload['format'], 'synthetix_restaurant_menu');
+    expect(payload['version'], 1);
+    expect(payload['whatsapp'], '584121234567');
+    expect(payload.containsKey('clientSecret'), isFalse);
+    expect(payload.containsKey('business'), isFalse);
+    expect(nestedMenu['categories'], hasLength(1));
     expect(products.single['isAvailable'], isFalse);
     expect(products.single['image'], startsWith('data:image/'));
     expect(payload.containsKey('clientSecret'), isFalse);

@@ -16,10 +16,9 @@ void main() {
     clientSecret: clientSecret,
   );
   const menu = {
-    'schemaVersion': 1,
-    'business': {'id': businessId, 'name': 'Casa Verde'},
-    'categories': [],
-    'products': [],
+    'format': 'synthetix_restaurant_menu',
+    'version': 1,
+    'menu': {'categories': <Map<String, Object?>>[], 'products': <Map<String, Object?>>[]},
   };
 
   test('posts a separately authenticated restaurant menu', () async {

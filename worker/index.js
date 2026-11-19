@@ -100,7 +100,7 @@ export default {
     const normalizedBusinessId = businessId.toLowerCase();
     const publication = isRestaurant ? body.menu : body.catalog;
     const validPublication = isRestaurant
-      ? isRestaurantMenuValid(publication, normalizedBusinessId)
+      ? isRestaurantMenuValid(publication)
       : isCatalogValid(publication, normalizedBusinessId);
     if (!validPublication) {
       return json(
@@ -411,28 +411,18 @@ function isCatalogValid(catalog, businessId) {
       !Array.isArray(variant.attributes)));
 }
 
-function isRestaurantMenuValid(menu, businessId) {
-  if (!menu ||
-      typeof menu !== 'object' ||
-      menu.schemaVersion !== 1 ||
-      !menu.business ||
-      typeof menu.business !== 'object' ||
-      menu.business.id !== businessId ||
-      typeof menu.business.name !== 'string' ||
-      !menu.business.name.trim() ||
-      menu.business.name.length > 120 ||
-      typeof menu.business.slogan !== 'string' ||
-      menu.business.slogan.length > 160 ||
-      typeof menu.business.whatsapp !== 'string' ||
-      (menu.business.whatsapp !== '' &&
-        !/^\d{8,15}$/.test(menu.business.whatsapp)) ||
-      typeof menu.business.whatsappMessage !== 'string' ||
-      menu.business.whatsappMessage.length > 300 ||
-      !menu.business.colors ||
-      !/^#[0-9a-f]{6}$/i.test(menu.business.colors.primary) ||
-      !/^#[0-9a-f]{6}$/i.test(menu.business.colors.accent) ||
-      !isSafeImageSource(menu.business.logo) ||
-      !Array.isArray(menu.categories) ||
+function isRestaurantMenuValid(publication) {
+  if (!publication ||
+      typeof publication !== 'object' ||
+      publication.format !== 'synthetix_restaurant_menu' ||
+      publication.version !== 1 ||
+      !publication.menu ||
+      typeof publication.menu !== 'object') {
+    return false;
+  }
+
+  const menu = publication.menu;
+  if (!Array.isArray(menu.categories) ||
       menu.categories.length > 100 ||
       !Array.isArray(menu.products) ||
       menu.products.length > 2000) {
