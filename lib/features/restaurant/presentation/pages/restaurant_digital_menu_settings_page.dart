@@ -22,16 +22,16 @@ class RestaurantDigitalMenuSettingsPage extends StatefulWidget {
 class _RestaurantDigitalMenuSettingsPageState
     extends State<RestaurantDigitalMenuSettingsPage> {
   static const _palette = [
-    (0xFF315C46, 0xFFD8A15D),
-    (0xFF253B56, 0xFFC88950),
-    (0xFF6B332E, 0xFFD9B86C),
-    (0xFF493A5C, 0xFFC7A5D4),
-    (0xFF8A4B32, 0xFFE2A66F),
-    (0xFF245B63, 0xFFE4B95F),
-    (0xFF713F58, 0xFFE7A7A1),
-    (0xFF4F5940, 0xFFC8CF91),
-    (0xFF34495E, 0xFF70A9A1),
-    (0xFF8A5A24, 0xFFE8CF8A),
+    (name: 'Bosque', primary: 0xFF315C46, accent: 0xFFD8A15D),
+    (name: 'Marino', primary: 0xFF253B56, accent: 0xFFC88950),
+    (name: 'Terracota', primary: 0xFF6B332E, accent: 0xFFD9B86C),
+    (name: 'Lavanda', primary: 0xFF493A5C, accent: 0xFFC7A5D4),
+    (name: 'Cobre', primary: 0xFF8A4B32, accent: 0xFFE2A66F),
+    (name: 'Caribe', primary: 0xFF245B63, accent: 0xFFE4B95F),
+    (name: 'Frambuesa', primary: 0xFF713F58, accent: 0xFFE7A7A1),
+    (name: 'Oliva', primary: 0xFF4F5940, accent: 0xFFC8CF91),
+    (name: 'Brisa', primary: 0xFF34495E, accent: 0xFF70A9A1),
+    (name: 'Miel', primary: 0xFF8A5A24, accent: 0xFFE8CF8A),
   ];
 
   final _formKey = GlobalKey<FormState>();
@@ -45,8 +45,8 @@ class _RestaurantDigitalMenuSettingsPageState
   RestaurantMenuPublicationSettings? _settings;
   RestaurantMenuState _menu = const RestaurantMenuState();
   String? _logoData;
-  int _primaryColor = _palette.first.$1;
-  int _accentColor = _palette.first.$2;
+  int _primaryColor = _palette.first.primary;
+  int _accentColor = _palette.first.accent;
   bool _loading = true;
   bool _saving = false;
   bool _publishing = false;
@@ -279,7 +279,7 @@ class _RestaurantDigitalMenuSettingsPageState
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Menú digital del restaurante'),
+        title: const Text('Menú digital'),
         actions: [
           IconButton(
             tooltip: 'Actualizar configuración',
@@ -298,31 +298,36 @@ class _RestaurantDigitalMenuSettingsPageState
               key: _formKey,
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final wide = constraints.maxWidth >= 1000;
+                  final wide = constraints.maxWidth >= 1080;
                   final configuration = _configurationForm(colors);
                   final preview = _previewCard();
-                  return ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
-                    children: [
-                      _introCard(colors),
-                      const SizedBox(height: 18),
-                      if (wide)
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(flex: 6, child: configuration),
-                            const SizedBox(width: 20),
-                            Expanded(flex: 5, child: preview),
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1440),
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                        children: [
+                          _introCard(),
+                          const SizedBox(height: 22),
+                          if (wide)
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(flex: 6, child: configuration),
+                                const SizedBox(width: 22),
+                                Expanded(flex: 5, child: preview),
+                              ],
+                            )
+                          else ...[
+                            configuration,
+                            const SizedBox(height: 8),
+                            preview,
                           ],
-                        )
-                      else ...[
-                        configuration,
-                        const SizedBox(height: 18),
-                        preview,
-                      ],
-                      const SizedBox(height: 18),
-                      _publicationCard(settings),
-                    ],
+                          const SizedBox(height: 8),
+                          _publicationCard(settings),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),
@@ -330,220 +335,375 @@ class _RestaurantDigitalMenuSettingsPageState
     );
   }
 
-  Widget _introCard(ColorScheme colors) => Container(
-    padding: const EdgeInsets.all(22),
+  Widget _introCard() => Container(
+    padding: const EdgeInsets.all(24),
     decoration: BoxDecoration(
       gradient: LinearGradient(
         colors: [
-          Color(_primaryColor).withValues(alpha: .13),
-          colors.surfaceContainerLow,
+          Color(_primaryColor),
+          Color.lerp(Color(_primaryColor), Colors.black, .16)!,
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: colors.outlineVariant.withValues(alpha: .55)),
-    ),
-    child: Row(
-      children: [
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: Color(_primaryColor).withValues(alpha: .12),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(Icons.public_rounded, color: Color(_primaryColor)),
+      borderRadius: BorderRadius.circular(26),
+      boxShadow: [
+        BoxShadow(
+          color: Color(_primaryColor).withValues(alpha: .12),
+          blurRadius: 28,
+          offset: const Offset(0, 12),
         ),
-        const SizedBox(width: 15),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Tu carta, lista para compartir',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .17),
+                borderRadius: BorderRadius.circular(16),
               ),
-              SizedBox(height: 5),
-              Text(
-                'Personaliza la identidad y publica categorías y productos del '
-                'menú del restaurante con su disponibilidad.',
+              child: const Icon(
+                Icons.restaurant_menu_rounded,
+                color: Colors.white,
               ),
-            ],
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Text(
+                'Diseña tu menú digital',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -.3,
+                ),
+              ),
+            ),
+            if (_settings?.publishedUrl.isNotEmpty == true)
+              _StatusBadge(
+                label: 'Publicado',
+                icon: Icons.check_circle_rounded,
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.white.withValues(alpha: .16),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Personaliza cómo te ven, facilita los pedidos y comparte tu carta '
+          'con tus clientes.',
+          style: TextStyle(color: Colors.white, height: 1.45),
+        ),
+        const SizedBox(height: 18),
+        Wrap(
+          spacing: 9,
+          runSpacing: 8,
+          children: [
+            _IntroPill(
+              number: '1',
+              label: 'Identidad',
+              accent: Color(_accentColor),
+            ),
+            _IntroPill(
+              number: '2',
+              label: 'Vista previa',
+              accent: Color(_accentColor),
+            ),
+            _IntroPill(
+              number: '3',
+              label: 'Publicación',
+              accent: Color(_accentColor),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Text(
+          '${_menu.categories.length} ${_menu.categories.length == 1 ? 'categoría' : 'categorías'}'
+          '  ·  ${_menu.products.length} ${_menu.products.length == 1 ? 'producto' : 'productos'}'
+          '  ·  Se toman de tu Menú del restaurante',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: .78),
+            fontSize: 12,
           ),
         ),
       ],
     ),
   );
 
-  Widget _configurationForm(ColorScheme colors) => _SettingsCard(
-    title: 'Identidad y contacto',
-    subtitle: 'Estos datos aparecerán en la carta pública.',
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _configurationForm(ColorScheme colors) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _SettingsCard(
+        eyebrow: 'PASO 1 · IDENTIDAD',
+        icon: Icons.storefront_outlined,
+        title: 'Presenta tu restaurante',
+        subtitle: 'Esto es lo primero que verán tus clientes en la carta.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: _logoPreview(size: 104),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
                 children: [
-                  Text(
-                    'Logotipo del restaurante',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: _logoPreview(size: 76),
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    'Se mostrará en grande al costado del menú.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Logo del restaurante',
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Usa una imagen cuadrada para que luzca mejor.',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: _saving || _publishing
+                                  ? null
+                                  : _pickLogo,
+                              icon: Icon(
+                                _logoData == null
+                                    ? Icons.add_photo_alternate_outlined
+                                    : Icons.swap_horiz_rounded,
+                                size: 18,
+                              ),
+                              label: Text(
+                                _logoData == null ? 'Elegir logo' : 'Cambiar',
+                              ),
+                            ),
+                            if (_logoData != null)
+                              TextButton(
+                                onPressed: _saving || _publishing
+                                    ? null
+                                    : () => setState(() => _logoData = null),
+                                child: const Text('Quitar'),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: _saving || _publishing ? null : _pickLogo,
-                        icon: const Icon(Icons.upload_rounded, size: 18),
-                        label: Text(
-                          _logoData == null ? 'Subir logo' : 'Cambiar',
-                        ),
-                      ),
-                      if (_logoData != null)
-                        IconButton(
-                          tooltip: 'Quitar logotipo',
-                          onPressed: _saving || _publishing
-                              ? null
-                              : () => setState(() => _logoData = null),
-                          icon: const Icon(Icons.delete_outline_rounded),
-                        ),
-                    ],
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        TextFormField(
-          controller: _nameController,
-          textCapitalization: TextCapitalization.words,
-          maxLength: 120,
-          onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(
-            labelText: 'Nombre del restaurante',
-            prefixIcon: Icon(Icons.storefront_outlined),
-          ),
-          validator: (value) => value == null || value.trim().isEmpty
-              ? 'Ingresa el nombre del restaurante.'
-              : null,
-        ),
-        const SizedBox(height: 14),
-        TextFormField(
-          controller: _sloganController,
-          textCapitalization: TextCapitalization.sentences,
-          maxLength: 100,
-          onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(
-            labelText: 'Frase o especialidad',
-            hintText: 'Ej.: Cocina artesanal, ingredientes frescos',
-            prefixIcon: Icon(Icons.auto_awesome_outlined),
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'WhatsApp del restaurante',
-            hintText: 'Código de país y número',
-            prefixIcon: Icon(Icons.phone_outlined),
-            helperText: 'Se usará para pedidos desde la carta pública.',
-          ),
-          validator: (value) {
-            final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
-            if (digits.isNotEmpty &&
-                (digits.length < 8 || digits.length > 15)) {
-              return 'Ingresa entre 8 y 15 dígitos, con código de país.';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 14),
-        TextFormField(
-          controller: _messageController,
-          maxLength: 300,
-          maxLines: 3,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            labelText: 'Mensaje predeterminado de WhatsApp',
-            hintText: 'Hola, quisiera hacer un pedido...',
-            alignLabelWithHint: true,
-            prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
-          ),
-          validator: (value) => (value?.length ?? 0) > 300
-              ? 'El mensaje no puede superar 300 caracteres.'
-              : null,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Estilo de la carta',
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            for (final (primary, accent) in _palette)
-              _PaletteButton(
-                primary: primary,
-                accent: accent,
-                selected: _primaryColor == primary && _accentColor == accent,
-                onTap: _saving || _publishing
-                    ? null
-                    : () => setState(() {
-                        _primaryColor = primary;
-                        _accentColor = accent;
-                      }),
+            const SizedBox(height: 18),
+            TextFormField(
+              controller: _nameController,
+              textCapitalization: TextCapitalization.words,
+              maxLength: 120,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Nombre del restaurante',
+                hintText: 'Ej.: La Casa del Sabor',
+                prefixIcon: Icon(Icons.storefront_outlined),
               ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Escribe el nombre que aparecerá en tu carta.'
+                  : null,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _sloganController,
+              textCapitalization: TextCapitalization.sentences,
+              maxLength: 100,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Frase o especialidad',
+                hintText: 'Ej.: Cocina artesanal con ingredientes frescos',
+                helperText: 'Una frase breve que describa tu propuesta.',
+                prefixIcon: Icon(Icons.auto_awesome_outlined),
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 20),
-        FilledButton.icon(
-          onPressed: _saving || _publishing ? null : _save,
-          icon: _saving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.save_outlined),
-          label: Text(_saving ? 'Guardando...' : 'Guardar configuración'),
+      ),
+      const SizedBox(height: 8),
+      _SettingsCard(
+        eyebrow: 'PASO 2 · PEDIDOS',
+        icon: Icons.chat_bubble_outline_rounded,
+        title: 'Facilita el contacto',
+        subtitle:
+            'Los clientes podrán pedir productos individuales o enviar todo su carrito por WhatsApp.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'WhatsApp para recibir pedidos',
+                hintText: '584121234567',
+                prefixIcon: Icon(Icons.phone_outlined),
+                helperText:
+                    'Incluye el código del país, sin espacios. Ejemplo: 584121234567. Si lo dejas vacío, los pedidos por WhatsApp no estarán disponibles.',
+              ),
+              validator: (value) {
+                final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+                if (digits.isNotEmpty &&
+                    (digits.length < 8 || digits.length > 15)) {
+                  return 'Usa entre 8 y 15 dígitos, incluido el código de país.';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _messageController,
+              maxLength: 300,
+              maxLines: 3,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Saludo para los pedidos',
+                hintText: 'Hola, quisiera hacer un pedido.',
+                helperText:
+                    'Se agregará automáticamente al mensaje de WhatsApp. Si lo dejas vacío, usaremos un saludo predeterminado.',
+                alignLabelWithHint: true,
+                prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
+              ),
+              validator: (value) => (value?.length ?? 0) > 300
+                  ? 'El saludo no puede superar 300 caracteres.'
+                  : null,
+            ),
+          ],
         ),
-      ],
-    ),
+      ),
+      const SizedBox(height: 8),
+      _SettingsCard(
+        eyebrow: 'PASO 3 · APARIENCIA',
+        icon: Icons.palette_outlined,
+        title: 'Elige el estilo de tu carta',
+        subtitle:
+            'El color principal se usa en encabezados y botones; el secundario resalta detalles.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 9,
+              runSpacing: 9,
+              children: [
+                for (final palette in _palette)
+                  _PaletteButton(
+                    name: palette.name,
+                    primary: palette.primary,
+                    accent: palette.accent,
+                    selected:
+                        _primaryColor == palette.primary &&
+                        _accentColor == palette.accent,
+                    onTap: _saving || _publishing
+                        ? null
+                        : () => setState(() {
+                            _primaryColor = palette.primary;
+                            _accentColor = palette.accent;
+                          }),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _InfoNote(
+              icon: Icons.tips_and_updates_outlined,
+              text:
+                  'Puedes cambiar los colores cuando quieras. La vista previa se actualiza al instante.',
+            ),
+          ],
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(4, 6, 4, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            FilledButton.icon(
+              onPressed: _saving || _publishing ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined),
+              label: Text(_saving ? 'Guardando cambios...' : 'Guardar cambios'),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              'Guardar conserva tu configuración en la aplicación. Para actualizar el enlace público, usa “Publicar menú” al final de esta página.',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    ],
   );
 
   Widget _previewCard() {
     return _SettingsCard(
-      title: 'Vista previa',
+      eyebrow: 'VISTA PREVIA EN VIVO',
+      icon: Icons.visibility_outlined,
+      title: 'Así verán tu carta',
       subtitle:
-          'Revisa nombre, frase, colores, categorías, descripciones, precios y acciones del cliente.',
+          'Comprueba tu identidad, tus colores y algunos productos antes de publicar.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.circle,
+                  size: 9,
+                  color: Theme.of(context).colorScheme.tertiary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Menú · ${_nameController.text.trim().isEmpty ? 'Tu restaurante' : _nameController.text.trim()}',
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text(
+                  'EN VIVO',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.tertiary,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           _digitalMenuPreview(expanded: false),
           const SizedBox(height: 12),
           OutlinedButton.icon(
@@ -735,56 +895,117 @@ class _RestaurantDigitalMenuSettingsPageState
 
   Widget _publicationCard(RestaurantMenuPublicationSettings settings) {
     final lastPublished = settings.lastPublishedAt;
+    final isPublished = settings.publishedUrl.isNotEmpty;
     return _SettingsCard(
-      title: 'Publicación',
+      eyebrow: 'PASO 4 · COMPARTIR',
+      icon: Icons.public_rounded,
+      title: isPublished ? 'Actualiza tu carta pública' : 'Publica tu carta',
       subtitle:
-          'La carta usa los productos y categorías guardados en el menú del restaurante.',
+          'Publicar envía tu diseño y los productos guardados del Menú del restaurante a tu enlace web.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (settings.publishedUrl.isNotEmpty) ...[
+          if (isPublished) ...[
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(14),
+                color: Theme.of(
+                  context,
+                ).colorScheme.tertiaryContainer.withValues(alpha: .55),
+                borderRadius: BorderRadius.circular(18),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.link_rounded),
-                  const SizedBox(width: 10),
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: Theme.of(context).colorScheme.tertiary,
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: SelectableText(
-                      settings.publishedUrl,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tu carta está publicada',
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        if (lastPublished != null) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            'Actualizada el ${MaterialLocalizations.of(context).formatMediumDate(lastPublished)}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Copiar enlace',
-                    onPressed: _copyPublishedUrl,
-                    icon: const Icon(Icons.copy_rounded),
-                  ),
-                  IconButton(
-                    tooltip: 'Visualizar menú publicado',
-                    onPressed: _openPublishedMenu,
-                    icon: const Icon(Icons.visibility_outlined),
-                  ),
-                  IconButton(
-                    tooltip: 'Compartir enlace',
-                    onPressed: _sharePublishedUrl,
-                    icon: const Icon(Icons.share_outlined),
                   ),
                 ],
               ),
             ),
-            if (lastPublished != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Última publicación: ${MaterialLocalizations.of(context).formatMediumDate(lastPublished)}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
             const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.link_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: SelectableText(
+                          settings.publishedUrl,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Wrap(
+                      spacing: 4,
+                      children: [
+                        IconButton(
+                          tooltip: 'Copiar enlace',
+                          onPressed: _copyPublishedUrl,
+                          icon: const Icon(Icons.copy_rounded),
+                        ),
+                        IconButton(
+                          tooltip: 'Ver carta publicada',
+                          onPressed: _openPublishedMenu,
+                          icon: const Icon(Icons.open_in_new_rounded),
+                        ),
+                        IconButton(
+                          tooltip: 'Compartir enlace',
+                          onPressed: _sharePublishedUrl,
+                          icon: const Icon(Icons.share_outlined),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ] else ...[
+            const _InfoNote(
+              icon: Icons.info_outline_rounded,
+              text:
+                  'Todavía no hay una carta pública. Al publicar por primera vez se creará un enlace para compartir con tus clientes.',
+            ),
+            const SizedBox(height: 14),
           ],
           FilledButton.icon(
             onPressed: _publishing || _saving ? null : _publish,
@@ -796,13 +1017,16 @@ class _RestaurantDigitalMenuSettingsPageState
                   )
                 : const Icon(Icons.publish_rounded),
             label: Text(
-              _publishing ? 'Publicando...' : 'Publicar menú digital',
+              _publishing
+                  ? 'Publicando tu carta...'
+                  : isPublished
+                  ? 'Actualizar carta pública'
+                  : 'Publicar carta ahora',
             ),
           ),
-          const SizedBox(height: 9),
+          const SizedBox(height: 10),
           Text(
-            'Los cambios guardados aparecen en el enlace después de publicar '
-            'nuevamente. La propagación puede tardar unos minutos.',
+            'Al publicar, los clientes verán la última configuración guardada y los productos disponibles. Los cambios pueden tardar unos minutos en reflejarse.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -812,11 +1036,15 @@ class _RestaurantDigitalMenuSettingsPageState
 }
 
 class _SettingsCard extends StatelessWidget {
+  final String? eyebrow;
+  final IconData? icon;
   final String title;
   final String subtitle;
   final Widget child;
 
   const _SettingsCard({
+    this.eyebrow,
+    this.icon,
     required this.title,
     required this.subtitle,
     required this.child,
@@ -837,18 +1065,54 @@ class _SettingsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (icon != null) ...[
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(icon, color: colors.onPrimaryContainer),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (eyebrow != null) ...[
+                        Text(
+                          eyebrow!,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: colors.primary,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: .7,
+                              ),
+                        ),
+                        const SizedBox(height: 3),
+                      ],
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 18),
             child,
@@ -860,12 +1124,14 @@ class _SettingsCard extends StatelessWidget {
 }
 
 class _PaletteButton extends StatelessWidget {
+  final String name;
   final int primary;
   final int accent;
   final bool selected;
   final VoidCallback? onTap;
 
   const _PaletteButton({
+    required this.name,
     required this.primary,
     required this.accent,
     required this.selected,
@@ -891,10 +1157,139 @@ class _PaletteButton extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _ColorDot(color: primary),
-          const SizedBox(width: 6),
+          const SizedBox(width: 5),
           _ColorDot(color: accent),
+          const SizedBox(width: 8),
+          Text(name, style: Theme.of(context).textTheme.labelMedium),
+          if (selected) ...[
+            const SizedBox(width: 5),
+            Icon(
+              Icons.check_circle_rounded,
+              size: 16,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ],
         ],
       ),
+    ),
+  );
+}
+
+class _InfoNote extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InfoNote({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.primaryContainer.withValues(alpha: .45),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 19, color: colors.primary),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colors.onSurface,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color foregroundColor;
+  final Color backgroundColor;
+
+  const _StatusBadge({
+    required this.label,
+    required this.icon,
+    required this.foregroundColor,
+    required this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+    decoration: BoxDecoration(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: foregroundColor),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            color: foregroundColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _IntroPill extends StatelessWidget {
+  final String number;
+  final String label;
+  final Color accent;
+
+  const _IntroPill({
+    required this.number,
+    required this.label,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: .14),
+      border: Border.all(color: Colors.white.withValues(alpha: .2)),
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          child: Text(
+            number,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+          ),
+        ),
+        const SizedBox(width: 7),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     ),
   );
 }
