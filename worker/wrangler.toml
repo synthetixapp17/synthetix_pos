@@ -4,9 +4,13 @@ compatibility_date = "2026-11-15"
 
 [vars]
 APP_ORIGIN = "https://synthetixapp17.github.io"
+APP_TEMPLATE_URL = "https://synthetixapp17.github.io/synthetix_pos/tienda.html"
 APP_RESTAURANT_TEMPLATE_URL = "https://synthetixapp17.github.io/synthetix_pos/restaurant_menu.html"
 GITHUB_OWNER = "synthetixapp17"
-RESTAURANT_REPOSITORY = "menu-restaurante-general"
+
+[[kv_namespaces]]
+binding = "STORE_CONFIGS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
 
 [[unsafe.bindings]]
 name = "PUBLISH_RATE_LIMITER"

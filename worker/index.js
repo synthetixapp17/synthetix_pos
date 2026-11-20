@@ -2,8 +2,6 @@ const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const MAX_TEMPLATE_BYTES = 256 * 1024;
 const GITHUB_API = 'https://api.github.com';
 const DEFAULT_APP_ORIGIN = 'https://synthetixapp17.github.io';
-const DEFAULT_REPOSITORY = 'menu-restaurante-general';
-
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -15,7 +13,7 @@ export default {
         (url.pathname === '/' || url.pathname === '/health')) {
       return json({
         status: 'ok',
-        service: 'synthetix-restaurant-publisher',
+        service: 'synthetix-store-and-restaurant-publisher',
       }, 200, cors);
     }
 
@@ -42,10 +40,12 @@ export default {
     if (!env.GITHUB_TOKEN ||
         !env.GITHUB_OWNER ||
         !env.APP_ORIGIN ||
+        !env.APP_TEMPLATE_URL ||
         !env.APP_RESTAURANT_TEMPLATE_URL ||
+        !env.STORE_CONFIGS ||
         !env.PUBLISH_RATE_LIMITER) {
       return json({
-        error: 'El servicio no está configurado. Faltan GITHUB_TOKEN, GITHUB_OWNER, APP_ORIGIN, APP_RESTAURANT_TEMPLATE_URL o PUBLISH_RATE_LIMITER.',
+        error: 'El servicio no está configurado. Revisa GITHUB_TOKEN, GITHUB_OWNER, APP_ORIGIN, las plantillas, STORE_CONFIGS y PUBLISH_RATE_LIMITER.',
       }, 503, cors);
     }
 
@@ -67,7 +67,7 @@ export default {
 
     const contentLength = Number(request.headers.get('Content-Length') || 0);
     if (contentLength > MAX_BODY_BYTES) {
-      return json({ error: 'El menú supera el límite de 4 MB.' }, 413, cors);
+      return json({ error: 'La publicación supera el límite de 4 MB.' }, 413, cors);
     }
 
     let rawBody;
@@ -77,7 +77,7 @@ export default {
       return json({ error: 'No se pudo leer la solicitud.' }, 400, cors);
     }
     if (rawBody === null) {
-      return json({ error: 'El menú supera el límite de 4 MB.' }, 413, cors);
+      return json({ error: 'La publicación supera el límite de 4 MB.' }, 413, cors);
     }
 
     let body;
@@ -87,12 +87,77 @@ export default {
       return json({ error: 'El cuerpo no contiene JSON válido.' }, 400, cors);
     }
 
-    if (!isCatalogValid(body)) {
+    const siteType = body?.siteType ?? 'store';
+    if (siteType !== 'store' && siteType !== 'restaurant') {
       return json({
-        error: 'El menú no es válido. Se requiere format, version, menu.categories y menu.products.',
+        error: 'El tipo de publicación no es válido.',
       }, 400, cors);
     }
-    const publication = body;
+
+    const isRestaurant = siteType === 'restaurant';
+    const siteLabel = isRestaurant ? 'el menú del restaurante' : 'la tienda';
+    const templateUrl = isRestaurant
+      ? env.APP_RESTAURANT_TEMPLATE_URL
+      : env.APP_TEMPLATE_URL;
+    const businessId = body?.businessId;
+    const clientSecret = body?.clientSecret;
+    if (typeof businessId !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(businessId) ||
+        typeof clientSecret !== 'string' ||
+        !/^[A-Za-z0-9_-]{43}$/.test(clientSecret)) {
+      return json({ error: 'La identidad de la publicación no es válida.' }, 400, cors);
+    }
+
+    const normalizedBusinessId = businessId.toLowerCase();
+    const publication = isRestaurant
+      ? (body.menu ?? body.catalog)
+      : body.catalog;
+    const validPublication = isRestaurant
+      ? isCatalogValid(publication)
+      : isStoreCatalogValid(publication, normalizedBusinessId);
+    if (!validPublication) {
+      return json({
+        error: `La publicación de ${siteLabel} no es válida o no corresponde a esta identidad.`,
+      }, 400, cors);
+    }
+
+    let clientSecretHash;
+    try {
+      clientSecretHash = await hashSecret(clientSecret);
+    } catch {
+      return json({
+        error: 'No se pudo validar la identidad de la publicación.',
+      }, 500, cors);
+    }
+
+    const configKey = `${siteType}:${normalizedBusinessId}`;
+    let storeConfig;
+    let isFirstRequest = false;
+    try {
+      const stored = await env.STORE_CONFIGS.get(configKey);
+      if (stored) {
+        storeConfig = JSON.parse(stored);
+        if (!constantTimeEqual(storeConfig.clientSecretHash, clientSecretHash)) {
+          return json({
+            error: isRestaurant
+              ? 'La clave secreta no corresponde a este menú.'
+              : 'La clave secreta no corresponde a esta tienda.',
+          }, 401, cors);
+        }
+      } else {
+        isFirstRequest = true;
+        storeConfig = {
+          siteType,
+          businessId: normalizedBusinessId,
+          clientSecretHash,
+          repository: `${isRestaurant ? 'menu' : 'tienda'}-${normalizedBusinessId}`,
+        };
+      }
+    } catch {
+      return json({
+        error: 'No se pudo consultar la identidad de la publicación.',
+      }, 503, cors);
+    }
 
     const owner = env.GITHUB_OWNER.trim();
     if (!/^[A-Za-z0-9-]{1,39}$/.test(owner)) {
@@ -101,33 +166,27 @@ export default {
       }, 503, cors);
     }
 
-    const repository = env.RESTAURANT_REPOSITORY || DEFAULT_REPOSITORY;
-    if (typeof repository !== 'string' ||
-        !/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(repository)) {
-      return json({
-        error: 'RESTAURANT_REPOSITORY no está configurado correctamente.',
-      }, 503, cors);
-    }
-
     const githubHeaders = {
       Accept: 'application/vnd.github+json',
       Authorization: `Bearer ${env.GITHUB_TOKEN.trim()}`,
       'Content-Type': 'application/json',
       'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'Synthetix-Restaurant-Publisher',
+      'User-Agent': 'Synthetix-Publisher',
     };
 
     let repositoryInfo;
     try {
       repositoryInfo = await ensureRepository(
         owner,
-        repository,
+        storeConfig.repository,
+        isRestaurant ? 'Carta digital del restaurante' : 'Tienda virtual',
         githubHeaders,
+        isFirstRequest,
         cors,
       );
     } catch {
       return json({
-        error: 'No se pudo preparar el repositorio del menú.',
+        error: `No se pudo preparar el repositorio para ${siteLabel}.`,
       }, 502, cors);
     }
     if (repositoryInfo instanceof Response) {
@@ -142,48 +201,57 @@ export default {
     }
 
     try {
+      if (isFirstRequest) {
+        await env.STORE_CONFIGS.put(configKey, JSON.stringify(storeConfig));
+      }
+
       const template = await fetchTemplate(
-        env.APP_RESTAURANT_TEMPLATE_URL,
+        templateUrl,
         env.APP_ORIGIN,
+        isRestaurant ? 'del menú del restaurante' : 'de la tienda',
       );
       if (!template.ok) {
         return json({ error: template.error }, template.status, cors);
       }
 
-      const templateResult = await writeGithubFile({
-        owner,
-        repository,
-        branch,
-        path: 'menu.html',
-        contents: template.contents,
-        message: 'Publicar plantilla del menú del restaurante',
-        githubHeaders,
-        cors,
-      });
-      if (templateResult instanceof Response) {
-        return templateResult;
+      const templateHash = await hashTemplate(template.contents);
+      if (storeConfig.templateHash !== templateHash) {
+        const templateResult = await writeGithubFile({
+          owner,
+          repository: storeConfig.repository,
+          branch,
+          path: isRestaurant ? 'menu.html' : 'tienda.html',
+          contents: template.contents,
+          message: `Configurar ${siteLabel} ${normalizedBusinessId}`,
+          githubHeaders,
+          cors,
+        });
+        if (templateResult instanceof Response) {
+          return templateResult;
+        }
+        storeConfig.templateHash = templateHash;
       }
 
-      const menuBytes = new TextEncoder().encode(
+      const publicationBytes = new TextEncoder().encode(
         JSON.stringify(publication, null, 2),
       );
-      const menuResult = await writeGithubFile({
+      const publicationResult = await writeGithubFile({
         owner,
-        repository,
+        repository: storeConfig.repository,
         branch,
-        path: 'menu.json',
-        contents: menuBytes,
-        message: 'Actualizar menú del restaurante',
+        path: isRestaurant ? 'menu.json' : 'productos.json',
+        contents: publicationBytes,
+        message: `Actualizar ${siteLabel} ${normalizedBusinessId}`,
         githubHeaders,
         cors,
       });
-      if (menuResult instanceof Response) {
-        return menuResult;
+      if (publicationResult instanceof Response) {
+        return publicationResult;
       }
 
       const pagesResult = await ensurePages(
         owner,
-        repository,
+        storeConfig.repository,
         branch,
         githubHeaders,
         cors,
@@ -191,14 +259,18 @@ export default {
       if (pagesResult instanceof Response) {
         return pagesResult;
       }
+
+      await env.STORE_CONFIGS.put(configKey, JSON.stringify(storeConfig));
     } catch {
       return json({
-        error: 'No se pudo publicar el menú en GitHub.',
+        error: `No se pudo publicar ${siteLabel}.`,
       }, 502, cors);
     }
 
+    const page = isRestaurant ? 'menu.html' : 'tienda.html';
     const publicUrl =
-      `https://${owner.toLowerCase()}.github.io/${repository}/menu.html`;
+      `https://${owner.toLowerCase()}.github.io/${storeConfig.repository}/${page}` +
+      `?negocio=${encodeURIComponent(normalizedBusinessId)}`;
     return json({ ok: true, url: publicUrl }, 200, cors);
   },
 };
@@ -261,7 +333,81 @@ function isCatalogValid(catalog) {
   return true;
 }
 
-async function ensureRepository(owner, repository, githubHeaders, cors) {
+function isStoreCatalogValid(catalog, businessId) {
+  if (!catalog ||
+      typeof catalog !== 'object' ||
+      catalog.schemaVersion !== 1 ||
+      !catalog.business ||
+      typeof catalog.business !== 'object' ||
+      catalog.business.id !== businessId ||
+      typeof catalog.business.name !== 'string' ||
+      !catalog.business.name.trim() ||
+      typeof catalog.business.slogan !== 'string' ||
+      typeof catalog.business.whatsapp !== 'string' ||
+      !catalog.business.colors ||
+      !/^#[0-9a-f]{6}$/i.test(catalog.business.colors.primary) ||
+      !/^#[0-9a-f]{6}$/i.test(catalog.business.colors.accent) ||
+      !isSafeImageSource(catalog.business.logo) ||
+      !isSafeImageSource(catalog.business.banner) ||
+      !Array.isArray(catalog.products) ||
+      catalog.products.length > 10000) {
+    return false;
+  }
+
+  return catalog.products.every((product) =>
+    product &&
+    typeof product.id === 'string' &&
+    product.id.length > 0 &&
+    typeof product.name === 'string' &&
+    product.name.trim().length > 0 &&
+    Number.isFinite(product.price) &&
+    product.price >= 0 &&
+    Number.isFinite(product.stock) &&
+    typeof product.currencyCode === 'string' &&
+    /^[A-Z]{3}$/.test(product.currencyCode) &&
+    isSafeImageSource(product.image));
+}
+
+function isSafeImageSource(source) {
+  if (source === null) return true;
+  if (typeof source !== 'string') return false;
+  if (/^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+=*$/.test(source)) {
+    return true;
+  }
+  try {
+    return new URL(source).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+async function hashSecret(secret) {
+  const bytes = new TextEncoder().encode(secret);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0')).join('');
+}
+
+function constantTimeEqual(first, second) {
+  if (typeof first !== 'string' || typeof second !== 'string') return false;
+  const firstBytes = new TextEncoder().encode(first);
+  const secondBytes = new TextEncoder().encode(second);
+  if (firstBytes.length !== secondBytes.length) return false;
+  let difference = 0;
+  for (let index = 0; index < firstBytes.length; index++) {
+    difference |= firstBytes[index] ^ secondBytes[index];
+  }
+  return difference === 0;
+}
+
+async function ensureRepository(
+  owner,
+  repository,
+  description,
+  githubHeaders,
+  isFirstRequest,
+  cors,
+) {
   const repositoryUrl =
     `${GITHUB_API}/repos/${encodeURIComponent(owner)}/` +
     encodeURIComponent(repository);
@@ -269,6 +415,13 @@ async function ensureRepository(owner, repository, githubHeaders, cors) {
     headers: githubHeaders,
   });
   if (current.ok) {
+    if (isFirstRequest) {
+      return json(
+        { error: 'El nombre de publicación ya está en uso.' },
+        409,
+        cors,
+      );
+    }
     return current.json();
   }
   if (current.status !== 404) {
@@ -280,7 +433,7 @@ async function ensureRepository(owner, repository, githubHeaders, cors) {
     headers: githubHeaders,
     body: JSON.stringify({
       name: repository,
-      description: 'Carta digital pública del restaurante',
+      description,
       private: false,
       auto_init: true,
       has_issues: false,
@@ -290,6 +443,12 @@ async function ensureRepository(owner, repository, githubHeaders, cors) {
   });
   if (created.ok) {
     return created.json();
+  }
+  if (created.status === 422) {
+    const retry = await fetch(repositoryUrl, { headers: githubHeaders });
+    if (retry.ok) {
+      return retry.json();
+    }
   }
   return githubError(created, cors);
 }
@@ -302,7 +461,26 @@ async function ensurePages(owner, repository, branch, githubHeaders, cors) {
     headers: githubHeaders,
   });
   if (current.ok) {
-    return null;
+    const pages = await current.json();
+    if (pages.source?.branch === branch && pages.source?.path === '/') {
+      return null;
+    }
+
+    const updated = await fetch(pagesUrl, {
+      method: 'PUT',
+      headers: githubHeaders,
+      body: JSON.stringify({
+        build_type: 'legacy',
+        source: {
+          branch,
+          path: '/',
+        },
+      }),
+    });
+    if (updated.ok) {
+      return null;
+    }
+    return githubError(updated, cors);
   }
   if (current.status !== 404) {
     return githubError(current, cors);
@@ -312,6 +490,7 @@ async function ensurePages(owner, repository, branch, githubHeaders, cors) {
     method: 'POST',
     headers: githubHeaders,
     body: JSON.stringify({
+      build_type: 'legacy',
       source: {
         branch,
         path: '/',
@@ -324,7 +503,7 @@ async function ensurePages(owner, repository, branch, githubHeaders, cors) {
   return githubError(created, cors);
 }
 
-async function fetchTemplate(templateUrl, appOrigin) {
+async function fetchTemplate(templateUrl, appOrigin, siteLabel) {
   let template;
   try {
     template = new URL(templateUrl);
@@ -341,7 +520,7 @@ async function fetchTemplate(templateUrl, appOrigin) {
     return {
       ok: false,
       status: 503,
-      error: 'La plantilla debe pertenecer al origen configurado.',
+      error: `La plantilla ${siteLabel} debe pertenecer al origen configurado.`,
     };
   }
 
@@ -354,14 +533,14 @@ async function fetchTemplate(templateUrl, appOrigin) {
     return {
       ok: false,
       status: 503,
-      error: 'No se pudo cargar la plantilla del menú.',
+      error: `No se pudo cargar la plantilla ${siteLabel}.`,
     };
   }
   if (!response.ok) {
     return {
       ok: false,
       status: 503,
-      error: 'La plantilla pública del menú no está disponible.',
+      error: `La plantilla pública ${siteLabel} no está disponible.`,
     };
   }
 
@@ -370,7 +549,7 @@ async function fetchTemplate(templateUrl, appOrigin) {
     return {
       ok: false,
       status: 503,
-      error: 'La plantilla supera el tamaño permitido.',
+      error: `La plantilla ${siteLabel} supera el tamaño permitido.`,
     };
   }
   return { ok: true, contents: bytes };
@@ -496,4 +675,9 @@ function toBase64(bytes) {
     binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
   }
   return btoa(binary);
+}
+
+async function hashTemplate(bytes) {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  return Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }

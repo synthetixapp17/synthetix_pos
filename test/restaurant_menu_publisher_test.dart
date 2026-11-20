@@ -9,35 +9,44 @@ import 'package:http/testing.dart';
 void main() {
   const settings = RestaurantMenuPublicationSettings(
     restaurantName: 'Casa Verde',
+    businessId: '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a',
+    clientSecret: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
   );
   const menu = {
     'format': 'synthetix_restaurant_menu',
     'version': 1,
-    'menu': {'categories': <Map<String, Object?>>[], 'products': <Map<String, Object?>>[]},
+    'menu': {
+      'categories': <Map<String, Object?>>[],
+      'products': <Map<String, Object?>>[],
+    },
   };
 
-  test('posts the restaurant menu without an identity or secret', () async {
-    final client = MockClient((request) async {
-      expect(request.url.toString(), restaurantMenuWorkerUrl);
-      expect(request.method, 'POST');
-      expect(request.headers.containsKey('Authorization'), isFalse);
-      final body = jsonDecode(request.body) as Map<String, dynamic>;
-      expect(body['format'], 'synthetix_restaurant_menu');
-      expect(body['version'], 1);
-      expect(body['menu'], menu['menu']);
-      return http.Response(
-        '{"ok":true,"url":"https://owner.github.io/menu-id/menu.html"}',
-        200,
-      );
-    });
+  test(
+    'posts the menu with its identity and secret, without GitHub credentials',
+    () async {
+      final client = MockClient((request) async {
+        expect(request.url.toString(), restaurantMenuWorkerUrl);
+        expect(request.method, 'POST');
+        expect(request.headers.containsKey('Authorization'), isFalse);
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['siteType'], 'restaurant');
+        expect(body['businessId'], settings.businessId);
+        expect(body['clientSecret'], settings.clientSecret);
+        expect(body['menu'], menu);
+        return http.Response(
+          '{"ok":true,"url":"https://owner.github.io/menu-id/menu.html"}',
+          200,
+        );
+      });
 
-    final url = await RestaurantMenuPublisher(
-      client: client,
-    ).publish(settings: settings, menu: menu);
+      final url = await RestaurantMenuPublisher(
+        client: client,
+      ).publish(settings: settings, menu: menu);
 
-    expect(url, 'https://owner.github.io/menu-id/menu.html');
-    client.close();
-  });
+      expect(url, 'https://owner.github.io/menu-id/menu.html');
+      client.close();
+    },
+  );
 
   test('surfaces Worker errors', () async {
     final client = MockClient(
@@ -60,6 +69,16 @@ void main() {
       ),
     );
     client.close();
+  });
+
+  test('rejects invalid publication identity before sending', () async {
+    await expectLater(
+      RestaurantMenuPublisher().publish(
+        settings: settings.copyWith(clientSecret: ''),
+        menu: menu,
+      ),
+      throwsFormatException,
+    );
   });
 
   test('rejects menus that exceed the Worker limit', () async {

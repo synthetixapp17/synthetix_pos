@@ -23,7 +23,22 @@ class RestaurantMenuPublisher {
     required RestaurantMenuPublicationSettings settings,
     required Map<String, Object?> menu,
   }) async {
-    final body = jsonEncode(menu);
+    if (!RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          caseSensitive: false,
+        ).hasMatch(settings.businessId) ||
+        !RegExp(r'^[A-Za-z0-9_-]{43}$').hasMatch(settings.clientSecret)) {
+      throw const FormatException(
+        'No se pudo crear la identidad segura del menú.',
+      );
+    }
+
+    final body = jsonEncode({
+      'siteType': 'restaurant',
+      'businessId': settings.businessId,
+      'clientSecret': settings.clientSecret,
+      'menu': menu,
+    });
     if (utf8.encode(body).length > RestaurantMenuCatalogBuilder.maxMenuBytes) {
       throw const FormatException(
         'El menú supera 4 MB. Reduce o elimina algunas imágenes.',
