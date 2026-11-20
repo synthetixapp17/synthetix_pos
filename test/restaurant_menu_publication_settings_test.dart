@@ -46,6 +46,9 @@ void main() {
   test('builds a separate public menu and omits the publishing secret', () {
     final settings = RestaurantMenuPublicationSettings.fromJson({
       'restaurantName': 'Casa Verde',
+      'slogan': 'Cocina de temporada',
+      'primaryColor': 0xFF315C46,
+      'accentColor': 0xFFD8A15D,
       'businessId': '4dd7c859-9c2a-4f4f-9479-ec7ef08a6b0a',
       'clientSecret': List.filled(43, 'A').join(),
       'whatsappNumber': '584121234567',
@@ -75,11 +78,13 @@ void main() {
 
     final payload = RestaurantMenuCatalogBuilder().build(settings, menu);
     final nestedMenu = payload['menu'] as Map<String, Object?>;
-    final products =
-        nestedMenu['products'] as List<Map<String, Object?>>;
+    final products = nestedMenu['products'] as List<Map<String, Object?>>;
 
     expect(payload['format'], 'synthetix_restaurant_menu');
     expect(payload['version'], 1);
+    expect(payload['restaurantName'], 'Casa Verde');
+    expect(payload['slogan'], 'Cocina de temporada');
+    expect(payload['colors'], {'primary': '#315c46', 'accent': '#d8a15d'});
     expect(payload['whatsapp'], '584121234567');
     expect(payload.containsKey('clientSecret'), isFalse);
     expect(payload.containsKey('business'), isFalse);

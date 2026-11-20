@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/restaurant_menu_publication_settings.dart';
 import '../../data/restaurant_menu_publisher.dart';
@@ -25,6 +26,12 @@ class _RestaurantDigitalMenuSettingsPageState
     (0xFF253B56, 0xFFC88950),
     (0xFF6B332E, 0xFFD9B86C),
     (0xFF493A5C, 0xFFC7A5D4),
+    (0xFF8A4B32, 0xFFE2A66F),
+    (0xFF245B63, 0xFFE4B95F),
+    (0xFF713F58, 0xFFE7A7A1),
+    (0xFF4F5940, 0xFFC8CF91),
+    (0xFF34495E, 0xFF70A9A1),
+    (0xFF8A5A24, 0xFFE8CF8A),
   ];
 
   final _formKey = GlobalKey<FormState>();
@@ -189,6 +196,44 @@ class _RestaurantDigitalMenuSettingsPageState
       );
     } catch (error) {
       _showMessage('No se pudo compartir el enlace: $error');
+    }
+  }
+
+  Future<void> _viewMenu() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Vista previa de todos los cambios'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: MediaQuery.sizeOf(context).height * .62,
+          child: SingleChildScrollView(
+            child: _digitalMenuPreview(expanded: true),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openPublishedMenu() async {
+    final publishedUrl = _settings?.publishedUrl ?? '';
+    if (publishedUrl.isEmpty) return;
+    try {
+      final uri = Uri.parse(publishedUrl);
+      if (uri.scheme != 'https') {
+        throw const FormatException('El enlace publicado no es seguro.');
+      }
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw Exception('No se pudo abrir el enlace.');
+      }
+    } catch (error) {
+      _showMessage('No se pudo visualizar el menú publicado: $error');
     }
   }
 
@@ -492,135 +537,201 @@ class _RestaurantDigitalMenuSettingsPageState
   );
 
   Widget _previewCard() {
-    final categories = _menu.categories;
-    final firstCategory = categories.isEmpty ? null : categories.first;
-    final sampleProducts = firstCategory == null
-        ? const <RestaurantMenuProduct>[]
-        : _menu.products
-              .where((product) => product.categoryId == firstCategory.id)
-              .take(2)
-              .toList();
     return _SettingsCard(
       title: 'Vista previa',
-      subtitle: 'Así se verá la carta en teléfono y computadora.',
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 350),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF9F7F1),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Color(_accentColor).withValues(alpha: .5)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 122,
-              child: Column(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(22),
-                    child: _logoPreview(size: 110),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _nameController.text.trim().isEmpty
-                        ? 'Tu restaurante'
-                        : _nameController.text.trim(),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(_primaryColor),
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  if (_sloganController.text.trim().isNotEmpty) ...[
-                    const SizedBox(height: 5),
-                    Text(
-                      _sloganController.text.trim(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'CARTA',
-                    style: TextStyle(
-                      color: Color(_accentColor),
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2,
-                      fontSize: 10,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    firstCategory?.name ?? 'Categorías del menú',
-                    style: TextStyle(
-                      color: Color(_primaryColor),
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (sampleProducts.isEmpty)
-                    const Text(
-                      'Agrega productos en Menú del restaurante para verlos aquí.',
-                      style: TextStyle(fontSize: 12),
-                    )
-                  else
-                    for (final product in sampleProducts)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    product.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  if (product.description.trim().isNotEmpty)
-                                    Text(
-                                      product.description,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.black54,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              '${product.price.toStringAsFixed(2)} ${product.currencyCode}',
-                              style: TextStyle(
-                                color: Color(_primaryColor),
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      subtitle:
+          'Revisa nombre, frase, colores, categorías, descripciones, precios y acciones del cliente.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _digitalMenuPreview(expanded: false),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _viewMenu,
+            icon: const Icon(Icons.visibility_outlined),
+            label: const Text('Visualizar cambios'),
+          ),
+        ],
       ),
     );
   }
+
+  Widget _digitalMenuPreview({required bool expanded}) {
+    final categories = expanded ? _menu.categories : _menu.categories.take(1);
+    final primary = Color(_primaryColor);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBF9F4),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Color(_accentColor).withValues(alpha: .65)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: primary,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: _logoPreview(size: 60),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _nameController.text.trim().isEmpty
+                            ? 'Tu restaurante'
+                            : _nameController.text.trim(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      if (_sloganController.text.trim().isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          _sloganController.text.trim(),
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(Icons.shopping_bag_outlined, color: Color(_accentColor)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'NUESTRA CARTA',
+            style: TextStyle(
+              color: primary,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.8,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (_menu.products.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 14),
+              child: Text(
+                'Agrega productos en Menú del restaurante para verlos aquí.',
+              ),
+            )
+          else
+            for (final category in categories) ...[
+              Text(
+                category.name,
+                style: TextStyle(
+                  color: primary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              if (category.description.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 3, bottom: 8),
+                  child: Text(
+                    category.description,
+                    style: const TextStyle(color: Colors.black54, fontSize: 12),
+                  ),
+                ),
+              for (final product
+                  in _menu.products
+                      .where((item) => item.categoryId == category.id)
+                      .take(expanded ? _menu.products.length : 2))
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE9E5DC)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              product.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${product.price.toStringAsFixed(2)} ${product.currencyCode}',
+                            style: TextStyle(
+                              color: primary,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (product.description.trim().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            product.description,
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 6,
+                        children: [
+                          _previewAction(Icons.chat_rounded, 'WhatsApp'),
+                          _previewAction(
+                            Icons.add_shopping_cart_rounded,
+                            'Agregar al carrito',
+                          ),
+                          _previewAction(Icons.share_outlined, 'Compartir'),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        product.isAvailable ? 'Disponible' : 'Agotado',
+                        style: TextStyle(
+                          color: product.isAvailable
+                              ? const Color(0xFF315C46)
+                              : Colors.red.shade700,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _previewAction(IconData icon, String label) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 15, color: Color(_primaryColor)),
+      const SizedBox(width: 4),
+      Text(label, style: const TextStyle(fontSize: 10)),
+    ],
+  );
 
   Widget _publicationCard(RestaurantMenuPublicationSettings settings) {
     final lastPublished = settings.lastPublishedAt;
@@ -652,6 +763,11 @@ class _RestaurantDigitalMenuSettingsPageState
                     tooltip: 'Copiar enlace',
                     onPressed: _copyPublishedUrl,
                     icon: const Icon(Icons.copy_rounded),
+                  ),
+                  IconButton(
+                    tooltip: 'Visualizar menú publicado',
+                    onPressed: _openPublishedMenu,
+                    icon: const Icon(Icons.visibility_outlined),
                   ),
                   IconButton(
                     tooltip: 'Compartir enlace',

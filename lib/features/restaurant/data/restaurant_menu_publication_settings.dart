@@ -226,6 +226,13 @@ class RestaurantMenuCatalogBuilder {
     return {
       'format': 'synthetix_restaurant_menu',
       'version': 1,
+      'restaurantName': settings.restaurantName.trim(),
+      'slogan': settings.slogan.trim(),
+      'logo': VirtualStoreCatalogBuilder.imageDataUrl(settings.logoData),
+      'colors': {
+        'primary': VirtualStoreCatalogBuilder.colorToHex(settings.primaryColor),
+        'accent': VirtualStoreCatalogBuilder.colorToHex(settings.accentColor),
+      },
       'whatsapp': settings.whatsappNumber.replaceAll(RegExp(r'\D'), ''),
       'whatsappMessage': settings.whatsappMessage.trim(),
       'menu': {
@@ -247,7 +254,9 @@ class RestaurantMenuCatalogBuilder {
               'price': product.price,
               'currencyCode': product.currencyCode,
               'isAvailable': product.isAvailable,
-              'image': VirtualStoreCatalogBuilder.imageDataUrl(product.imageData),
+              'image': VirtualStoreCatalogBuilder.imageDataUrl(
+                product.imageData,
+              ),
             },
         ],
       },

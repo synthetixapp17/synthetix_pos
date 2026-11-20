@@ -41,7 +41,7 @@
     .brand-button { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border: 1px solid rgb(255 255 255 / 27%); border-radius: 13px; background: rgb(255 255 255 / 9%); color: #fff; font-size: .85rem; font-weight: 750; text-align: center; text-decoration: none; cursor: pointer; transition: background .18s ease, transform .18s ease; }
     .brand-button:hover { background: rgb(255 255 255 / 17%); transform: translateY(-1px); }
     .brand-button.order-link { border-color: var(--accent); background: var(--accent); color: #29251f; }
-    .brand-button:focus-visible, .share-button:focus-visible, .search:focus-visible, .category-link:focus-visible, .item-order:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .brand-button:focus-visible, .share-button:focus-visible, .search:focus-visible, .category-link:focus-visible, .item-order:focus-visible, .item-action:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
     .brand-footnote { margin: 18px 0 0; color: rgb(255 255 255 / 59%); font-size: .68rem; line-height: 1.5; }
     .menu-main { min-width: 0; padding: 10px 0; }
     .topline { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 30px; }
@@ -67,8 +67,11 @@
     .menu-item { min-width: 0; display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 17px 0; border-bottom: 1px dashed #ded9ce; }
     .item-photo { width: 82px; height: 72px; display: grid; place-items: center; overflow: hidden; border-radius: 14px; background: color-mix(in srgb, var(--primary) 8%, white); color: var(--primary); }
     .item-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .item-photo .item-detail-button { width: 100%; height: 100%; display: grid; place-items: center; }
     .item-info { min-width: 0; }
     .item-name { margin: 0; font-size: 1rem; font-weight: 800; line-height: 1.35; }
+    .item-detail-button { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+    .item-detail-button:hover { color: var(--primary); }
     .item-description { margin: 5px 0 0; color: var(--muted); font-size: .8rem; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
     .item-state { display: inline-flex; margin-top: 8px; padding: 4px 8px; border-radius: 999px; background: #e8f1eb; color: #315c46; font-size: .64rem; font-weight: 800; }
     .item-state.unavailable { background: #f5e9e5; color: #994b39; }
@@ -77,10 +80,34 @@
     .item-order { padding: 7px 11px; border: 1px solid var(--primary); border-radius: 999px; background: transparent; color: var(--primary); font-size: .72rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
     .item-order:hover { background: var(--primary); color: #fff; }
     .item-order.disabled { border-color: var(--line); color: #999; pointer-events: none; }
+    .item-actions { display: flex; align-items: center; gap: 6px; }
+    .item-action { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--primary); font-size: .68rem; font-weight: 800; text-decoration: none; white-space: nowrap; cursor: pointer; }
+    .item-action:hover:not(:disabled) { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .item-action.whatsapp { border-color: #168b52; background: #168b52; color: #fff; }
+    .item-action:disabled { color: #999; cursor: not-allowed; }
+    .cart-button { border-color: var(--accent); background: var(--accent); color: #29251f; }
+    .cart-count { min-width: 21px; height: 21px; display: inline-grid; place-items: center; padding: 0 5px; border-radius: 50%; background: var(--primary); color: #fff; font-size: .68rem; }
     .empty-state { padding: 26px; border: 1px dashed var(--line); border-radius: 16px; color: var(--muted); text-align: center; }
     .page-state { padding: 54px 24px; color: var(--muted); text-align: center; }
     .page-state.error { color: #9c3d31; }
     .share-toast { position: fixed; z-index: 4; left: 50%; bottom: 24px; width: fit-content; max-width: calc(100% - 32px); padding: 12px 16px; border-radius: 12px; background: #242924; color: #fff; box-shadow: 0 12px 28px rgb(0 0 0 / 22%); font-size: .82rem; transform: translateX(-50%); }
+    dialog { max-width: min(720px, calc(100% - 28px)); width: 100%; max-height: min(90vh, 820px); padding: 0; overflow: auto; border: 0; border-radius: 22px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 80px rgb(0 0 0 / 25%); }
+    dialog::backdrop { background: rgb(15 24 21 / 58%); backdrop-filter: blur(4px); }
+    .dialog-content { padding: clamp(18px, 4vw, 28px); }
+    .dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+    .dialog-header h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.6rem; font-weight: 500; }
+    .dialog-kicker { margin: 0 0 5px; color: var(--primary); font-size: .68rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+    .close-button { width: 38px; height: 38px; flex: 0 0 38px; border: 1px solid var(--line); border-radius: 50%; background: #fff; color: var(--ink); font-size: 1.3rem; cursor: pointer; }
+    .detail-image { width: 100%; max-height: 330px; margin-bottom: 16px; border-radius: 16px; object-fit: cover; background: color-mix(in srgb, var(--primary) 8%, white); }
+    .detail-description { color: var(--muted); line-height: 1.65; white-space: pre-line; overflow-wrap: anywhere; }
+    .detail-price { color: var(--primary); font-size: 1.3rem; font-weight: 850; }
+    .cart-items { display: grid; gap: 10px; padding: 0; list-style: none; }
+    .cart-item { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .cart-controls { display: flex; align-items: center; gap: 7px; }
+    .quantity-button { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 50%; background: #fff; color: var(--primary); cursor: pointer; }
+    .cart-total { display: flex; justify-content: space-between; gap: 12px; margin: 18px 0; padding-top: 14px; border-top: 1px solid var(--line); font-weight: 850; }
+    .cart-checkout { width: 100%; min-height: 46px; border: 0; border-radius: 12px; background: #168b52; color: #fff; font-weight: 800; cursor: pointer; }
+    .cart-checkout:disabled { background: #a5aba7; cursor: not-allowed; }
     .footer { margin-top: 42px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .74rem; }
     @media (max-width: 850px) {
       .page-shell { width: min(760px, 100% - 32px); grid-template-columns: 1fr; gap: 28px; padding-top: 16px; }
@@ -114,7 +141,9 @@
       .section-heading p { text-align: left; }
       .menu-item { grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: start; }
       .item-photo { width: 64px; height: 64px; border-radius: 12px; }
-      .item-side { grid-column: 2; width: 100%; display: flex; align-items: center; justify-content: space-between; }
+      .item-side { grid-column: 2; width: 100%; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+      .item-actions { flex-wrap: wrap; justify-content: flex-end; }
+      .item-action { min-height: 32px; padding: 5px 7px; font-size: .62rem; }
       .item-name { font-size: .91rem; }
       .item-description { font-size: .75rem; }
       .footer { margin-top: 28px; }
@@ -136,6 +165,9 @@
         <a class="brand-button order-link" id="restaurant-whatsapp" href="#" target="_blank" rel="noopener noreferrer" hidden>
           Pedir por WhatsApp
         </a>
+        <button class="brand-button cart-button" id="open-cart" type="button" disabled>
+          Ver carrito <span class="cart-count" id="cart-count" aria-live="polite">0</span>
+        </button>
         <button class="brand-button" id="share-menu" type="button" disabled>Compartir menú</button>
       </div>
       <p class="brand-footnote">Productos y disponibilidad sujetos a cambios.</p>
@@ -172,16 +204,55 @@
     </section>
   </main>
   <div class="share-toast" id="share-toast" role="status" hidden></div>
+  <dialog id="product-dialog" aria-labelledby="detail-name">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <div>
+          <p class="dialog-kicker">Detalle del producto</p>
+          <h2 id="detail-name">Producto</h2>
+        </div>
+        <button class="close-button" id="detail-close" type="button" aria-label="Cerrar detalle">×</button>
+      </div>
+      <img class="detail-image" id="detail-image" alt="" hidden>
+      <p class="detail-description" id="detail-description"></p>
+      <p class="detail-price" id="detail-price"></p>
+      <p id="detail-state"></p>
+      <div class="item-actions">
+        <a class="item-action whatsapp" id="detail-whatsapp" target="_blank" rel="noopener noreferrer" hidden>WhatsApp</a>
+        <button class="item-action" id="detail-add" type="button">Agregar al carrito</button>
+        <button class="item-action" id="detail-share" type="button">Compartir producto</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="cart-dialog" aria-labelledby="cart-title">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <div>
+          <p class="dialog-kicker">Tu selección</p>
+          <h2 id="cart-title">Carrito</h2>
+        </div>
+        <button class="close-button" id="cart-close" type="button" aria-label="Cerrar carrito">×</button>
+      </div>
+      <p class="empty-state" id="cart-empty">Aún no has agregado productos.</p>
+      <ul class="cart-items" id="cart-items"></ul>
+      <div class="cart-total"><span>Total</span><span id="cart-total"></span></div>
+      <button class="cart-checkout" id="cart-checkout" type="button" disabled>Pedir todo por WhatsApp</button>
+    </div>
+  </dialog>
   <script>
     const state = document.getElementById('page-state');
     const menuContent = document.getElementById('menu-content');
     const categoryNav = document.getElementById('category-nav');
     const search = document.getElementById('search');
+    const productDialog = document.getElementById('product-dialog');
+    const cartDialog = document.getElementById('cart-dialog');
     const shareButtons = [
       document.getElementById('share-menu'),
       document.getElementById('share-menu-icon'),
     ];
     let menuData = null;
+    let cart = new Map();
+    let selectedProduct = null;
     let toastTimer = null;
 
     function escapeHtml(value) {
@@ -229,6 +300,125 @@
       return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     }
 
+    function cartCount() {
+      return [...cart.values()].reduce((total, quantity) => total + quantity, 0);
+    }
+
+    function cartTotals() {
+      const totals = new Map();
+      for (const [id, quantity] of cart) {
+        const product = menuData.menu.products.find((item) => item.id === id);
+        if (!product) continue;
+        const currency = product.currencyCode || 'USD';
+        totals.set(currency, (totals.get(currency) || 0) + product.price * quantity);
+      }
+      return [...totals].map(([currency, total]) => formatPrice(total, currency)).join(' · ');
+    }
+
+    function renderCart() {
+      const count = cartCount();
+      document.getElementById('cart-count').textContent = String(count);
+      document.getElementById('open-cart').disabled = !menuData;
+      const items = [...cart].map(([id, quantity]) => {
+        const product = menuData.menu.products.find((item) => item.id === id);
+        if (!product) return '';
+        return `<li class="cart-item">
+          <div>
+            <strong>${escapeHtml(product.name)}</strong>
+            <div>${formatPrice(product.price * quantity, product.currencyCode)}</div>
+          </div>
+          <div class="cart-controls">
+            <button class="quantity-button" type="button" data-cart-id="${escapeHtml(id)}" data-cart-change="-1" aria-label="Quitar una unidad">−</button>
+            <span>${quantity}</span>
+            <button class="quantity-button" type="button" data-cart-id="${escapeHtml(id)}" data-cart-change="1" aria-label="Agregar una unidad">+</button>
+          </div>
+        </li>`;
+      }).filter(Boolean);
+      document.getElementById('cart-empty').hidden = items.length > 0;
+      document.getElementById('cart-items').innerHTML = items.join('');
+      document.getElementById('cart-total').textContent = cartTotals() || '—';
+      document.getElementById('cart-checkout').disabled = count === 0 || !/^\d{8,15}$/.test(menuData.whatsapp);
+    }
+
+    function addToCart(product) {
+      if (!product.isAvailable) return;
+      cart.set(product.id, (cart.get(product.id) || 0) + 1);
+      renderCart();
+      showToast(`${product.name} se agregó al carrito.`);
+    }
+
+    function productShareUrl(product) {
+      const url = new URL(location.href);
+      url.searchParams.set('producto', product.id);
+      return url.href;
+    }
+
+    async function shareProduct(product) {
+      const url = productShareUrl(product);
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: product.name,
+            text: `${product.name} — ${formatPrice(product.price, product.currencyCode)}`,
+            url,
+          });
+        } else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(url);
+          showToast('Enlace del producto copiado.');
+        } else {
+          showToast('Copia el enlace del producto desde la barra del navegador.');
+        }
+      } catch (error) {
+        if (error?.name !== 'AbortError') showToast('No se pudo compartir el producto.');
+      }
+    }
+
+    function showProduct(product) {
+      selectedProduct = product;
+      document.getElementById('detail-name').textContent = product.name;
+      document.getElementById('detail-description').textContent =
+        product.description?.trim() || 'Consulta con el restaurante para más detalles.';
+      document.getElementById('detail-price').textContent =
+        formatPrice(product.price, product.currencyCode);
+      const status = document.getElementById('detail-state');
+      status.textContent = product.isAvailable ? 'Disponible' : 'No disponible por ahora';
+      status.className = `item-state ${product.isAvailable ? '' : 'unavailable'}`;
+      const image = document.getElementById('detail-image');
+      const imageSource = safeImageSource(product.image);
+      image.hidden = !imageSource;
+      if (imageSource) image.src = imageSource;
+      const whatsappButton = document.getElementById('detail-whatsapp');
+      const url = orderUrl(product);
+      whatsappButton.hidden = !url;
+      if (url) whatsappButton.href = url;
+      document.getElementById('detail-add').disabled = !product.isAvailable;
+      productDialog.showModal();
+    }
+
+    function checkoutCart() {
+      if (cart.size === 0 || !/^\d{8,15}$/.test(menuData.whatsapp)) {
+        showToast('Agrega productos y verifica el WhatsApp del restaurante.');
+        return;
+      }
+      const lines = [
+        menuData.whatsappMessage?.trim() || 'Hola, quisiera hacer un pedido:',
+        '',
+        ...[...cart].map(([id, quantity]) => {
+          const product = menuData.menu.products.find((item) => item.id === id);
+          return product
+            ? `${quantity} x ${product.name} — ${formatPrice(product.price * quantity, product.currencyCode)}`
+            : '';
+        }).filter(Boolean),
+        '',
+        `Total: ${cartTotals()}`,
+      ];
+      window.open(
+        `https://wa.me/${menuData.whatsapp}?text=${encodeURIComponent(lines.join('\n'))}`,
+        '_blank',
+        'noopener,noreferrer',
+      );
+    }
+
     function renderMenu() {
       const query = search.value.trim().toLocaleLowerCase('es');
       const filteredCategories = menuData.menu.categories
@@ -268,11 +458,11 @@
                 <article class="menu-item">
                   <div class="item-photo">
                     ${image
-                      ? `<img src="${escapeHtml(image)}" alt="" loading="lazy">`
+                      ? `<button class="item-detail-button" type="button" data-action="detail" data-product-id="${escapeHtml(product.id)}" aria-label="Ver detalle de ${escapeHtml(product.name)}"><img src="${escapeHtml(image)}" alt="" loading="lazy"></button>`
                       : '<span aria-hidden="true">✦</span>'}
                   </div>
                   <div class="item-info">
-                    <h4 class="item-name">${escapeHtml(product.name)}</h4>
+                    <h4 class="item-name"><button class="item-detail-button" type="button" data-action="detail" data-product-id="${escapeHtml(product.id)}">${escapeHtml(product.name)}</button></h4>
                     ${product.description
                       ? `<p class="item-description">${escapeHtml(product.description)}</p>`
                       : ''}
@@ -282,9 +472,17 @@
                   </div>
                   <div class="item-side">
                     <span class="item-price">${formatPrice(product.price, product.currencyCode)}</span>
-                    ${product.isAvailable && order
-                      ? `<a class="item-order" href="${escapeHtml(order)}" target="_blank" rel="noopener noreferrer">Pedir</a>`
-                      : `<span class="item-order disabled">${product.isAvailable ? 'Consultar' : 'Agotado'}</span>`}
+                    <div class="item-actions">
+                      ${order && product.isAvailable
+                        ? `<a class="item-action whatsapp" href="${escapeHtml(order)}" target="_blank" rel="noopener noreferrer" aria-label="Pedir ${escapeHtml(product.name)} por WhatsApp">WhatsApp</a>`
+                        : '<button class="item-action whatsapp" type="button" disabled>WhatsApp</button>'}
+                      <button class="item-action" type="button" data-action="add" data-product-id="${escapeHtml(product.id)}" ${product.isAvailable ? '' : 'disabled'} aria-label="Agregar ${escapeHtml(product.name)} al carrito">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H6"></path><path d="M12 9v6m-3-3h6"></path><circle cx="10" cy="20" r="1"></circle><circle cx="18" cy="20" r="1"></circle></svg>
+                      </button>
+                      <button class="item-action" type="button" data-action="share" data-product-id="${escapeHtml(product.id)}" aria-label="Compartir ${escapeHtml(product.name)}">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.7 10.7 6.6-4.4m-6.6 9 6.6 4.4"></path></svg>
+                      </button>
+                    </div>
                   </div>
                 </article>`;
             }).join('')}
@@ -317,8 +515,27 @@
     }
 
     function applyBranding() {
-      document.title = 'Menú del restaurante';
-      document.getElementById('menu-footer').textContent = 'Carta digital';
+      const name = menuData.restaurantName?.trim() || 'Nuestro restaurante';
+      document.title = `Menú de ${name}`;
+      document.getElementById('restaurant-name').textContent = name;
+      document.getElementById('menu-footer').textContent = `Carta digital · ${name}`;
+      document.getElementById('restaurant-slogan').textContent =
+        menuData.slogan?.trim() || 'Una experiencia para disfrutar.';
+      const colors = menuData.colors;
+      if (colors && /^#[0-9a-f]{6}$/i.test(colors.primary || '')) {
+        document.documentElement.style.setProperty('--primary', colors.primary);
+        document.querySelector('meta[name="theme-color"]').content = colors.primary;
+      }
+      if (colors && /^#[0-9a-f]{6}$/i.test(colors.accent || '')) {
+        document.documentElement.style.setProperty('--accent', colors.accent);
+      }
+      const logo = safeImageSource(menuData.logo);
+      if (logo) {
+        const logoImage = document.getElementById('restaurant-logo');
+        logoImage.src = logo;
+        logoImage.hidden = false;
+        document.getElementById('logo-placeholder').hidden = true;
+      }
       const phone = menuData.whatsapp;
       const contact = document.getElementById('restaurant-whatsapp');
       if (/^\d{8,15}$/.test(phone)) {
@@ -349,6 +566,12 @@
         shareButtons.forEach((button) => { button.disabled = false; });
         state.remove();
         renderMenu();
+        renderCart();
+        const sharedProductId = new URLSearchParams(location.search).get('producto');
+        const sharedProduct = menuData.menu.products.find(
+          (product) => product.id === sharedProductId,
+        );
+        if (sharedProduct) showProduct(sharedProduct);
       } catch (error) {
         state.classList.add('error');
         state.textContent =
@@ -359,6 +582,41 @@
 
     search.addEventListener('input', renderMenu);
     shareButtons.forEach((button) => button.addEventListener('click', shareMenu));
+    menuContent.addEventListener('click', (event) => {
+      const action = event.target.closest('[data-action]');
+      if (!action) return;
+      const product = menuData.menu.products.find(
+        (item) => item.id === action.dataset.productId,
+      );
+      if (!product) return;
+      if (action.dataset.action === 'detail') showProduct(product);
+      if (action.dataset.action === 'add') addToCart(product);
+      if (action.dataset.action === 'share') shareProduct(product);
+    });
+    document.getElementById('detail-close').addEventListener('click', () => productDialog.close());
+    document.getElementById('cart-close').addEventListener('click', () => cartDialog.close());
+    document.getElementById('open-cart').addEventListener('click', () => {
+      renderCart();
+      cartDialog.showModal();
+    });
+    document.getElementById('detail-add').addEventListener('click', () => {
+      if (!selectedProduct) return;
+      addToCart(selectedProduct);
+      productDialog.close();
+    });
+    document.getElementById('detail-share').addEventListener('click', () => {
+      if (selectedProduct) shareProduct(selectedProduct);
+    });
+    document.getElementById('cart-items').addEventListener('click', (event) => {
+      const button = event.target.closest('[data-cart-id]');
+      if (!button) return;
+      const id = button.dataset.cartId;
+      const quantity = (cart.get(id) || 0) + Number(button.dataset.cartChange);
+      if (quantity <= 0) cart.delete(id);
+      else cart.set(id, quantity);
+      renderCart();
+    });
+    document.getElementById('cart-checkout').addEventListener('click', checkoutCart);
     loadMenu();
   </script>
 </body>
