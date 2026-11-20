@@ -32,7 +32,9 @@ void main() {
         expect(body['siteType'], 'restaurant');
         expect(body['businessId'], settings.businessId);
         expect(body['clientSecret'], settings.clientSecret);
-        expect(body['menu'], menu);
+        expect(body['format'], 'synthetix_restaurant_menu');
+        expect(body['version'], 1);
+        expect(body['menu'], menu['menu']);
         return http.Response(
           '{"ok":true,"url":"https://owner.github.io/menu-id/menu.html"}',
           200,

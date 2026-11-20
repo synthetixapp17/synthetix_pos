@@ -4,8 +4,8 @@ El mismo Worker publica ambos tipos de sitio con `POST /` o `POST /publish`.
 `GET /` y `GET /health` sirven para comprobar que está activo.
 
 - La Tienda envía `businessId`, `clientSecret` y `catalog`.
-- El Menú envía `siteType: "restaurant"`, `businessId`, `clientSecret` y
-  `menu`.
+- El Menú envía `siteType: "restaurant"`, `businessId`, `clientSecret`,
+  `format`, `version` y `menu` en el nivel raíz.
 
 El Worker valida la identidad en KV, conserva solo el hash SHA-256 del secreto
 y crea un repositorio público independiente por negocio: `tienda-{businessId}`

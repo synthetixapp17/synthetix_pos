@@ -34,10 +34,10 @@ class RestaurantMenuPublisher {
     }
 
     final body = jsonEncode({
+      ...menu,
       'siteType': 'restaurant',
       'businessId': settings.businessId,
       'clientSecret': settings.clientSecret,
-      'menu': menu,
     });
     if (utf8.encode(body).length > RestaurantMenuCatalogBuilder.maxMenuBytes) {
       throw const FormatException(

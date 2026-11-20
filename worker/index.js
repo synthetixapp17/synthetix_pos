@@ -110,7 +110,7 @@ export default {
 
     const normalizedBusinessId = businessId.toLowerCase();
     const publication = isRestaurant
-      ? (body.menu ?? body.catalog)
+      ? (isCatalogValid(body) ? body : body.menu ?? body.catalog)
       : body.catalog;
     const validPublication = isRestaurant
       ? isCatalogValid(publication)
